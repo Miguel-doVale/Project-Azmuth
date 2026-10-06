@@ -1,0 +1,43 @@
+dna:
+  id: neutral
+  name: "Neutral"
+  core: arch
+  description: "Estado base de uso geral e produtividade diária"
+
+palette:
+  primary: "#38bdf8"
+  secondary: "#89b4fa"
+  background: "#0b0f19"
+  foreground: "#cdd6f4"
+  border_active: "#38bdf8"
+  border_inactive: "#1e293b"
+
+hyprland:
+  gaps_in: 5
+  gaps_out: 10
+  border_size: 2
+  rounding: 8
+  animations_enabled: true
+  layout: dwindle
+
+wallpaper:
+  path: "assets/wallpapers/neutral.png"
+
+waybar:
+  style: "waybar/neutral.css"
+
+rofi:
+  theme: "rofi/neutral.rasi"
+
+sound:
+  transform: "assets/sounds/neutral.wav"
+
+apps:
+  autostart: []
+
+daemons:
+  enable: []
+  disable: []
+
+context_engine:
+  triggers: []
