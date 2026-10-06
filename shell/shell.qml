@@ -60,6 +60,12 @@ ShellRoot {
         screen: root.targetScreen()
     }
 
+    Notifications {
+        id: notifs
+        theme: root.theme
+        screen: root.targetScreen()
+    }
+
     PowerMenu {
         id: powerMenu
         theme: root.theme
@@ -75,6 +81,7 @@ ShellRoot {
     Dashboard {
         id: dashboard
         theme: root.theme
+        notifications: notifs
         screen: root.targetScreen()
     }
 

@@ -15,6 +15,7 @@ PanelWindow {
     id: dash
 
     required property var theme
+    property var notifications: null      // Notifications.qml (servidor + popups)
     property bool open: false
     property int tab: 0                 // 0 = Painel, 1 = Configuração
     property real reveal: open ? 1 : 0
@@ -437,6 +438,58 @@ PanelWindow {
                     }
                 }
 
+                // notificações (histórico)
+                Item {
+                    width: parent.width; height: 22
+                    readonly property int count: dash.notifications ? dash.notifications.server.trackedNotifications.values.length : 0
+                    Text { anchors.verticalCenter: parent.verticalCenter; text: "NOTIFICAÇÕES · " + parent.count; font.family: "Orbitron"; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 2; color: Qt.alpha(dash.fg, 0.55) }
+                    Text {
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        visible: parent.count > 0
+                        text: "LIMPAR"
+                        font.family: "Orbitron"; font.pixelSize: 10; font.weight: Font.Bold
+                        color: clr.containsMouse ? "#ff5a5a" : dash.primary
+                        MouseArea { id: clr; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: dash.notifications.clearAll() }
+                    }
+                }
+                Text {
+                    visible: !dash.notifications || dash.notifications.server.trackedNotifications.values.length === 0
+                    text: "Nada por aqui."
+                    font.family: "Rajdhani"; font.pixelSize: 14; color: Qt.alpha(dash.fg, 0.4)
+                }
+                Repeater {
+                    model: dash.notifications ? dash.notifications.server.trackedNotifications.values.slice().reverse().slice(0, 8) : []
+                    Card {
+                        id: hn
+                        required property var modelData
+                        height: hcol.implicitHeight + 18
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+                            onClicked: mouse => {
+                                if (mouse.button === Qt.LeftButton) { dash.open = false; dash.notifications.activate(hn.modelData) }
+                                else hn.modelData.dismiss()
+                            }
+                        }
+                        Column {
+                            id: hcol
+                            x: 14; y: 9; width: parent.width - 48
+                            spacing: 2
+                            Text { text: (hn.modelData.appName || "Sistema").toUpperCase(); font.family: "Orbitron"; font.pixelSize: 9; font.weight: Font.Bold; color: dash.primary }
+                            Text { width: parent.width; elide: Text.ElideRight; text: hn.modelData.summary; font.family: "Rajdhani"; font.weight: Font.Bold; font.pixelSize: 15; color: dash.fg }
+                            Text { width: parent.width; visible: text !== ""; elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.Wrap; textFormat: Text.StyledText; text: hn.modelData.body; font.family: "Rajdhani"; font.pixelSize: 13; color: Qt.alpha(dash.fg, 0.65) }
+                        }
+                        Text {
+                            anchors.right: parent.right; anchors.rightMargin: 14; y: 10
+                            text: "\uf00d"
+                            font.family: "Font Awesome 7 Free"; font.styleName: "Solid"; font.pixelSize: 12
+                            color: hx.containsMouse ? "#ff5a5a" : Qt.alpha(dash.fg, 0.45)
+                            MouseArea { id: hx; anchors.fill: parent; anchors.margins: -8; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: hn.modelData.dismiss() }
+                        }
+                    }
+                }
+
                 // sistema
                 Card {
                     height: 92
@@ -487,6 +540,11 @@ PanelWindow {
                     label: "Sons"; hint: "Transformação, HUD, bipes do timer"
                     checked: configCol.s ? configCol.s.sounds : true
                     onToggled: v => dash.set("sounds", v)
+                }
+                Toggle {
+                    label: "Não perturbe"; hint: "Notificações vão direto pro histórico (críticas ainda aparecem)"
+                    checked: configCol.s ? configCol.s.dnd : false
+                    onToggled: v => dash.set("dnd", v)
                 }
                 Toggle {
                     label: "Notificações"; hint: "Aviso a cada transformação"

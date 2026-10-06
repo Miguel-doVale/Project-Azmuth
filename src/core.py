@@ -54,6 +54,7 @@ SETTINGS_FILE = STATE_DIR / "settings.json"   # preferências do painel de confi
 DEFAULT_SETTINGS = {
     "sounds": True,                 # sons do Omnitrix
     "notifications": True,          # notificação a cada transformação
+    "dnd": False,                   # não perturbe: notificações só vão pro histórico
     "context_engine": True,         # sugestões automáticas de DNA
     "timer": {
         "enabled": True,            # energia do Omnitrix (Master Control congela)
@@ -369,6 +370,7 @@ def write_theme(data: dict | None = None) -> None:
         "description": data["dna"]["description"],
         "master": state.get("master_control", False),
         "bar": (data.get("bar") or {}).get("visible", True),
+        "dnd": settings["dnd"],
         "timer": timer_info(state, settings, load_roster()["neutral"]),
         "art": str(ROOT / data["hud"]["art"]) if (data.get("hud") or {}).get("art") else "",
         **data["palette"],
@@ -401,7 +403,10 @@ def apply_dunst(data: dict) -> None:
         return
     DUNST_RC.parent.mkdir(parents=True, exist_ok=True)
     DUNST_RC.write_text(Template(tmpl.read_text()).substitute(palette_vars(data["palette"]), dna=data["dna"]["id"]))
-    spawn(["dunstctl", "reload"])
+    # só recarrega um dunst que já esteja rodando (reserva sem a shell): chamar o
+    # dunstctl com ele parado o acordaria via D-Bus e ele tomaria as notificações
+    if run(["pgrep", "-x", "dunst"]).returncode == 0:
+        spawn(["dunstctl", "reload"])
     log("[OK] Dunst")
 
 
