@@ -405,6 +405,16 @@ context_engine: { triggers: [...] }        # opcional
 - ✅ Shell em Quickshell (`shell/`): barra + Omnitrix HUD + widgets numa só
   instância. Troca de DNA agora em ~60 ms (meta < 100 ms atingida).
 - ✅ Terminal (kitty + prompt + fastfetch) e tema SDDM seguindo a estética.
+- ✅ **Timer do Omnitrix** (canon): 10 min por DNA, bipes no último minuto,
+  destransforma e fica vermelho recarregando 2 min (transformar = som de erro).
+  Master Control desliga o timer. Anel do timer na cápsula da barra.
+- ✅ **Painel de Configuração** (Super+Shift+O): sons, notificações, sugestões,
+  Master Control, timer (duração/recarga), abrir apps por DNA — grava em
+  `~/.local/state/azmuth/settings.json` (`azmuth set <chave> <valor>`).
+- ✅ Barra **HUD galvânico** (cantos chanfrados + cápsula central com Omnitrix).
+- ✅ Widgets híbridos (relógio + anéis em volta do Omnitrix) e Dashboard (Super+W).
+- ✅ HUD: arte do alien (`hud.art`) e ativação com as pontas da ampulheta se cruzando.
+- ✅ Constelação (Alt+Tab 3D com miniaturas ao vivo) e área de transferência própria.
 - ✅ Sons procedurais do relógio e wallpaper procedural do Massa Cinzenta.
 - ✅ Qualidade de vida: **minimizar** (Super+N → `special:minimized`;
   Super+Shift+N ou clique na taskbar restaura), **Super+M bloqueia** (hyprlock
@@ -422,6 +432,10 @@ context_engine: { triggers: [...] }        # opcional
 | Super + Y | Aceita sugestão do Context Engine |
 | Super + Shift + M | Liga/desliga Master Control (troca automática) |
 | Super + D | Menu de apps (rofi) |
+| Super + W / Super + Shift + O | Dashboard / painel de Configuração do Omnitrix |
+| Alt + Tab (segurando) / Super + Tab | Constelação 3D: alternar janelas / explorar workspaces |
+| Super + Shift + V | Área de transferência (busca, miniaturas) |
+| Super + Q | Fechar janela (terminal/editor pede 2º toque em 1 s) |
 | Super + N / Super + Shift + N | Minimizar / restaurar |
 | Super + M | Bloquear tela |
 | Super + Shift + Q | Menu de energia |

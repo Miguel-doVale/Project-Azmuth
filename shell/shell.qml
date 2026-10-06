@@ -53,6 +53,12 @@ ShellRoot {
         Widgets { theme: root.theme }
     }
 
+    Constellation {
+        id: constellation
+        theme: root.theme
+        screen: root.targetScreen()
+    }
+
     Clipboard {
         id: clipboard
         theme: root.theme
@@ -130,6 +136,10 @@ ShellRoot {
         function confirm(): void { root.confirm() }
         function theme(): void { themeFile.reload() }
         function dashboard(): void { dashboard.screen = root.targetScreen(); dashboard.toggle(0) }
+        function altTab(): void { if (!constellation.open) constellation.screen = root.targetScreen(); constellation.altTab(1) }
+        function altTabPrev(): void { if (!constellation.open) constellation.screen = root.targetScreen(); constellation.altTab(-1) }
+        function altRelease(): void { constellation.altRelease() }
+        function overview(): void { if (!constellation.open) constellation.screen = root.targetScreen(); constellation.overview() }
         function clipboard(): void { clipboard.screen = root.targetScreen(); clipboard.toggle() }
         function config(): void { dashboard.screen = root.targetScreen(); dashboard.toggle(1) }
         function flash(color: string): void {

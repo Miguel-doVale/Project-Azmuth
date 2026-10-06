@@ -28,7 +28,7 @@ hl.layer_rule({
 })
 hl.layer_rule({
     name   = "azmuth-hud-blur",
-    match  = { namespace = "^azmuth-(hud|dashboard|clipboard)$" },
+    match  = { namespace = "^azmuth-(hud|dashboard|clipboard|overview)$" },
     blur   = true,
     ignore_alpha = 0.1,
 })
@@ -83,6 +83,16 @@ end
 -- Dashboard (relógio, DNA, música, calendário) e painel de Configuração do Omnitrix
 hl.bind(mainMod .. " + W", function() hud("dashboard") end)
 hl.bind(mainMod .. " + SHIFT + O", function() hud("config") end)
+
+-- Constelação: Alt+Tab 3D (segure Alt) e visão geral exploratória (Super+Tab)
+local function overview_open()
+    return #hl.get_layers({ namespace = "azmuth-overview" }) > 0
+end
+hl.bind("ALT + Tab", function() hud("altTab") end)
+hl.bind("ALT + SHIFT + Tab", function() hud("altTabPrev") end)
+-- soltar o Alt confirma (ou, se foi um toque rápido, a shell alterna direto)
+hl.bind("ALT + Alt_L", function() hud("altRelease") end, { release = true })
+hl.bind(mainMod .. " + Tab", function() hud("overview") end)
 
 -- Área de transferência (cliphist) com busca e miniaturas
 hl.bind(mainMod .. " + SHIFT + V", function() hud("clipboard") end)
@@ -142,3 +152,28 @@ end)
 -- Super + M bloqueia (antes fazia logout). Sair/reiniciar/desligar: Super + Shift + Q.
 hl.bind(mainMod .. " + M", hl.dsp.exec_cmd(AZ .. " lock"))
 hl.bind(mainMod .. " + SHIFT + Q", hl.dsp.exec_cmd(AZ .. " power"))
+
+---------------------------------
+---- FECHAR JANELA (Super + Q) ----
+---------------------------------
+-- Substitui o Super + C (perto demais do Super + Space/V). Em apps onde dá para
+-- perder trabalho, o primeiro Super + Q só avisa; o segundo, em até 1 s, fecha.
+
+local GUARDED = {
+    ["kitty"] = true, ["code"] = true, ["Code"] = true, ["code-oss"] = true,
+    ["md.obsidian.Obsidian"] = true, ["obsidian"] = true,
+}
+local armed = nil
+
+hl.bind(mainMod .. " + Q", function()
+    local w = hl.get_active_window()
+    if not w then return end
+    if GUARDED[w.class] and armed ~= w.address then
+        armed = w.address
+        hl.exec_cmd("notify-send -a Azmuth -u low -t 1000 -h string:x-canonical-private-synchronous:azmuth-close 'Fechar janela?' 'Super + Q de novo para confirmar'")
+        hl.timer(function() armed = nil end, { timeout = 1000, type = "oneshot" })
+        return
+    end
+    armed = nil
+    hl.dispatch(hl.dsp.window.close({ window = "address:" .. w.address }))
+end)
