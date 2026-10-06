@@ -606,11 +606,13 @@ def roster_entries() -> list[dict]:
     for e in entries:
         item = {"key": e["key"], "id": e["id"], "name": e["name"], "available": available(e["id"]),
                 "color": e["color"], "secondary": None, "description": "DNA ainda não sequenciado",
-                "current": e["id"] == current}
+                "current": e["id"] == current, "art": ""}
         if item["available"]:
             dna = yaml.safe_load(resolve(e["id"]).read_text())
+            art = (dna.get("hud") or {}).get("art")
             item.update(name=dna["dna"]["name"], color=dna["palette"]["primary"],
-                        secondary=dna["palette"]["secondary"], description=dna["dna"]["description"])
+                        secondary=dna["palette"]["secondary"], description=dna["dna"]["description"],
+                        art=str(ROOT / art) if art else "")
         out.append(item)
     return out
 

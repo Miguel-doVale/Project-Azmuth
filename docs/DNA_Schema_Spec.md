@@ -36,6 +36,10 @@ wallpaper:
 bar:
   visible: bool            # opcional (padrão true) — false esconde a barra (DNA de foco total)
 
+hud:
+  art: string              # opcional — SVG/PNG do alien (relativo à raiz), exibido no centro
+                           #   do Omnitrix HUD e no card do DNA. Composição circular.
+
 rofi:
   theme: string            # obrigatório — caminho do .rasi relativo à raiz
 

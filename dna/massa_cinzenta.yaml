@@ -26,6 +26,9 @@ wallpaper:
 bar:
   visible: true
 
+hud:
+  art: "assets/art/massa_cinzenta.svg"   # holograma do alien no centro do HUD
+
 rofi:
   theme: "rofi/massa_cinzenta.rasi"
 

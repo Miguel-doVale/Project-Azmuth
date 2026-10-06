@@ -305,7 +305,8 @@ ShellRoot {
                     id: hourglass
                     anchors.fill: parent
                     visible: root.current && root.current.key !== null
-                    opacity: root.current && root.current.available ? 1 : 0.35
+                    opacity: root.current && root.current.art ? 0.18 : (root.current && root.current.available ? 1 : 0.35)
+                    Behavior on opacity { NumberAnimation { duration: 200 } }
                     readonly property real f: face.width
                     ShapePath {
                         strokeWidth: 0
@@ -342,6 +343,25 @@ ShellRoot {
                         fillColor: root.accent
                         scale: Qt.size(arch.width / 24, arch.height / 24)
                         PathSvg { path: root.archPath }
+                    }
+                }
+
+                // holograma do alien (hud.art do DNA) sobre a ampulheta esmaecida
+                Image {
+                    id: alienArt
+                    anchors.centerIn: parent
+                    width: face.width * 0.86; height: width
+                    source: root.current && root.current.art ? "file://" + root.current.art : ""
+                    sourceSize: Qt.size(width * 2, height * 2)
+                    visible: source != ""
+                    smooth: true
+                    opacity: 0
+                    scale: 0.85
+                    onSourceChanged: { opacity = 0; scale = 0.85; artIn.restart() }
+                    ParallelAnimation {
+                        id: artIn
+                        NumberAnimation { target: alienArt; property: "opacity"; to: 1; duration: 260; easing.type: Easing.OutCubic }
+                        NumberAnimation { target: alienArt; property: "scale"; to: 1; duration: 320; easing.type: Easing.OutBack }
                     }
                 }
 
