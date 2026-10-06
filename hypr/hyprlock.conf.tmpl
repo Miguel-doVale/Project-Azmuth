@@ -1,0 +1,71 @@
+# GERADO pelo Project Azmuth — DNA: ${dna}. Edite hypr/hyprlock.conf.tmpl no projeto.
+
+general {
+    hide_cursor = true
+    grace = 0
+}
+
+background {
+    monitor =
+    path = ${wallpaper}
+    blur_passes = 3
+    blur_size = 6
+    brightness = 0.55
+}
+
+# relógio
+label {
+    monitor =
+    text = cmd[update:1000] date +"%H:%M"
+    color = rgb(${primary})
+    font_family = Orbitron Black
+    font_size = 110
+    shadow_passes = 3
+    shadow_color = rgba(${primary}66)
+    position = 0, 230
+    halign = center
+    valign = center
+}
+
+label {
+    monitor =
+    text = cmd[update:60000] date +"%A, %d de %B"
+    color = rgb(${foreground})
+    font_family = Rajdhani SemiBold
+    font_size = 26
+    position = 0, 110
+    halign = center
+    valign = center
+}
+
+input-field {
+    monitor =
+    size = 380, 62
+    outline_thickness = 3
+    rounding = 6
+    outer_color = rgb(${primary})
+    inner_color = rgba(${background}e6)
+    font_color = rgb(${foreground})
+    font_family = Rajdhani SemiBold
+    check_color = rgb(${secondary})
+    fail_color = rgb(ff5a5a)
+    fail_text = <b>DNA REJEITADO</b> ($ATTEMPTS)
+    placeholder_text = <span font_family="Orbitron" size="small">OMNITRIX // DNA LOCK</span>
+    dots_center = true
+    dots_size = 0.25
+    fade_on_empty = false
+    position = 0, -60
+    halign = center
+    valign = center
+}
+
+label {
+    monitor =
+    text = DNA ATIVO: ${name}
+    color = rgba(${foreground}aa)
+    font_family = Orbitron
+    font_size = 13
+    position = 0, 40
+    halign = center
+    valign = bottom
+}

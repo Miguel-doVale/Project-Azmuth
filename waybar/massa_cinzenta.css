@@ -1,0 +1,15 @@
+/* Massa Cinzenta — deep work: barra mais compacta e menos chamativa. */
+window#waybar {
+    background-color: alpha(@background, 0.95);
+    border-bottom-width: 1px;
+}
+#clock,
+#cpu,
+#memory,
+#battery,
+#network,
+#pulseaudio,
+#tray {
+    padding: 0 10px;
+    margin: 4px 2px;
+}

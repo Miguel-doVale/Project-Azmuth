@@ -1,0 +1,87 @@
+/*
+ * Project Azmuth — rofi base (menu, clipboard, alt-tab e fallback do HUD).
+ * Variáveis de cor (primary, secondary, background, foreground, border-active,
+ * border-inactive, background-alpha, primary-dim) são injetadas pelo core.py
+ * a partir da palette do DNA. Ajustes por DNA: rofi/<dna>.rasi.
+ */
+configuration {
+    show-icons: true;
+    icon-theme: "Papirus";
+    display-drun: "";
+    display-window: "";
+    display-dmenu: "";
+    window-format: "{c}  ·  {t}";
+}
+
+* {
+    background-color: transparent;
+    text-color: @foreground;
+    font: "Orbitron 13";
+}
+
+window {
+    background-color: @background-alpha;
+    border: 3px;
+    border-color: @primary;
+    border-radius: 0px;
+    width: 640px;
+    padding: 3px;
+}
+
+mainbox {
+    background-color: @background;
+    children: [ inputbar, listview ];
+    spacing: 12px;
+    padding: 10px;
+    border: 1px;
+    border-color: @border-inactive;
+}
+
+inputbar {
+    background-color: @primary-dim;
+    border: 2px;
+    border-color: @primary;
+    padding: 12px;
+    children: [ prompt, entry ];
+}
+
+prompt {
+    text-color: @primary;
+    font: "Orbitron Bold 13";
+}
+
+entry {
+    text-color: @foreground;
+    placeholder: "OMNITRIX // SCAN...";
+    placeholder-color: @secondary;
+}
+
+listview {
+    lines: 8;
+    spacing: 6px;
+    scrollbar: false;
+    padding: 4px 0px;
+}
+
+element {
+    padding: 10px;
+    border: 1px;
+    border-color: transparent;
+    orientation: horizontal;
+}
+
+element selected {
+    background-color: @primary-dim;
+    text-color: @primary;
+    border-color: @primary;
+}
+
+element-icon {
+    size: 36px;
+    padding: 0px 10px 0px 0px;
+}
+
+element-text {
+    vertical-align: 0.5;
+    text-color: inherit;
+}

@@ -1,0 +1,52 @@
+# GERADO pelo Project Azmuth — DNA: $dna. Edite dunst/dunstrc.tmpl no projeto.
+[global]
+    monitor = 0
+    follow = mouse
+    width = (320, 440)
+    height = (0, 160)
+    origin = top-right
+    offset = (14, 46)
+    notification_limit = 5
+    progress_bar = true
+    progress_bar_frame_width = 1
+    indicate_hidden = yes
+    separator_height = 1
+    padding = 12
+    horizontal_padding = 14
+    frame_width = 2
+    gap_size = 6
+    corner_radius = 4
+    separator_color = frame
+    font = Rajdhani SemiBold 14
+    markup = full
+    format = "<span font='Orbitron Bold 10' foreground='$primary'>%s</span>\n%b"
+    alignment = left
+    vertical_alignment = center
+    show_age_threshold = 60
+    ellipsize = middle
+    icon_position = left
+    max_icon_size = 40
+    mouse_left_click = do_action, close_current
+    mouse_middle_click = close_all
+    mouse_right_click = close_current
+
+[urgency_low]
+    background = "${background}ee"
+    foreground = "$foreground"
+    frame_color = "$secondary"
+    highlight = "$primary"
+    timeout = 4
+
+[urgency_normal]
+    background = "${background}ee"
+    foreground = "$foreground"
+    frame_color = "$primary"
+    highlight = "$primary"
+    timeout = 6
+
+[urgency_critical]
+    background = "${background}ee"
+    foreground = "$foreground"
+    frame_color = "#ff5a5a"
+    highlight = "#ff5a5a"
+    timeout = 0

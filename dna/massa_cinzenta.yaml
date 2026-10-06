@@ -1,0 +1,50 @@
+dna:
+  id: massa_cinzenta
+  name: "Massa Cinzenta"
+  core: arch
+  description: "Intelecto — desenvolvimento e foco profundo (DNA-template)"
+
+palette:
+  primary: "#4dff8a"
+  secondary: "#1a8f4c"
+  background: "#070d09"
+  foreground: "#d6ffe0"
+  border_active: "#4dff8a"
+  border_inactive: "#14261a"
+
+hyprland:
+  gaps_in: 2
+  gaps_out: 4
+  border_size: 2
+  rounding: 4
+  animations_enabled: true
+  layout: master
+
+wallpaper:
+  path: "assets/wallpapers/massa_cinzenta.png"
+
+waybar:
+  style: "waybar/massa_cinzenta.css"
+
+rofi:
+  theme: "rofi/massa_cinzenta.rasi"
+
+sound:
+  transform: "assets/sounds/transform.wav"
+
+apps:
+  # Só sobe o que ainda não está aberto (checado pela classe da janela).
+  autostart:
+    - { cmd: "code", class: "^(code|Code|code-oss)$", workspace: 1 }
+    - { cmd: "kitty", class: "^(kitty)$", workspace: 1 }
+    - { cmd: "obsidian", class: "^(obsidian|md\\.obsidian\\.Obsidian)$", workspace: 2 }
+
+daemons:
+  enable: []
+  disable: []
+
+context_engine:
+  triggers:
+    - match: "class:^(code|Code|code-oss|jetbrains-.*|dev.zed.Zed)$"
+      suggest: true
+      message: "Padrão de desenvolvimento detectado"

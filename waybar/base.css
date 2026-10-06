@@ -1,0 +1,157 @@
+/*
+ * Project Azmuth — waybar base (estética Galvan: circuitos neon sobre superfície escura).
+ *
+ * As cores NÃO ficam aqui: o core.py injeta @primary, @secondary, @background,
+ * @foreground, @border_active e @border_inactive a partir da palette do DNA.
+ * Ajustes específicos de um DNA vão em waybar/<dna>.css (anexado depois deste).
+ */
+
+* {
+    font-family: "Rajdhani", "Font Awesome 7 Free", "Font Awesome 7 Brands";
+    font-size: 16px;
+    font-weight: 600;
+    min-height: 0;
+    border: none;
+    border-radius: 0;
+}
+
+window#waybar {
+    background-color: alpha(@background, 0.88);
+    border-bottom: 2px solid alpha(@primary, 0.85);
+    color: @foreground;
+    transition: background-color 0.4s ease;
+}
+
+tooltip {
+    background-color: @background;
+    border: 1px solid @primary;
+    border-radius: 6px;
+}
+tooltip label {
+    color: @foreground;
+    font-family: "Rajdhani";
+}
+
+/* ── chip do Omnitrix: DNA ativo ── */
+#custom-omnitrix {
+    font-family: "Orbitron", "Font Awesome 7 Free";
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: @background;
+    background-image: linear-gradient(90deg, @primary, @secondary);
+    padding: 2px 16px 2px 14px;
+    margin: 5px 6px 5px 8px;
+    border-radius: 4px 14px 14px 4px;
+    box-shadow: 0 0 10px alpha(@primary, 0.55);
+}
+#custom-omnitrix:hover {
+    box-shadow: 0 0 16px alpha(@primary, 0.9);
+}
+#custom-omnitrix.master {
+    animation: master-pulse 1.6s ease-in-out infinite alternate;
+}
+@keyframes master-pulse {
+    from { box-shadow: 0 0 6px alpha(@primary, 0.5); }
+    to   { box-shadow: 0 0 18px @primary, 0 0 2px @foreground; }
+}
+
+/* ── workspaces ── */
+#workspaces {
+    background-color: alpha(@primary, 0.06);
+    border: 1px solid alpha(@primary, 0.35);
+    border-radius: 14px;
+    padding: 0 4px;
+    margin: 5px 0;
+}
+#workspaces button {
+    padding: 0 8px;
+    margin: 2px 1px;
+    border-radius: 10px;
+    color: alpha(@foreground, 0.55);
+    background-color: transparent;
+    font-weight: 700;
+    font-size: 15px;
+    transition: all 0.2s ease-in-out;
+}
+#workspaces button:hover {
+    background: alpha(@primary, 0.2);
+    color: @foreground;
+    box-shadow: none;
+}
+#workspaces button.active {
+    background-color: @primary;
+    color: @background;
+    box-shadow: 0 0 8px alpha(@primary, 0.6);
+}
+#workspaces button.urgent {
+    color: #ff5a5a;
+}
+
+/* ── módulos ── */
+#clock,
+#cpu,
+#memory,
+#battery,
+#network,
+#pulseaudio,
+#tray {
+    background-color: alpha(@primary, 0.07);
+    color: @foreground;
+    padding: 0 14px;
+    margin: 5px 3px;
+    border-radius: 14px;
+    border: 1px solid alpha(@primary, 0.3);
+}
+
+#clock {
+    font-family: "Orbitron";
+    font-size: 14px;
+    font-weight: 700;
+    color: @primary;
+    border-color: alpha(@primary, 0.7);
+    box-shadow: inset 0 0 8px alpha(@primary, 0.25);
+}
+
+#battery.warning { color: #ffd76a; border-color: #ffd76a; }
+#battery.critical { color: #ff5a5a; border-color: #ff5a5a; }
+#battery.charging { color: @primary; }
+#network.disconnected { color: #ff5a5a; border-color: #ff5a5a; }
+#pulseaudio.muted { color: alpha(@foreground, 0.45); }
+#tray { margin-right: 3px; }
+
+/* ── barra de tarefas ── */
+#taskbar {
+    margin: 5px 4px;
+}
+#taskbar button {
+    padding: 0 6px;
+    margin: 0 1px;
+    border-radius: 10px;
+    background: transparent;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease-in-out;
+}
+#taskbar button:hover {
+    background: alpha(@primary, 0.18);
+    box-shadow: none;
+}
+#taskbar button.active {
+    background: alpha(@primary, 0.14);
+    border-bottom: 2px solid @primary;
+}
+
+/* ── energia ── */
+#custom-power {
+    color: @primary;
+    padding: 0 14px;
+    margin: 5px 8px 5px 3px;
+    border-radius: 14px;
+    border: 1px solid alpha(@primary, 0.3);
+    background-color: alpha(@primary, 0.07);
+}
+#custom-power:hover {
+    background-color: #ff5a5a;
+    color: @background;
+    border-color: #ff5a5a;
+}

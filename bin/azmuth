@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Project Azmuth — atalho de linha de comando (instalado em ~/.local/bin/azmuth).
+ROOT="$(dirname "$(readlink -f "$0")")/.."
+exec "$ROOT/.venv/bin/python" "$ROOT/src/core.py" "$@"

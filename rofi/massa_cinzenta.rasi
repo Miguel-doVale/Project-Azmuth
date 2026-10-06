@@ -1,0 +1,4 @@
+/* Massa Cinzenta — menu mais denso para foco. */
+window   { width: 600px; }
+listview { lines: 10; spacing: 3px; }
+element  { padding: 7px; }

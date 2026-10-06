@@ -30,7 +30,7 @@ rofi:
   theme: "rofi/neutral.rasi"
 
 sound:
-  transform: "assets/sounds/neutral.wav"
+  transform: "assets/sounds/neutral.wav"   # som de "destransformação"
 
 apps:
   autostart: []

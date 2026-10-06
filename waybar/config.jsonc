@@ -1,0 +1,97 @@
+// Project Azmuth — waybar (instalada via symlink em ~/.config/waybar/config.jsonc).
+// O estilo (~/.config/waybar/style.css) é GERADO pelo core.py a cada DNA.
+{
+    "layer": "top",
+    "position": "top",
+    "height": 42,
+    "spacing": 2,
+
+    "modules-left": ["custom/omnitrix", "hyprland/workspaces", "wlr/taskbar"],
+    "modules-center": ["clock"],
+    "modules-right": ["pulseaudio", "network", "cpu", "memory", "battery", "tray", "custom/power"],
+
+    // Chip do Omnitrix: DNA ativo. Atualiza por sinal (SIGRTMIN+8) a cada transformação.
+    "custom/omnitrix": {
+        "exec": "~/.local/bin/azmuth waybar",
+        "return-type": "json",
+        "signal": 8,
+        "interval": 60,
+        "on-click": "~/.local/bin/azmuth hud toggle",
+        "on-click-right": "~/.local/bin/azmuth random",
+        "on-click-middle": "~/.local/bin/azmuth master toggle",
+        "tooltip": true
+    },
+
+    "hyprland/workspaces": {
+        "format": "{id}",
+        "on-scroll-up": "hyprctl dispatch 'hl.dsp.focus({ workspace = \"e-1\" })'",
+        "on-scroll-down": "hyprctl dispatch 'hl.dsp.focus({ workspace = \"e+1\" })'"
+    },
+
+    // Barra de tarefas: clique foca (e restaura se estiver minimizado — Super+N minimiza),
+    // botão do meio fecha. Mostra janelas de todos os workspaces.
+    "wlr/taskbar": {
+        "format": "{icon}",
+        "icon-size": 22,
+        "icon-theme": "Papirus",
+        "tooltip-format": "{title}",
+        "on-click": "activate",
+        "on-click-middle": "close",
+        "sort-by-app-id": true
+    },
+
+    "custom/power": {
+        "format": "\uf011",
+        "tooltip-format": "Energia (Super+Shift+Q) · clique direito: bloquear",
+        "on-click": "~/.local/bin/azmuth power",
+        "on-click-right": "~/.local/bin/azmuth lock"
+    },
+
+    "clock": {
+        "format": "{:%H:%M}",
+        "format-alt": "{:%A, %d %B %Y}",
+        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>"
+    },
+
+    "cpu": {
+        "format": "  {usage}%",
+        "interval": 5,
+        "on-click": "kitty -e btop"
+    },
+
+    "memory": {
+        "format": "  {percentage}%",
+        "interval": 10,
+        "tooltip-format": "{used:0.1f} / {total:0.1f} GiB"
+    },
+
+    "battery": {
+        "states": { "warning": 25, "critical": 12 },
+        "format": "{icon}  {capacity}%",
+        "format-charging": "  {capacity}%",
+        "format-icons": ["", "", "", "", ""]
+    },
+
+    // Wi-Fi interativo: clique abre o editor de conexões
+    "network": {
+        "format-wifi": "  {essid}",
+        "format-ethernet": "  Cabeada",
+        "format-disconnected": "  Sem rede",
+        "tooltip-format-wifi": "{essid} ({signalStrength}%) · {ipaddr}",
+        "on-click": "nm-connection-editor"
+    },
+
+    // Volume interativo: scroll ajusta, clique abre pavucontrol, clique direito muta
+    "pulseaudio": {
+        "format": "{icon}  {volume}%",
+        "format-muted": "  Mudo",
+        "format-icons": ["", "", ""],
+        "scroll-step": 5,
+        "on-click": "pavucontrol",
+        "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+    },
+
+    "tray": {
+        "spacing": 10
+    }
+}
