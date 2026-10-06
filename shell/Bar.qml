@@ -37,7 +37,9 @@ PanelWindow {
 
     function iconFor(appId) {
         const entry = DesktopEntries.heuristicLookup(appId)
-        return Quickshell.iconPath(entry ? entry.icon : appId, "application-x-executable")
+        return Quickshell.iconPath(entry ? entry.icon : appId, true)
+            || Quickshell.iconPath("application-x-executable", true)
+            || Quickshell.iconPath("utilities-terminal", true)
     }
     function run(cmd) { Quickshell.execDetached(cmd) }
 

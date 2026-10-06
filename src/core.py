@@ -50,6 +50,8 @@ THEME_FILE = STATE_DIR / "theme.json"   # lido pela shell (Quickshell)
 ROFI_THEME = HOME / ".config/rofi/azmuth.rasi"
 DUNST_RC = HOME / ".config/dunst/dunstrc"
 HYPRLOCK_CONF = HOME / ".config/hypr/hyprlock.conf"
+KITTY_COLORS = STATE_DIR / "kitty-colors.conf"
+BASHRC_LINE = "[ -f ~/Documents/Coding/'Project Azmuth'/terminal/azmuth.bash ] && . ~/Documents/Coding/'Project Azmuth'/terminal/azmuth.bash  # Project Azmuth"
 SUGGESTION_WINDOW = 6.0    # segundos para aceitar sugestão com Super+Y
 
 REQUIRED_TOP_LEVEL = ["dna", "palette", "hyprland", "wallpaper", "rofi"]
@@ -319,6 +321,14 @@ def apply_hyprlock(data: dict) -> None:
         wallpaper=ROOT / data["wallpaper"]["path"]))
 
 
+def apply_kitty(data: dict) -> None:
+    """Cores do terminal seguem o DNA; todos os kittys abertos recarregam na hora."""
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    KITTY_COLORS.write_text(Template((ROOT / "terminal/kitty-colors.tmpl").read_text())
+                            .substitute(data["palette"], dna=data["dna"]["id"]))
+    run(["pkill", "-USR1", "-x", "kitty"])
+
+
 def unit_exists(name: str) -> bool:
     return run(["systemctl", "--user", "cat", name]).returncode == 0
 
@@ -410,6 +420,7 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
     apply_rofi(data)
     apply_dunst(data)
     apply_hyprlock(data)
+    apply_kitty(data)
     daemons = apply_daemons(data, state)
     if apps:
         apply_apps(data)
@@ -567,10 +578,15 @@ def cmd_power() -> None:
         POWER[int(r.stdout.strip())][1]()
 
 
-def cmd_current(as_json: bool) -> None:
+def cmd_current(as_json: bool, as_name: bool = False) -> None:
     state = read_state()
     if as_json:
         print(json.dumps(state))
+    elif as_name:
+        try:
+            print(json.loads(THEME_FILE.read_text())["name"] + (" · Master Control" if state.get("master_control") else ""))
+        except (FileNotFoundError, KeyError, json.JSONDecodeError):
+            print(state.get("current", "nenhum"))
     else:
         print(state.get("current", "nenhum"))
 
@@ -603,6 +619,14 @@ def cmd_install() -> None:
     link(HOME / ".local/bin/azmuth", ROOT / "bin/azmuth")
     link(HOME / ".config/hypr/azmuth.lua", ROOT / "hypr/azmuth.lua")
     link(HOME / ".config/hypr/hypridle.conf", ROOT / "hypr/hypridle.conf")
+    link(HOME / ".config/kitty/kitty.conf", ROOT / "terminal/kitty.conf")
+    link(HOME / ".config/fastfetch/config.jsonc", ROOT / "terminal/fastfetch.jsonc")
+    link(HOME / ".config/fastfetch/omnitrix.txt", ROOT / "terminal/omnitrix.txt")
+    bashrc = HOME / ".bashrc"
+    if BASHRC_LINE not in bashrc.read_text():
+        with open(bashrc, "a") as f:
+            f.write("\n" + BASHRC_LINE + "\n")
+        log("[bashrc] prompt + banner do Azmuth adicionados")
 
 
 COMMANDS = {
@@ -614,7 +638,7 @@ COMMANDS = {
     "accept": lambda a: cmd_accept(),
     "master": lambda a: cmd_master(a[0] if a else "toggle"),
     "hud": lambda a: cmd_hud(a[0] if a else "toggle"),
-    "current": lambda a: cmd_current("--json" in a),
+    "current": lambda a: cmd_current("--json" in a, "--name" in a),
     "roster": lambda a: print(json.dumps(roster_entries())),
     "restore": lambda a: cmd_restore(),
     "wallpaper": lambda a: cmd_wallpaper(),

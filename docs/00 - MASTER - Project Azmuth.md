@@ -267,7 +267,14 @@ Inspirado no relógio clássico que às vezes "erra" o alien.
 - **Wallpaper:** `hyprpaper` via IPC (`hyprctl hyprpaper preload` + `wallpaper`).
   Meta futura: `swww`/`mpvpaper` com transição animada (onda de energia
   circular saindo do centro na troca de DNA).
-- **Barra:** waybar (CSS customizado, estética circuitos neon Galvan B `#38bdf8`).
+- **Barra:** própria, em **Quickshell** (`shell/Bar.qml`) — substituiu a waybar em
+  2026-10-06. Mini Omnitrix animado (clique = HUD, direito = Randomizer, meio =
+  Master Control), workspaces com os ícones dos apps, minimizados, janela ativa,
+  bandeja, volume, rede, CPU/RAM, bateria, energia. Recolore pelo `theme.json`.
+- **Widgets:** `shell/Widgets.qml` — relógio, card do DNA ativo, player MPRIS.
+- **Terminal:** kitty com cores do DNA (recarrega ao vivo), prompt na cor do DNA,
+  banner fastfetch com o Omnitrix em ASCII (`terminal/`).
+- **Login:** tema SDDM Qt6 Omnitrix (`sddm/`, instala com `bash sddm/install.sh`).
 - **Launcher:** rofi.
 - **Clipboard:** `cliphist` + `wl-clipboard`.
 - **Screenshots:** `grim` + `slurp`.
@@ -395,8 +402,9 @@ context_engine: { triggers: [...] }        # opcional
   gaps 2/4, layout master, abre VS Code + kitty no ws 1 e Obsidian no ws 2,
   sugerido quando um editor/IDE fica em foco).
 - ✅ Master Control, Omnitrix HUD, Context Engine, Randomizer, rollback.
-- ✅ Waybar Galvan: chip do DNA ativo (clique = HUD, direito = Randomizer,
-  meio = Master Control; pulsa com Master Control ligado), taskbar, energia.
+- ✅ Shell em Quickshell (`shell/`): barra + Omnitrix HUD + widgets numa só
+  instância. Troca de DNA agora em ~60 ms (meta < 100 ms atingida).
+- ✅ Terminal (kitty + prompt + fastfetch) e tema SDDM seguindo a estética.
 - ✅ Sons procedurais do relógio e wallpaper procedural do Massa Cinzenta.
 - ✅ Qualidade de vida: **minimizar** (Super+N → `special:minimized`;
   Super+Shift+N ou clique na taskbar restaura), **Super+M bloqueia** (hyprlock
@@ -440,7 +448,8 @@ azmuth current | roster       # estado / catálogo
 - [x] `core.py` recarrega waybar, rofi, dunst e hyprlock na transição.
 - [x] Tema rofi Galvan por paleta (menu, clipboard, energia e fallback do HUD).
 - [ ] Alt-tab ainda é o hyprswitch (não tematizado pelo DNA).
-- [ ] Tematizar a tela de login (SDDM) — precisa de sudo.
+- [x] Tela de login (SDDM) tematizada.
+- [ ] Arte dos aliens no centro do HUD (campo a definir no DNA).
 
 **Curto prazo**
 - [x] Massa Cinzenta fechado como template (paleta, gaps, apps, gatilhos).
