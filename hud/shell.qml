@@ -25,6 +25,7 @@ ShellRoot {
     readonly property string azmuth: Quickshell.env("HOME") + "/.local/bin/azmuth"
     readonly property var current: roster.length ? roster[index] : null
     readonly property color accent: current && current.available ? current.color : "#5b6470"
+    readonly property string archPath: "M11.39.605C10.376 3.092 9.764 4.72 8.635 7.132c.693.734 1.543 1.589 2.923 2.554-1.484-.61-2.496-1.224-3.252-1.86C6.86 10.842 4.596 15.138 0 23.395c3.612-2.085 6.412-3.37 9.021-3.862a6.61 6.61 0 01-.171-1.547l.003-.115c.058-2.315 1.261-4.095 2.687-3.973 1.426.12 2.534 2.096 2.478 4.409a6.52 6.52 0 01-.146 1.243c2.58.505 5.352 1.787 8.914 3.844-.702-1.293-1.33-2.459-1.929-3.57-.943-.73-1.926-1.682-3.933-2.713 1.38.359 2.367.772 3.137 1.234-6.09-11.334-6.582-12.84-8.67-17.74z"
 
     property color flashColor: "#38bdf8"
     property int flashTick: 0
@@ -109,7 +110,7 @@ ShellRoot {
         Rectangle {
             anchors.fill: parent
             color: "#000000"
-            opacity: 0.62 * root.reveal
+            opacity: 0.8 * root.reveal
         }
 
         MouseArea {
@@ -233,12 +234,24 @@ ShellRoot {
                             scale: slot.selected ? 1.12 : 1
                             Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
 
-                            Text {
+                            Shape {   // Neutral: logo do Arch
+                                id: slotArch
+                                visible: slot.modelData.key === null
                                 anchors.centerIn: parent
                                 rotation: -dial.rotation
-                                text: slot.modelData.available
-                                      ? (slot.modelData.key === null ? "" : String(slot.modelData.key))
-                                      : ""
+                                width: parent.width * 0.48; height: width
+                                ShapePath {
+                                    strokeWidth: 0
+                                    fillColor: slot.modelData.color || "#38bdf8"
+                                    scale: Qt.size(slotArch.width / 24, slotArch.height / 24)
+                                    PathSvg { path: root.archPath }
+                                }
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                visible: slot.modelData.key !== null
+                                rotation: -dial.rotation
+                                text: slot.modelData.available ? String(slot.modelData.key) : ""
                                 font.family: slot.modelData.available && slot.modelData.key !== null ? "Orbitron" : "Font Awesome 7 Free"
                                 font.styleName: slot.modelData.available && slot.modelData.key !== null ? "" : "Solid"
                                 font.pixelSize: parent.width * 0.36
@@ -301,9 +314,7 @@ ShellRoot {
                         strokeWidth: 0
                         fillColor: root.accent
                         scale: Qt.size(arch.width / 24, arch.height / 24)
-                        PathSvg {
-                            path: "M11.39.605C10.376 3.092 9.764 4.72 8.635 7.132c.693.734 1.543 1.589 2.923 2.554-1.484-.61-2.496-1.224-3.252-1.86C6.86 10.842 4.596 15.138 0 23.395c3.612-2.085 6.412-3.37 9.021-3.862a6.61 6.61 0 01-.171-1.547l.003-.115c.058-2.315 1.261-4.095 2.687-3.973 1.426.12 2.534 2.096 2.478 4.409a6.52 6.52 0 01-.146 1.243c2.58.505 5.352 1.787 8.914 3.844-.702-1.293-1.33-2.459-1.929-3.57-.943-.73-1.926-1.682-3.933-2.713 1.38.359 2.367.772 3.137 1.234-6.09-11.334-6.582-12.84-8.67-17.74z"
-                        }
+                        PathSvg { path: root.archPath }
                     }
                 }
 
@@ -353,9 +364,9 @@ ShellRoot {
                 topPadding: 14
                 text: "←/→ · scroll  girar      ENTER  transformar      0–9  slot      ESC  sair"
                 font.family: "Rajdhani"
-                font.pixelSize: 14
+                font.pixelSize: 16
                 font.letterSpacing: 1
-                color: "#6b7480"
+                color: "#9aa4b0"
             }
         }
     }

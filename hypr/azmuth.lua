@@ -26,6 +26,12 @@ hl.layer_rule({
     match  = { namespace = "^azmuth-(hud|flash)$" },
     no_anim = true,
 })
+hl.layer_rule({
+    name   = "azmuth-hud-blur",
+    match  = { namespace = "^azmuth-hud$" },
+    blur   = true,
+    ignore_alpha = 0.1,
+})
 
 ------------------------------
 ---- OMNITRIX HUD (seletor) ----
