@@ -1,5 +1,6 @@
-// Project Azmuth — barra (substitui a waybar). Uma instância por monitor.
-// Cores e DNA vêm de `theme` (theme.json escrito pelo core.py a cada transformação).
+// Project Azmuth — barra "HUD galvânico". Uma instância por monitor.
+// Faixa com cantos chanfrados + cápsula central pendurada com o Omnitrix e o
+// anel do timer. Cores, DNA e timer vêm de `theme` (theme.json do core.py).
 
 import QtQuick
 import QtQuick.Shapes
@@ -21,19 +22,33 @@ PanelWindow {
     required property ShellScreen modelData
     screen: modelData
 
-    readonly property color primary: theme.primary
+    readonly property color primary: timer.recharging ? danger : theme.primary
+    readonly property color dnaColor: theme.primary
     readonly property color secondary: theme.secondary
     readonly property color bg: theme.background
     readonly property color fg: theme.foreground
+    readonly property color danger: "#ff4d4d"
     readonly property HyprlandMonitor monitor: Hyprland.monitorFor(modelData)
     readonly property string az: Quickshell.env("HOME") + "/.local/bin/azmuth"
 
+    readonly property int stripH: 38      // faixa (zona exclusiva)
+    readonly property int podDepth: 30    // quanto a cápsula desce abaixo da faixa
+    readonly property int podTop: 190     // meia-largura da cápsula no topo
+    readonly property int podBottom: 140  // meia-largura da cápsula embaixo
+    readonly property real cx: width / 2
+
     visible: theme.bar !== false
     anchors { top: true; left: true; right: true }
-    implicitHeight: 40
+    implicitHeight: stripH + podDepth + 8
+    exclusiveZone: stripH
     color: "transparent"
     WlrLayershell.namespace: "azmuth-bar"
     WlrLayershell.layer: WlrLayer.Top
+    // só a faixa e a cápsula recebem clique; o resto deixa passar para as janelas
+    mask: Region {
+        Region { item: strip }
+        Region { item: podHit }
+    }
 
     function iconFor(appId) {
         const entry = DesktopEntries.heuristicLookup(appId)
@@ -42,266 +57,332 @@ PanelWindow {
             || Quickshell.iconPath("utilities-terminal", true)
     }
     function run(cmd) { Quickshell.execDetached(cmd) }
+    function mmss(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") }
 
-    // fundo + linha neon
-    Rectangle {
+    // ─────────────────────────── timer do Omnitrix ───────────────────────────
+    QtObject {
+        id: timer
+        property real now: Date.now() / 1000
+        readonly property var t: bar.theme.timer || ({})
+        readonly property real rechargeLeft: t.recharge_until ? t.recharge_until - now : 0
+        readonly property bool recharging: rechargeLeft > 0
+        readonly property real remaining: t.active ? t.started + t.duration - now : 0
+        readonly property bool running: t.active === true && remaining > 0 && !recharging
+        readonly property bool critical: running && remaining <= 60
+        // fração do anel: DNA esvaziando; recarga enchendo; senão cheio
+        readonly property real fraction: recharging ? 1 - rechargeLeft / Math.max(1, t.recharge_total)
+                                        : (running ? remaining / Math.max(1, t.duration) : 1)
+    }
+    Timer { interval: 250; running: true; repeat: true; onTriggered: timer.now = Date.now() / 1000 }
+
+    // ─────────────────────────── forma da barra ───────────────────────────
+    Item { id: strip; x: 0; y: 0; width: bar.width; height: bar.stripH }
+    Item {
+        id: podHit
+        x: bar.cx - bar.podTop; y: 0
+        width: bar.podTop * 2; height: bar.stripH + bar.podDepth + 6
+    }
+
+    Shape {
         anchors.fill: parent
-        color: Qt.alpha(bar.bg, 0.9)
-        Behavior on color { ColorAnimation { duration: 400 } }
+        preferredRendererType: Shape.CurveRenderer
+        ShapePath {
+            fillColor: Qt.alpha(bar.bg, 0.92)
+            strokeColor: Qt.alpha(bar.primary, 0.85)
+            strokeWidth: 1.5
+            joinStyle: ShapePath.MiterJoin
+            Behavior on strokeColor { ColorAnimation { duration: 400 } }
+            readonly property real h: bar.stripH
+            readonly property real d: bar.stripH + bar.podDepth
+            startX: 0; startY: -2
+            PathLine { x: bar.width; y: -2 }
+            PathLine { x: bar.width; y: 26 }
+            PathLine { x: bar.width - 12; y: 38 }                     // chanfro direito
+            PathLine { x: bar.cx + bar.podTop; y: 38 }
+            PathLine { x: bar.cx + bar.podBottom; y: 38 + bar.podDepth } // cápsula
+            PathLine { x: bar.cx - bar.podBottom; y: 38 + bar.podDepth }
+            PathLine { x: bar.cx - bar.podTop; y: 38 }
+            PathLine { x: 12; y: 38 }
+            PathLine { x: 0; y: 26 }                                  // chanfro esquerdo
+            PathLine { x: 0; y: -2 }
+        }
+    }
+    // filetes de circuito na cápsula
+    Repeater {
+        model: [-1, 1]
         Rectangle {
-            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-            height: 2
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: Qt.alpha(bar.primary, 0.15) }
-                GradientStop { position: 0.5; color: bar.primary }
-                GradientStop { position: 1.0; color: Qt.alpha(bar.primary, 0.15) }
+            required property int modelData
+            width: 34; height: 2; radius: 1
+            color: Qt.alpha(bar.primary, 0.6)
+            x: bar.cx + modelData * (bar.podBottom - 26) - width / 2
+            y: bar.stripH + bar.podDepth - 7
+        }
+    }
+
+    // ─────────────────────────── centro: Omnitrix ───────────────────────────
+    Item {
+        id: omni
+        readonly property int size: 60
+        width: size; height: size
+        x: bar.cx - size / 2
+        y: bar.stripH + bar.podDepth - size + 4
+
+        // anel do timer (fundo + arco)
+        Shape {
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeColor: Qt.alpha(bar.primary, 0.18); strokeWidth: 4; fillColor: "transparent"
+                PathAngleArc { centerX: omni.size / 2; centerY: omni.size / 2; radiusX: omni.size / 2 - 2; radiusY: radiusX; startAngle: 0; sweepAngle: 360 }
+            }
+            ShapePath {
+                strokeColor: bar.primary; strokeWidth: 4; fillColor: "transparent"; capStyle: ShapePath.RoundCap
+                PathAngleArc {
+                    centerX: omni.size / 2; centerY: omni.size / 2; radiusX: omni.size / 2 - 2; radiusY: radiusX
+                    startAngle: -90; sweepAngle: 360 * Math.max(0.001, timer.fraction)
+                }
+            }
+            // último minuto: anel pisca
+            opacity: timer.critical ? blink.v : 1
+            QtObject { id: blink; property real v: 1 }
+            SequentialAnimation {
+                running: timer.critical; loops: Animation.Infinite
+                NumberAnimation { target: blink; property: "v"; to: 0.25; duration: 300 }
+                NumberAnimation { target: blink; property: "v"; to: 1; duration: 300 }
+            }
+        }
+
+        Rectangle {   // corpo do relógio
+            id: dial
+            anchors.centerIn: parent
+            width: omni.size - 14; height: width; radius: width / 2
+            color: "#101316"
+            border.width: 2
+            border.color: Qt.alpha(bar.primary, 0.9)
+
+            Shape {
+                id: glass
+                anchors.fill: parent
+                anchors.margins: 11
+                ShapePath {
+                    strokeWidth: 0; fillColor: bar.primary
+                    Behavior on fillColor { ColorAnimation { duration: 300 } }
+                    startX: 0; startY: 0
+                    PathLine { x: glass.width; y: 0 }
+                    PathLine { x: glass.width / 2; y: glass.height / 2 - 0.5 }
+                    PathLine { x: 0; y: 0 }
+                }
+                ShapePath {
+                    strokeWidth: 0; fillColor: bar.primary
+                    Behavior on fillColor { ColorAnimation { duration: 300 } }
+                    startX: 0; startY: glass.height
+                    PathLine { x: glass.width; y: glass.height }
+                    PathLine { x: glass.width / 2; y: glass.height / 2 + 0.5 }
+                    PathLine { x: 0; y: glass.height }
+                }
+            }
+
+            RotationAnimation on rotation {
+                id: spin
+                running: false
+                from: 0; to: 360; duration: 700; easing.type: Easing.OutBack
+            }
+            Connections {
+                target: bar.shell
+                function onThemeChanged() { spin.restart() }
+            }
+        }
+
+        // Master Control: pulso externo
+        Rectangle {
+            anchors.centerIn: parent
+            width: omni.size + 8; height: width; radius: width / 2
+            color: "transparent"
+            border.width: 2
+            border.color: bar.dnaColor
+            visible: bar.theme.master === true
+            SequentialAnimation on opacity {
+                running: bar.theme.master === true
+                loops: Animation.Infinite
+                NumberAnimation { from: 0.9; to: 0.1; duration: 900 }
+                NumberAnimation { from: 0.1; to: 0.9; duration: 900 }
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+            cursorShape: Qt.PointingHandCursor
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton) bar.run([bar.az, "random"])
+                else if (mouse.button === Qt.MiddleButton) bar.run([bar.az, "master", "toggle"])
+                else bar.run([bar.az, "hud", "toggle"])
             }
         }
     }
 
+    // nome do DNA (esquerda da cápsula) e tempo/relógio (direita)
+    Text {
+        anchors.right: omni.left; anchors.rightMargin: 14
+        y: bar.stripH + 5
+        text: timer.recharging ? "RECARREGANDO" : (bar.theme.name || "").toUpperCase()
+        font.family: "Orbitron"; font.weight: Font.Black; font.pixelSize: 12; font.letterSpacing: 1
+        color: bar.primary
+    }
+    Text {
+        anchors.left: omni.right; anchors.leftMargin: 14
+        y: bar.stripH + 5
+        property date clock: new Date()
+        Timer { interval: 1000; running: true; repeat: true; onTriggered: parent.clock = new Date() }
+        text: timer.recharging ? bar.mmss(timer.rechargeLeft)
+              : (timer.running ? bar.mmss(timer.remaining) : Qt.formatTime(clock, "HH:mm"))
+        font.family: "Orbitron"; font.weight: Font.Black; font.pixelSize: 12; font.letterSpacing: 1
+        color: timer.critical ? bar.danger : bar.primary
+    }
+
     // ─────────────────────────── esquerda ───────────────────────────
     Row {
-        id: left
+        id: leftRow
         anchors.left: parent.left
-        anchors.leftMargin: 10
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: -1
-        spacing: 10
-
-        // mini Omnitrix: DNA ativo
-        Item {
-            id: omni
-            width: dial.width + nameClip.width
-            height: 30
-            property bool hovered: omniMouse.containsMouse
-
-            Rectangle {
-                id: dial
-                width: 30; height: 30; radius: 15
-                color: "#101316"
-                border.width: 2
-                border.color: bar.primary
-                Behavior on border.color { ColorAnimation { duration: 300 } }
-
-                Shape {   // ampulheta
-                    anchors.fill: parent
-                    anchors.margins: 6
-                    id: glass
-                    ShapePath {
-                        strokeWidth: 0
-                        fillColor: bar.primary
-                        Behavior on fillColor { ColorAnimation { duration: 300 } }
-                        startX: 0; startY: 0
-                        PathLine { x: glass.width; y: 0 }
-                        PathLine { x: glass.width / 2; y: glass.height / 2 - 0.5 }
-                        PathLine { x: 0; y: 0 }
-                    }
-                    ShapePath {
-                        strokeWidth: 0
-                        fillColor: bar.primary
-                        Behavior on fillColor { ColorAnimation { duration: 300 } }
-                        startX: 0; startY: glass.height
-                        PathLine { x: glass.width; y: glass.height }
-                        PathLine { x: glass.width / 2; y: glass.height / 2 + 0.5 }
-                        PathLine { x: 0; y: glass.height }
-                    }
-                }
-
-                // gira a cada transformação
-                RotationAnimation on rotation {
-                    id: spin
-                    running: false
-                    from: 0; to: 360; duration: 700; easing.type: Easing.OutBack
-                }
-                Connections {
-                    target: bar.shell
-                    function onThemeChanged() { spin.restart() }
-                }
-
-                // Master Control ligado: pulso
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: parent.width + 8; height: width; radius: width / 2
-                    color: "transparent"
-                    border.width: 2
-                    border.color: bar.primary
-                    visible: bar.theme.master === true
-                    SequentialAnimation on opacity {
-                        running: bar.theme.master === true
-                        loops: Animation.Infinite
-                        NumberAnimation { from: 0.9; to: 0.1; duration: 900 }
-                        NumberAnimation { from: 0.1; to: 0.9; duration: 900 }
-                    }
-                }
-            }
-
-            // nome do DNA desliza para fora no hover
-            Item {
-                id: nameClip
-                anchors.left: dial.right
-                anchors.verticalCenter: dial.verticalCenter
-                height: 30
-                clip: true
-                width: omni.hovered ? nameText.implicitWidth + 18 : 0
-                Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-                Text {
-                    id: nameText
-                    x: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: (bar.theme.name || "").toUpperCase() + (bar.theme.master ? "  · MASTER" : "")
-                    font.family: "Orbitron"; font.weight: Font.Bold; font.pixelSize: 12
-                    font.letterSpacing: 1
-                    color: bar.primary
-                }
-            }
-
-            MouseArea {
-                id: omniMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-                cursorShape: Qt.PointingHandCursor
-                onClicked: mouse => {
-                    if (mouse.button === Qt.RightButton) bar.run([bar.az, "random"])
-                    else if (mouse.button === Qt.MiddleButton) bar.run([bar.az, "master", "toggle"])
-                    else bar.run([bar.az, "hud", "toggle"])
-                }
-            }
-        }
+        anchors.leftMargin: 16
+        anchors.verticalCenter: strip.verticalCenter
+        spacing: 8
 
         // workspaces com os apps dentro
-        Row {
-            spacing: 6
-            anchors.verticalCenter: parent.verticalCenter
+        Repeater {
+            model: Hyprland.workspaces.values
+                .filter(ws => ws.id > 0 && ws.monitor === bar.monitor)
+                .sort((a, b) => a.id - b.id)
 
-            Repeater {
-                model: Hyprland.workspaces.values
-                    .filter(ws => ws.id > 0 && ws.monitor === bar.monitor)
-                    .sort((a, b) => a.id - b.id)
+            Item {
+                id: wsPill
+                required property HyprlandWorkspace modelData
+                readonly property bool isActive: bar.monitor && bar.monitor.activeWorkspace === modelData
+                readonly property var wins: modelData.toplevels.values
+                height: 26
+                width: wsRow.implicitWidth + 22
+                Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-                Rectangle {
-                    id: wsPill
-                    required property HyprlandWorkspace modelData
-                    readonly property bool isActive: bar.monitor && bar.monitor.activeWorkspace === modelData
-                    readonly property var wins: modelData.toplevels.values
-
-                    height: 28
-                    width: wsRow.implicitWidth + 16
-                    radius: 14
-                    color: isActive ? Qt.alpha(bar.primary, 0.18) : (wsMouse.containsMouse ? Qt.alpha(bar.primary, 0.08) : "transparent")
-                    border.width: 1
-                    border.color: isActive ? bar.primary : Qt.alpha(bar.primary, 0.25)
-                    Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-                    Behavior on color { ColorAnimation { duration: 180 } }
-
-                    MouseArea {
-                        id: wsMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: wsPill.modelData.activate()
+                // pílula chanfrada (paralelogramo), no estilo da barra
+                Shape {
+                    anchors.fill: parent
+                    preferredRendererType: Shape.CurveRenderer
+                    ShapePath {
+                        fillColor: wsPill.isActive ? Qt.alpha(bar.primary, 0.22) : (wsMouse.containsMouse ? Qt.alpha(bar.primary, 0.1) : "transparent")
+                        strokeColor: wsPill.isActive ? bar.primary : Qt.alpha(bar.primary, 0.3)
+                        strokeWidth: 1.2
+                        startX: 7; startY: 0
+                        PathLine { x: wsPill.width; y: 0 }
+                        PathLine { x: wsPill.width - 7; y: wsPill.height }
+                        PathLine { x: 0; y: wsPill.height }
+                        PathLine { x: 7; y: 0 }
                     }
-
-                    Row {
-                        id: wsRow
-                        anchors.centerIn: parent
-                        spacing: 6
-                        Text {
+                }
+                MouseArea {
+                    id: wsMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: wsPill.modelData.activate()
+                }
+                Row {
+                    id: wsRow
+                    anchors.centerIn: parent
+                    spacing: 6
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: wsPill.modelData.id
+                        font.family: "Orbitron"; font.weight: Font.Bold; font.pixelSize: 12
+                        color: wsPill.isActive ? bar.primary : Qt.alpha(bar.fg, 0.6)
+                    }
+                    Repeater {
+                        model: wsPill.wins
+                        IconImage {
+                            required property HyprlandToplevel modelData
                             anchors.verticalCenter: parent.verticalCenter
-                            text: wsPill.modelData.id
-                            font.family: "Orbitron"; font.weight: Font.Bold; font.pixelSize: 12
-                            color: wsPill.isActive ? bar.primary : Qt.alpha(bar.fg, 0.6)
-                        }
-                        Repeater {
-                            model: wsPill.wins
-                            IconImage {
-                                required property HyprlandToplevel modelData
-                                anchors.verticalCenter: parent.verticalCenter
-                                implicitSize: 18
-                                source: bar.iconFor(modelData.wayland ? modelData.wayland.appId : (modelData.lastIpcObject.class || ""))
-                                opacity: modelData.activated ? 1 : 0.7
-                                MouseArea {
-                                    anchors.fill: parent
-                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton
-                                    onClicked: mouse => {
-                                        if (!parent.modelData.wayland) return
-                                        if (mouse.button === Qt.MiddleButton) parent.modelData.wayland.close()
-                                        else parent.modelData.wayland.activate()
-                                    }
+                            implicitSize: 18
+                            source: bar.iconFor(modelData.wayland ? modelData.wayland.appId : (modelData.lastIpcObject.class || ""))
+                            opacity: modelData.activated ? 1 : 0.65
+                            MouseArea {
+                                anchors.fill: parent
+                                acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+                                onClicked: mouse => {
+                                    if (!parent.modelData.wayland) return
+                                    if (mouse.button === Qt.MiddleButton) parent.modelData.wayland.close()
+                                    else parent.modelData.wayland.activate()
                                 }
                             }
                         }
                     }
                 }
             }
+        }
 
-            // minimizados (special:minimized) — clique restaura
-            Rectangle {
-                readonly property var mins: Hyprland.toplevels.values.filter(t => t.workspace && t.workspace.name === "special:minimized")
-                visible: mins.length > 0
-                height: 28
-                width: minRow.implicitWidth + 16
-                radius: 14
-                color: "transparent"
-                border.width: 1
-                border.color: Qt.alpha(bar.fg, 0.2)
-                Row {
-                    id: minRow
-                    anchors.centerIn: parent
-                    spacing: 6
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: ""
-                        font.family: "Font Awesome 7 Free"; font.styleName: "Solid"; font.pixelSize: 11
-                        color: Qt.alpha(bar.fg, 0.5)
-                    }
-                    Repeater {
-                        model: parent.parent.mins
-                        IconImage {
-                            required property HyprlandToplevel modelData
-                            anchors.verticalCenter: parent.verticalCenter
-                            implicitSize: 18
-                            opacity: 0.45
-                            source: bar.iconFor(modelData.wayland ? modelData.wayland.appId : "")
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: if (parent.modelData.wayland) parent.modelData.wayland.activate()
-                            }
-                        }
+        // minimizados (special:minimized) — clique restaura
+        Row {
+            readonly property var mins: Hyprland.toplevels.values.filter(t => t.workspace && t.workspace.name === "special:minimized")
+            visible: mins.length > 0
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 6
+            leftPadding: 4
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: ""
+                font.family: "Font Awesome 7 Free"; font.styleName: "Solid"; font.pixelSize: 11
+                color: Qt.alpha(bar.fg, 0.5)
+            }
+            Repeater {
+                model: parent.mins
+                IconImage {
+                    required property HyprlandToplevel modelData
+                    anchors.verticalCenter: parent.verticalCenter
+                    implicitSize: 18
+                    opacity: 0.45
+                    source: bar.iconFor(modelData.wayland ? modelData.wayland.appId : "")
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: if (parent.modelData.wayland) parent.modelData.wayland.activate()
                     }
                 }
             }
         }
-    }
 
-    // ─────────────────────────── centro: janela ativa ───────────────────────────
-    Text {
-        anchors.centerIn: parent
-        anchors.verticalCenterOffset: -1
-        width: Math.min(implicitWidth, bar.width * 0.3)
-        elide: Text.ElideRight
-        horizontalAlignment: Text.AlignHCenter
-        readonly property var activeWin: Hyprland.activeToplevel
-        text: activeWin && activeWin.workspace && activeWin.workspace.monitor === bar.monitor ? activeWin.title : ""
-        font.family: "Rajdhani"; font.weight: Font.DemiBold; font.pixelSize: 15
-        color: Qt.alpha(bar.fg, 0.75)
+        // janela ativa
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            leftPadding: 6
+            readonly property var activeWin: Hyprland.activeToplevel
+            width: Math.min(implicitWidth, Math.max(0, bar.cx - bar.podTop - x - 40))
+            elide: Text.ElideRight
+            text: activeWin && activeWin.workspace && activeWin.workspace.monitor === bar.monitor ? activeWin.title : ""
+            font.family: "Rajdhani"; font.weight: Font.DemiBold; font.pixelSize: 15
+            color: Qt.alpha(bar.fg, 0.7)
+        }
     }
 
     // ─────────────────────────── direita ───────────────────────────
-    component Chip: Rectangle {
+    component Chip: Item {
         id: chip
         property string icon: ""
         property string label: ""
         property color tint: bar.fg
         signal clicked(var mouse)
         signal wheel(var wheel)
-        height: 28
-        width: chipRow.implicitWidth + 22
-        radius: 14
-        color: chipMouse.containsMouse ? Qt.alpha(bar.primary, 0.16) : Qt.alpha(bar.primary, 0.06)
-        border.width: 1
-        border.color: Qt.alpha(bar.primary, 0.3)
-        Behavior on color { ColorAnimation { duration: 150 } }
+        height: 26
+        width: chipRow.implicitWidth + 26
+        Shape {
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                fillColor: chipMouse.containsMouse ? Qt.alpha(bar.primary, 0.18) : Qt.alpha(bar.primary, 0.06)
+                strokeColor: Qt.alpha(bar.primary, 0.32)
+                strokeWidth: 1.2
+                startX: 7; startY: 0
+                PathLine { x: chip.width; y: 0 }
+                PathLine { x: chip.width - 7; y: chip.height }
+                PathLine { x: 0; y: chip.height }
+                PathLine { x: 7; y: 0 }
+            }
+        }
         Row {
             id: chipRow
             anchors.centerIn: parent
@@ -359,16 +440,15 @@ PanelWindow {
 
     Row {
         anchors.right: parent.right
-        anchors.rightMargin: 10
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: -1
-        spacing: 6
+        anchors.rightMargin: 16
+        anchors.verticalCenter: strip.verticalCenter
+        spacing: 4
 
         // bandeja do sistema
         Row {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 8
-            rightPadding: 4
+            rightPadding: 6
             Repeater {
                 model: SystemTray.items.values
                 IconImage {
@@ -416,7 +496,7 @@ PanelWindow {
             readonly property var net: dev && dev.networks ? dev.networks.values.find(n => n.connected) : null
             icon: !dev ? "" : (dev.type === DeviceType.Wifi ? "" : "")
             label: !dev ? "Sem rede" : (net ? net.name : dev.name)
-            tint: dev ? bar.fg : "#ff5a5a"
+            tint: dev ? bar.fg : bar.danger
             onClicked: bar.run(["nm-connection-editor"])
         }
 
@@ -438,7 +518,7 @@ PanelWindow {
             visible: dev && dev.isPresent
             icon: charging ? "" : (pct > 85 ? "" : pct > 60 ? "" : pct > 35 ? "" : pct > 12 ? "" : "")
             label: pct + "%"
-            tint: pct <= 12 && !charging ? "#ff5a5a" : (pct <= 25 && !charging ? "#ffd76a" : bar.fg)
+            tint: pct <= 12 && !charging ? bar.danger : (pct <= 25 && !charging ? "#ffd76a" : bar.fg)
         }
 
         Chip {   // energia

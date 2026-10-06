@@ -350,7 +350,7 @@ ShellRoot {
                 Image {
                     id: alienArt
                     anchors.centerIn: parent
-                    width: face.width * 0.86; height: width
+                    width: face.width * 0.7; height: width
                     source: root.current && root.current.art ? "file://" + root.current.art : ""
                     sourceSize: Qt.size(width * 2, height * 2)
                     visible: source != ""
