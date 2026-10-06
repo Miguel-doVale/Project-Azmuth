@@ -48,6 +48,11 @@ ShellRoot {
         }
     }
 
+    Variants {
+        model: Quickshell.screens
+        Widgets { theme: root.theme }
+    }
+
     property color flashColor: "#38bdf8"
     property int flashTick: 0
 
