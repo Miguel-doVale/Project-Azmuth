@@ -6,9 +6,14 @@ __azmuth_prompt() {
     local c6='\[\e[36m\]' dim='\[\e[90m\]' red='\[\e[31m\]' r='\[\e[0m\]'
     local mark="${c6}❯${r}"
     (( s != 0 )) && mark="${red}❯${r}"
-    local git=""
+    local git="" dna=""
     if b=$(git symbolic-ref --short HEAD 2>/dev/null); then git=" ${dim}${b}${r}"; fi
-    PS1="${c6}⧗${r} ${dim}\u${r} ${c6}\w${r}${git} ${mark} "
+    # DNA ativo lido a cada prompt (o banner do fastfetch é só uma foto da abertura)
+    local theme=~/.local/state/azmuth/theme.json
+    if [[ -r $theme && $(<"$theme") =~ \"name\":\ \"([^\"]+)\" ]]; then
+        dna="${BASH_REMATCH[1]^^}"
+    fi
+    PS1="${c6}⧗ ${dna}${r} ${dim}\u${r} ${c6}\w${r}${git} ${mark} "
 }
 PROMPT_COMMAND="__azmuth_prompt${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
 
