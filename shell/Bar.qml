@@ -33,8 +33,8 @@ PanelWindow {
 
     readonly property int stripH: 38      // faixa (zona exclusiva)
     readonly property int podDepth: 30    // quanto a cápsula desce abaixo da faixa
-    readonly property int podTop: 190     // meia-largura da cápsula no topo
-    readonly property int podBottom: 140  // meia-largura da cápsula embaixo
+    readonly property int podTop: 235     // meia-largura da cápsula no topo
+    readonly property int podBottom: 185  // meia-largura da cápsula embaixo
     readonly property real cx: width / 2
 
     visible: theme.bar !== false
@@ -225,8 +225,11 @@ PanelWindow {
     Text {
         anchors.right: omni.left; anchors.rightMargin: 14
         y: bar.stripH + 5
+        width: Math.min(implicitWidth, 150)
+        elide: Text.ElideRight
+        horizontalAlignment: Text.AlignRight
         text: timer.recharging ? "RECARREGANDO" : (bar.theme.name || "").toUpperCase()
-        font.family: "Orbitron"; font.weight: Font.Black; font.pixelSize: 12; font.letterSpacing: 1
+        font.family: "Orbitron"; font.weight: Font.Black; font.pixelSize: 11; font.letterSpacing: 1
         color: bar.primary
     }
     Text {
@@ -236,7 +239,7 @@ PanelWindow {
         Timer { interval: 1000; running: true; repeat: true; onTriggered: parent.clock = new Date() }
         text: timer.recharging ? bar.mmss(timer.rechargeLeft)
               : (timer.running ? bar.mmss(timer.remaining) : Qt.formatTime(clock, "HH:mm"))
-        font.family: "Orbitron"; font.weight: Font.Black; font.pixelSize: 12; font.letterSpacing: 1
+        font.family: "Orbitron"; font.weight: Font.Black; font.pixelSize: 11; font.letterSpacing: 1
         color: timer.critical ? bar.danger : bar.primary
     }
 
@@ -413,29 +416,6 @@ PanelWindow {
         }
     }
 
-    // CPU / RAM a partir do /proc
-    QtObject {
-        id: sys
-        property real cpu: 0
-        property real ram: 0
-        property var last: null
-    }
-    FileView { id: stat; path: "/proc/stat" }
-    FileView { id: meminfo; path: "/proc/meminfo" }
-    Timer {
-        interval: 2500; running: true; repeat: true; triggeredOnStart: true
-        onTriggered: {
-            stat.reload(); meminfo.reload()
-            const c = stat.text().split("\n")[0].trim().split(/\s+/).slice(1).map(Number)
-            const idle = c[3] + c[4], total = c.reduce((a, b) => a + b, 0)
-            if (sys.last) sys.cpu = 100 * (1 - (idle - sys.last.idle) / Math.max(1, total - sys.last.total))
-            sys.last = { idle: idle, total: total }
-            const m = {}
-            meminfo.text().split("\n").forEach(l => { const p = l.split(/:\s+/); if (p.length > 1) m[p[0]] = parseInt(p[1]) })
-            if (m.MemTotal) sys.ram = 100 * (1 - m.MemAvailable / m.MemTotal)
-        }
-    }
-
     PwObjectTracker { objects: [Pipewire.defaultAudioSink] }
 
     Row {
@@ -502,12 +482,12 @@ PanelWindow {
 
         Chip {
             icon: ""
-            label: Math.round(sys.cpu) + "%"
+            label: Math.round(SysStats.cpu) + "%"
             onClicked: bar.run(["kitty", "-e", "btop"])
         }
         Chip {
             icon: ""
-            label: Math.round(sys.ram) + "%"
+            label: Math.round(SysStats.ram) + "%"
             onClicked: bar.run(["kitty", "-e", "btop"])
         }
 

@@ -53,6 +53,12 @@ ShellRoot {
         Widgets { theme: root.theme }
     }
 
+    Dashboard {
+        id: dashboard
+        theme: root.theme
+        screen: root.targetScreen()
+    }
+
     property color flashColor: "#38bdf8"
     property int flashTick: 0
 
@@ -117,6 +123,8 @@ ShellRoot {
         function prev(): void { root.rotate(-1) }
         function confirm(): void { root.confirm() }
         function theme(): void { themeFile.reload() }
+        function dashboard(): void { dashboard.screen = root.targetScreen(); dashboard.toggle(0) }
+        function config(): void { dashboard.screen = root.targetScreen(); dashboard.toggle(1) }
         function flash(color: string): void {
             root.flashColor = color
             root.flashTick++
@@ -305,28 +313,46 @@ ShellRoot {
                     id: hourglass
                     anchors.fill: parent
                     visible: root.current && root.current.key !== null
-                    opacity: root.current && root.current.art ? 0.18 : (root.current && root.current.available ? 1 : 0.35)
+                    opacity: root.current && root.current.available ? 1 : 0.35
                     Behavior on opacity { NumberAnimation { duration: 200 } }
                     readonly property real f: face.width
+                    // "ativação" (1ª transformação do Ben): as pontas avançam uma sobre a
+                    // outra e se cruzam, abrindo espaço para o alien aparecer no meio
+                    property real cross: 0
+                    readonly property real tip: cross * 0.24
+                    SequentialAnimation {
+                        id: crossIn
+                        PauseAnimation { duration: 180 }
+                        NumberAnimation { target: hourglass; property: "cross"; to: 1; duration: 520; easing.type: Easing.OutBack; easing.overshoot: 1.4 }
+                    }
+                    Connections {
+                        target: root
+                        function onOpenChanged() {
+                            if (root.open) { hourglass.cross = 0; crossIn.restart() }
+                            else { crossIn.stop(); hourglass.cross = 0 }
+                        }
+                    }
                     ShapePath {
-                        strokeWidth: 0
-                        fillColor: root.accent
-                        Behavior on fillColor { ColorAnimation { duration: 220 } }
+                        strokeWidth: 3
+                        strokeColor: Qt.alpha(root.accent, hourglass.cross)
+                        fillColor: Qt.alpha(root.accent, 1 - 0.72 * hourglass.cross)
+                        joinStyle: ShapePath.MiterJoin
                         startX: hourglass.f * 0.22; startY: hourglass.f * 0.12
                         PathLine { x: hourglass.f * 0.78; y: hourglass.f * 0.12 }
                         PathLine { x: hourglass.f * 0.84; y: hourglass.f * 0.17 }
-                        PathLine { x: hourglass.f * 0.5;  y: hourglass.f * 0.485 }
+                        PathLine { x: hourglass.f * 0.5;  y: hourglass.f * (0.485 + hourglass.tip) }
                         PathLine { x: hourglass.f * 0.16; y: hourglass.f * 0.17 }
                         PathLine { x: hourglass.f * 0.22; y: hourglass.f * 0.12 }
                     }
                     ShapePath {
-                        strokeWidth: 0
-                        fillColor: root.accent
-                        Behavior on fillColor { ColorAnimation { duration: 220 } }
+                        strokeWidth: 3
+                        strokeColor: Qt.alpha(root.accent, hourglass.cross)
+                        fillColor: Qt.alpha(root.accent, 1 - 0.72 * hourglass.cross)
+                        joinStyle: ShapePath.MiterJoin
                         startX: hourglass.f * 0.22; startY: hourglass.f * 0.88
                         PathLine { x: hourglass.f * 0.78; y: hourglass.f * 0.88 }
                         PathLine { x: hourglass.f * 0.84; y: hourglass.f * 0.83 }
-                        PathLine { x: hourglass.f * 0.5;  y: hourglass.f * 0.515 }
+                        PathLine { x: hourglass.f * 0.5;  y: hourglass.f * (0.515 - hourglass.tip) }
                         PathLine { x: hourglass.f * 0.16; y: hourglass.f * 0.83 }
                         PathLine { x: hourglass.f * 0.22; y: hourglass.f * 0.88 }
                     }
