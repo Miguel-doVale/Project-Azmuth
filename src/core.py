@@ -694,6 +694,10 @@ POWER = [
 
 
 def cmd_power() -> None:
+    if shell_running():
+        shell_ipc("power")
+        return
+    # reserva sem a shell: menu em rofi
     r = run(["rofi", "-dmenu", "-i", "-p", "ENERGIA", "-format", "i", "-theme", str(ROFI_THEME),
              "-theme-str", "listview { lines: 5; } window { width: 360px; }"],
             input="\n".join(label for label, _ in POWER))
