@@ -188,3 +188,13 @@ hl.bind(mainMod .. " + Q", function()
     armed = nil
     hl.dispatch(hl.dsp.window.close({ window = "address:" .. w.address }))
 end)
+
+------------------------
+---- CAPTURA DE TELA ----
+------------------------
+-- Super+Shift+S vai direto para a seleção de área (sem menu). Repetir qualquer
+-- atalho de captura durante uma gravação para a gravação.
+hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd(AZ .. " shot area"))
+hl.bind("Print",                   hl.dsp.exec_cmd(AZ .. " shot full"))
+hl.bind(mainMod .. " + Print",     hl.dsp.exec_cmd(AZ .. " shot window"))
+hl.bind(mainMod .. " + ALT + S",   hl.dsp.exec_cmd(AZ .. " shot menu"))

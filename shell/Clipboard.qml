@@ -72,6 +72,14 @@ PanelWindow {
         Quickshell.execDetached(["sh", "-c", "printf '%s\\t%s\\n' \"$1\" \"$2\" | cliphist delete", "sh", e.id, e.raw])
         entries = entries.filter(x => x.id !== e.id)
     }
+    property bool wipeArmed: false
+    Timer { id: wipeDisarm; interval: 3000; onTriggered: cb.wipeArmed = false }
+    function wipe() {
+        if (!wipeArmed) { wipeArmed = true; wipeDisarm.restart(); return }
+        wipeArmed = false
+        Quickshell.execDetached(["sh", "-c", "cliphist wipe; rm -rf \"$1\"", "sh", cache])
+        entries = []
+    }
     function togglePin(e) {
         if (!e || e.kind === "image") return
         pins = pins.includes(e.text) ? pins.filter(t => t !== e.text) : [e.text].concat(pins)
@@ -151,6 +159,21 @@ PanelWindow {
         border.width: 1.5
         border.color: Qt.alpha(cb.primary, 0.6)
         MouseArea { anchors.fill: parent }
+            Rectangle {   // apagar tudo (2 cliques; fixados ficam)
+                anchors.right: parent.right; anchors.rightMargin: 22
+                anchors.top: parent.top; anchors.topMargin: 16
+                height: 28; width: wt.implicitWidth + 26; radius: 14
+                color: cb.wipeArmed ? "#ff5a5a" : (wm.containsMouse ? Qt.alpha("#ff5a5a", 0.15) : "transparent")
+                border.width: 1; border.color: "#ff5a5a"
+                Text {
+                    id: wt
+                    anchors.centerIn: parent
+                    text: cb.wipeArmed ? "\uf1f8  CONFIRMAR?" : "\uf1f8  APAGAR TUDO"
+                    font.family: "Orbitron"; font.pixelSize: 10; font.weight: Font.Bold
+                    color: cb.wipeArmed ? cb.bg : "#ff5a5a"
+                }
+                MouseArea { id: wm; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: cb.wipe() }
+            }
 
         // ── cabeçalho: título, busca, filtros ──
         Column {

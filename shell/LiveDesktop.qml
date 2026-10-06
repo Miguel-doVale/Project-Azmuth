@@ -22,7 +22,14 @@ PanelWindow {
     readonly property color dna: theme.primary
     readonly property color bg: theme.background
     readonly property bool neutral: theme.id === "neutral"
-    readonly property real rad: height * 0.27          // raio externo do símbolo (bate com Widgets.qml)
+    readonly property real rad: height * 0.27
+
+    // 0 = core Arch (Neutral) · 1 = ampulheta do DNA. Anima a "mutação" entre os dois.
+    property real mutation: neutral ? 0 : 1
+    Behavior on mutation { NumberAnimation { duration: 1100; easing.type: Easing.InOutCubic } }
+    readonly property real archOut: Math.min(1, mutation / 0.55)                       // Arch some na 1ª metade
+    readonly property real glassIn: Math.max(0, Math.min(1, (mutation - 0.35) / 0.65)) // ampulheta surge depois
+    readonly property real glitch: Math.sin(mutation * 60) * 7 * archOut * (1 - archOut) * 4
 
     visible: theme.live !== false
     anchors { top: true; left: true; right: true; bottom: true }
@@ -269,8 +276,11 @@ PanelWindow {
 
                 Shape {   // ampulheta (DNAs)
                     id: glass
-                    visible: !live.neutral
+                    visible: live.glassIn > 0
                     anchors.fill: parent
+                    opacity: live.glassIn * (live.theme.art ? 0.35 : 1)
+                    scale: 0.25 + 0.75 * live.glassIn
+                    rotation: (1 - live.glassIn) * -120
                     readonly property real f: face.width
                     ShapePath {
                         strokeWidth: 0; fillColor: live.primary
@@ -291,10 +301,14 @@ PanelWindow {
                         PathLine { x: glass.f * 0.22; y: glass.f * 0.88 }
                     }
                 }
-                Shape {   // core Arch (Neutral)
+                Shape {   // core Arch (Neutral) — "muta" ao transformar: tremula, gira e encolhe
                     id: arch
-                    visible: live.neutral
+                    visible: live.archOut < 1
                     anchors.centerIn: parent
+                    anchors.horizontalCenterOffset: live.glitch
+                    opacity: 1 - live.archOut
+                    scale: 1 - 0.7 * live.archOut
+                    rotation: 200 * live.archOut
                     width: face.width * 0.56; height: width
                     ShapePath {
                         strokeWidth: 0; fillColor: live.primary
@@ -302,6 +316,29 @@ PanelWindow {
                         PathSvg { path: "M11.39.605C10.376 3.092 9.764 4.72 8.635 7.132c.693.734 1.543 1.589 2.923 2.554-1.484-.61-2.496-1.224-3.252-1.86C6.86 10.842 4.596 15.138 0 23.395c3.612-2.085 6.412-3.37 9.021-3.862a6.61 6.61 0 01-.171-1.547l.003-.115c.058-2.315 1.261-4.095 2.687-3.973 1.426.12 2.534 2.096 2.478 4.409a6.52 6.52 0 01-.146 1.243c2.58.505 5.352 1.787 8.914 3.844-.702-1.293-1.33-2.459-1.929-3.57-.943-.73-1.926-1.682-3.933-2.713 1.38.359 2.367.772 3.137 1.234-6.09-11.334-6.582-12.84-8.67-17.74z" }
                     }
                 }
+            }
+
+            Image {   // silhueta/sombra do alien na cor do DNA
+                id: shade
+                anchors.centerIn: parent
+                width: face.width * 0.66; height: width
+                source: live.theme.art ? "file://" + live.theme.art : ""
+                sourceSize: Qt.size(width * 2, height * 2)
+                visible: false
+            }
+            MultiEffect {
+                anchors.fill: shade
+                source: shade
+                visible: shade.source != "" && live.glassIn > 0
+                opacity: 0.8 * live.glassIn
+                scale: 0.6 + 0.4 * live.glassIn
+                brightness: 1.0
+                colorization: 1.0
+                colorizationColor: live.primary
+                shadowEnabled: true
+                shadowColor: live.primary
+                shadowBlur: 1.0
+                shadowHorizontalOffset: 0; shadowVerticalOffset: 0
             }
         }
 

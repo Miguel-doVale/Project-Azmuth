@@ -17,6 +17,7 @@ PanelWindow {
     required property var theme
     property var notifications: null      // Notifications.qml (servidor + popups)
     property bool open: false
+    property bool allNotifs: false        // histórico: 4 por padrão, "ver mais" mostra tudo
     property int tab: 0                 // 0 = Painel, 1 = Configuração
     property real reveal: open ? 1 : 0
     Behavior on reveal { NumberAnimation { duration: dash.open ? 320 : 200; easing.type: Easing.OutCubic } }
@@ -239,7 +240,7 @@ PanelWindow {
 
                 // DNA ativo
                 Card {
-                    height: 150
+                    height: 196
                     Rectangle {
                         id: dnaBadge
                         x: 16; anchors.verticalCenter: parent.verticalCenter
@@ -458,7 +459,7 @@ PanelWindow {
                     font.family: "Rajdhani"; font.pixelSize: 14; color: Qt.alpha(dash.fg, 0.4)
                 }
                 Repeater {
-                    model: dash.notifications ? dash.notifications.server.trackedNotifications.values.slice().reverse().slice(0, 8) : []
+                    model: dash.notifications ? dash.notifications.server.trackedNotifications.values.slice().reverse().slice(0, dash.allNotifs ? 50 : 4) : []
                     Card {
                         id: hn
                         required property var modelData
@@ -488,6 +489,15 @@ PanelWindow {
                             MouseArea { id: hx; anchors.fill: parent; anchors.margins: -8; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: hn.modelData.dismiss() }
                         }
                     }
+                }
+
+                Text {
+                    readonly property int count: dash.notifications ? dash.notifications.server.trackedNotifications.values.length : 0
+                    visible: count > 4
+                    text: dash.allNotifs ? "VER MENOS" : "VER MAIS (" + (count - 4) + ")"
+                    font.family: "Orbitron"; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1
+                    color: vm.containsMouse ? dash.fg : dash.primary
+                    MouseArea { id: vm; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: dash.allNotifs = !dash.allNotifs }
                 }
 
                 // sistema

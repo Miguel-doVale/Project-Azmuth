@@ -22,6 +22,7 @@ Uso:
   azmuth settings                        preferências em JSON (painel de configuração)
   azmuth lock                            bloqueia a tela (Super + M)
   azmuth power                           menu de energia (Super + Shift + Q)
+  azmuth shot [area|full|window|menu]    capturas (Super+Shift+S, Print, Super+Print, Super+Alt+S)
   azmuth install                         liga as configs do sistema ao projeto
 
 Compatível com o uso original: python src/core.py dna/neutral.yaml
@@ -745,6 +746,69 @@ def cmd_timeout() -> None:
     transform(load_roster()["neutral"], source="timeout", quiet=False)
 
 
+SHOTS = HOME / "Pictures/Screenshots"
+RECS = HOME / "Videos/Recordings"
+
+
+def cmd_shot(mode: str) -> None:
+    """Capturas: area (Super+Shift+S), full (Print), window (Super+Print), record, menu."""
+    if run(["pgrep", "-x", "wf-recorder"]).returncode == 0:      # qualquer atalho para a gravação
+        run(["pkill", "-INT", "-x", "wf-recorder"])
+        notify("Gravação salva", str(RECS), "normal")
+        return
+    if mode == "menu":
+        opts = [("\uf125   Área", "area"), ("\uf108   Tela inteira", "full"), ("\uf2d0   Janela ativa", "window"),
+                ("\uf03d   Gravar área", "rec-area"), ("\uf03d   Gravar tela inteira", "rec-full")]
+        r = run(["rofi", "-dmenu", "-i", "-p", "CAPTURA", "-format", "i", "-theme", str(ROFI_THEME),
+                 "-theme-str", "listview { lines: 5; } window { width: 380px; }"], input="\n".join(o for o, _ in opts))
+        if r.returncode != 0 or not r.stdout.strip():
+            return
+        mode = opts[int(r.stdout.strip())][1]
+
+    theme = json.loads(THEME_FILE.read_text()) if THEME_FILE.exists() else {"primary": "#38bdf8"}
+    p = theme["primary"].lstrip("#")
+    slurp = ["slurp", "-d", "-w", "2", "-b", "00000088", "-c", p + "ff", "-s", p + "22", "-B", p + "33"]
+    stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+
+    geom = None
+    if mode in ("area", "rec-area"):
+        r = run(slurp)
+        if r.returncode != 0 or not r.stdout.strip():
+            return                                          # Esc no slurp
+        geom = r.stdout.strip()
+    elif mode == "window":
+        w = json.loads(run(["hyprctl", "activewindow", "-j"]).stdout or "{}")
+        if not w.get("at"):
+            return
+        geom = f"{w['at'][0]},{w['at'][1]} {w['size'][0]}x{w['size'][1]}"
+
+    if mode.startswith("rec"):
+        RECS.mkdir(parents=True, exist_ok=True)
+        out = RECS / f"gravacao_{stamp}.mp4"
+        cmd = ["wf-recorder", "-f", str(out)] + (["-g", geom] if geom else [])
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        notify("Gravando", "Repita o atalho de captura para parar.", "normal")
+        return
+
+    SHOTS.mkdir(parents=True, exist_ok=True)
+    out = SHOTS / f"captura_{stamp}.png"
+    cmd = ["grim"] + (["-g", geom] if geom else ["-o", (next((m["name"] for m in hypr_json("monitors") if m.get("focused")), ""))])
+    if mode == "full" and not cmd[-1]:
+        cmd = ["grim"]
+    if run(cmd + [str(out)]).returncode != 0:
+        notify("Falha na captura", "grim retornou erro", "normal")
+        return
+    with open(out, "rb") as f:
+        subprocess.run(["wl-copy", "-t", "image/png"], stdin=f)
+    play(sound("tick"))
+    # notificação com miniatura; "Abrir"/"Pasta" funcionam em segundo plano
+    script = ('a=$(notify-send -a Captura -i "$1" -A open=Abrir -A folder=Pasta --wait '
+              '"Captura copiada" "$(basename "$1") · salva em Imagens/Screenshots"); '
+              'case "$a" in open|default) xdg-open "$1";; folder) xdg-open "$(dirname "$1")";; esac')
+    subprocess.Popen(["sh", "-c", script, "sh", str(out)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     start_new_session=True)
+
+
 def cmd_current(as_json: bool, as_name: bool = False) -> None:
     state = read_state()
     if as_json:
@@ -815,6 +879,7 @@ COMMANDS = {
     "settings": lambda a: cmd_settings(),
     "timeout": lambda a: cmd_timeout(),
     "power": lambda a: cmd_power(),
+    "shot": lambda a: cmd_shot(a[0] if a else "area"),
 }
 NEEDS_ARG = {"apply", "slot", "set"}
 
