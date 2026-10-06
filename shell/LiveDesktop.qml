@@ -325,19 +325,37 @@ PanelWindow {
                 source: live.theme.art ? "file://" + live.theme.art : ""
                 sourceSize: Qt.size(width * 2, height * 2)
                 visible: false
+                layer.enabled: true
+            }
+            // silhueta: bloco sólido na cor do DNA recortado no formato do alien
+            Rectangle {
+                id: shadeFill
+                anchors.fill: shade
+                color: live.primary
+                visible: false
+                layer.enabled: true
             }
             MultiEffect {
+                id: shadeCut
                 anchors.fill: shade
-                source: shade
+                source: shadeFill
+                maskEnabled: true
+                maskSource: shade
+                maskThresholdMin: 0.3
+                maskSpreadAtMin: 0.2
+                visible: false
+                layer.enabled: true
+            }
+            MultiEffect {   // brilho em volta da silhueta
+                anchors.fill: shade
+                source: shadeCut
                 visible: shade.source != "" && live.glassIn > 0
-                opacity: 0.8 * live.glassIn
+                opacity: live.glassIn
                 scale: 0.6 + 0.4 * live.glassIn
-                brightness: 1.0
-                colorization: 1.0
-                colorizationColor: live.primary
                 shadowEnabled: true
                 shadowColor: live.primary
-                shadowBlur: 1.0
+                shadowBlur: 0.8
+                shadowOpacity: 0.9
                 shadowHorizontalOffset: 0; shadowVerticalOffset: 0
             }
         }
