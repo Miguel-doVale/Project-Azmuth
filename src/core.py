@@ -18,6 +18,8 @@ Uso:
   azmuth roster --json                   catálogo do Omnitrix (usado pelo HUD)
   azmuth restore                         reaplica o último DNA (boot da sessão)
   azmuth wallpaper                       reaplica o wallpaper (hotplug de monitor)
+  azmuth set <chave> <valor>             altera uma preferência (ex.: timer.minutes 15)
+  azmuth settings                        preferências em JSON (painel de configuração)
   azmuth lock                            bloqueia a tela (Super + M)
   azmuth power                           menu de energia (Super + Shift + Q)
   azmuth install                         liga as configs do sistema ao projeto
@@ -46,6 +48,20 @@ HOME = Path.home()
 STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state")) / "azmuth"
 STATE_FILE = STATE_DIR / "state.json"
 THEME_FILE = STATE_DIR / "theme.json"   # lido pela shell (Quickshell)
+SETTINGS_FILE = STATE_DIR / "settings.json"   # preferências do painel de configuração
+
+# Padrões do painel de configuração (Super + Shift + O). settings.json guarda só o que mudou.
+DEFAULT_SETTINGS = {
+    "sounds": True,                 # sons do Omnitrix
+    "notifications": True,          # notificação a cada transformação
+    "context_engine": True,         # sugestões automáticas de DNA
+    "timer": {
+        "enabled": True,            # volta sozinho pro Neutral (Master Control desliga)
+        "minutes": 10,
+        "recharge_minutes": 2,      # 0 = sem recarga
+    },
+    "dna": {},                      # por DNA: {"<id>": {"autostart_apps": bool}}
+}
 
 ROFI_THEME = HOME / ".config/rofi/azmuth.rasi"
 DUNST_RC = HOME / ".config/dunst/dunstrc"
@@ -115,7 +131,7 @@ def notify(title: str, body: str = "", urgency: str = "low", timeout: int = 2200
 
 
 def play(path: Path | str | None) -> None:
-    if path and Path(path).exists():
+    if path and Path(path).exists() and read_settings()["sounds"]:
         spawn(["pw-play", str(path)])
 
 
@@ -143,6 +159,50 @@ def update_state(**changes) -> dict:
         tmp.write_text(json.dumps(state, indent=2))
         tmp.replace(STATE_FILE)
     return state
+
+
+def _merge(base: dict, over: dict) -> dict:
+    out = dict(base)
+    for k, v in over.items():
+        out[k] = _merge(base[k], v) if isinstance(v, dict) and isinstance(base.get(k), dict) else v
+    return out
+
+
+def read_settings() -> dict:
+    try:
+        return _merge(DEFAULT_SETTINGS, json.loads(SETTINGS_FILE.read_text()))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return _merge(DEFAULT_SETTINGS, {})
+
+
+def set_setting(path: str, value) -> dict:
+    """azmuth set timer.minutes 15 · azmuth set dna.massa_cinzenta.autostart_apps false"""
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        raw = json.loads(SETTINGS_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        raw = {}
+    node = raw
+    *parents, leaf = path.split(".")
+    for key in parents:
+        node = node.setdefault(key, {})
+    node[leaf] = value
+    SETTINGS_FILE.write_text(json.dumps(raw, indent=2))
+    return read_settings()
+
+
+def timer_info(state: dict, settings: dict, roster_neutral: str) -> dict:
+    t = settings["timer"]
+    now = time.time()
+    active = (t["enabled"] and not state.get("master_control", False)
+              and state.get("current") not in (None, roster_neutral))
+    return {
+        "active": bool(active),
+        "started": state.get("changed_at", now),
+        "duration": int(t["minutes"] * 60),
+        "recharge_until": state.get("recharge_until", 0) if state.get("recharge_until", 0) > now else 0,
+        "recharge_total": int(t["recharge_minutes"] * 60),
+    }
 
 
 # ───────────────────────────── DNA: carga e validação ─────────────────────────────
@@ -269,6 +329,7 @@ def palette_vars(pal: dict) -> dict:
 def write_theme(data: dict | None = None) -> None:
     """theme.json: o que a shell (barra/HUD/widgets) precisa saber do DNA ativo."""
     state = read_state()
+    settings = read_settings()
     if data is None:
         ref = state.get("current") or load_roster()["neutral"]
         data = load_dna(resolve(ref))
@@ -278,6 +339,8 @@ def write_theme(data: dict | None = None) -> None:
         "description": data["dna"]["description"],
         "master": state.get("master_control", False),
         "bar": (data.get("bar") or {}).get("visible", True),
+        "timer": timer_info(state, settings, load_roster()["neutral"]),
+        "art": str(ROOT / data["hud"]["art"]) if (data.get("hud") or {}).get("art") else "",
         **data["palette"],
     }
     STATE_DIR.mkdir(parents=True, exist_ok=True)
@@ -372,6 +435,10 @@ def apply_apps(data: dict) -> None:
     apps = (data.get("apps") or {}).get("autostart") or []
     if not apps:
         return
+    prefs = read_settings()["dna"].get(data["dna"]["id"], {})
+    if prefs.get("autostart_apps", True) is False:
+        log("[OK] Apps: desligados no painel de configuração")
+        return
     classes = [c.get("class", "") for c in hypr_json("clients")]
     launched = []
     for app in apps:
@@ -408,6 +475,22 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
     data = load_dna(path)  # falha aqui = nada foi alterado
     state = read_state()
     t0 = time.monotonic()
+    now = time.time()
+    neutral = load_roster()["neutral"]
+
+    # Omnitrix recarregando: só o Neutral (e o restore do sistema) passam
+    if (state.get("recharge_until", 0) > now and data["dna"]["id"] != neutral
+            and source not in ("restore", "timeout")):
+        left = int(state["recharge_until"] - now)
+        play(sound("error"))
+        notify("Omnitrix recarregando", f"Transformação disponível em {left // 60}:{left % 60:02d}.", "normal")
+        log(f"[RECARREGANDO] faltam {left}s")
+        return data
+
+    same = data["dna"]["id"] == state.get("current")
+    duration = read_settings()["timer"]["minutes"] * 60
+    # reaplicar o mesmo DNA (reload/boot) não zera o timer, a não ser que já tenha estourado
+    changed_at = state.get("changed_at", now) if same and now - state.get("changed_at", now) < duration else now
 
     log(f"Aplicando DNA: {data['dna']['name']} ({data['dna']['id']})")
     if not quiet:
@@ -429,13 +512,15 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
     update_state(
         current=data["dna"]["id"],
         previous=previous if previous != data["dna"]["id"] else state.get("previous"),
-        changed_at=time.time(),
+        changed_at=changed_at,
         source=source,
+        recharge_until=(now + read_settings()["timer"]["recharge_minutes"] * 60) if source == "timeout"
+                       else state.get("recharge_until", 0),
         daemons=daemons,
         pending=None,
     )
     write_theme(data)
-    if not quiet:
+    if not quiet and read_settings()["notifications"]:
         notify(f"DNA: {data['dna']['name']}", data["dna"]["description"])
     log(f"Transformação concluída em {(time.monotonic() - t0) * 1000:.0f} ms.")
     return data
@@ -578,6 +663,37 @@ def cmd_power() -> None:
         POWER[int(r.stdout.strip())][1]()
 
 
+def cmd_set(path: str, raw: str) -> None:
+    try:
+        value = json.loads(raw)          # true/false/números/listas
+    except json.JSONDecodeError:
+        value = raw                      # texto puro
+    set_setting(path, value)
+    write_theme()                        # barra/timer refletem na hora
+    log(f"[OK] {path} = {json.dumps(value)}")
+
+
+def cmd_settings() -> None:
+    """JSON para o painel de configuração: preferências + DNAs disponíveis."""
+    settings = read_settings()
+    dnas = []
+    for e in roster_entries():
+        if not e["available"]:
+            continue
+        dna = yaml.safe_load(resolve(e["id"]).read_text())
+        apps = (dna.get("apps") or {}).get("autostart") or []
+        dnas.append({"id": e["id"], "name": e["name"], "color": e["color"],
+                     "apps": [a if isinstance(a, str) else a["cmd"] for a in apps],
+                     "autostart_apps": settings["dna"].get(e["id"], {}).get("autostart_apps", True)})
+    print(json.dumps({"settings": settings, "dnas": dnas, "master_control": read_state().get("master_control", False)}))
+
+
+def cmd_timeout() -> None:
+    """Chamado pelo Context Engine quando o timer estoura."""
+    play(sound("neutral"))
+    transform(load_roster()["neutral"], source="timeout", quiet=False)
+
+
 def cmd_current(as_json: bool, as_name: bool = False) -> None:
     state = read_state()
     if as_json:
@@ -644,9 +760,12 @@ COMMANDS = {
     "wallpaper": lambda a: cmd_wallpaper(),
     "install": lambda a: cmd_install(),
     "lock": lambda a: cmd_lock(),
+    "set": lambda a: cmd_set(a[0], a[1]),
+    "settings": lambda a: cmd_settings(),
+    "timeout": lambda a: cmd_timeout(),
     "power": lambda a: cmd_power(),
 }
-NEEDS_ARG = {"apply", "slot"}
+NEEDS_ARG = {"apply", "slot", "set"}
 
 
 def main() -> None:
@@ -657,7 +776,7 @@ def main() -> None:
     if args[0].endswith(".yaml"):  # uso original: core.py dna/<nome>.yaml
         args = ["apply", args[0]]
     cmd, rest = args[0], args[1:]
-    if cmd not in COMMANDS or (cmd in NEEDS_ARG and not rest):
+    if cmd not in COMMANDS or (cmd in NEEDS_ARG and not rest) or (cmd == "set" and len(rest) < 2):
         print(__doc__)
         sys.exit(1)
     try:

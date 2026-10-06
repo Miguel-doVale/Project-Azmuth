@@ -11,6 +11,8 @@ Daemon que observa o contexto pelo socket de eventos do Hyprland (socket2):
       [Super+Y ou clique aceita · ignorar/fechar dispensa]
     * Master Control ligado: troca imediata (Super+Esc volta ao Neutral)
 - Monitor conectado/desconectado → reaplica o wallpaper do DNA ativo.
+- Timer do Omnitrix: bipes no último minuto, destransforma para o Neutral ao
+  estourar e avisa quando a recarga termina (preferências em settings.json).
 
 Formato do gatilho:  match: "class:<regex>"  ou  "title:<regex>"
   suggest: true  → sugere no modo assistido e troca sob Master Control
@@ -36,6 +38,7 @@ DWELL = 1.5            # segundos com o app em foco antes de reagir
 SUGGEST_TIMEOUT = 5    # duração da notificação (s)
 COOLDOWN = 10 * 60     # após dispensar uma sugestão, não repetir o mesmo DNA por 10 min
 MANUAL_GRACE = 5 * 60  # após troca manual, respeitar a escolha do usuário por 5 min
+BEEP_MARKS = (60, 30, 10, 5, 4, 3, 2, 1)  # segundos restantes em que o relógio apita
 
 
 class Engine:
@@ -86,6 +89,8 @@ class Engine:
             if seq != self.focus_seq or self.suggesting:
                 return  # o foco mudou durante o dwell, ou já há sugestão na tela
             cls, title = self.focus
+        if not core.read_settings()["context_engine"]:
+            return
         state = core.read_state()
         current = state.get("current")
         master = state.get("master_control", False)
@@ -134,6 +139,47 @@ class Engine:
                 self.suggesting = False
 
 
+def timer_loop() -> None:
+    """Relógio do Omnitrix: avisa, destransforma e anuncia o fim da recarga."""
+    neutral = core.load_roster()["neutral"]
+    warned: set[int] = set()
+    last_started = None
+    recharge_seen = 0.0
+    while True:
+        time.sleep(1)
+        try:
+            state, settings = core.read_state(), core.read_settings()
+            info = core.timer_info(state, settings, neutral)
+            now = time.time()
+
+            ru = state.get("recharge_until", 0)
+            if ru and ru <= now and ru != recharge_seen and now - ru < 30:
+                recharge_seen = ru
+                core.play(core.sound("recharge"))
+                core.notify("Omnitrix recarregado", "Pronto para transformar.")
+                core.write_theme()
+
+            if info["started"] != last_started:
+                warned.clear()
+                last_started = info["started"]
+            if not info["active"]:
+                continue
+
+            remaining = info["started"] + info["duration"] - now
+            due = [m for m in BEEP_MARKS if remaining <= m and m not in warned]
+            if due and remaining > 0:
+                warned.update(due)
+                core.play(core.sound("beep"))
+                if 60 in due:
+                    core.notify("Omnitrix", "1 minuto até destransformar.", "normal")
+            if remaining <= 0:
+                core.log("[timer] tempo esgotado → Neutral")
+                subprocess.run([str(core.ROOT / "bin/azmuth"), "timeout"], capture_output=True)
+                warned.clear()
+        except Exception as e:  # o timer nunca derruba o daemon
+            core.log(f"[timer] erro: {e}")
+
+
 def socket_path() -> str:
     sig = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE")
     if not sig:
@@ -156,6 +202,7 @@ def single_instance():
 def main() -> None:
     _lock = single_instance()  # noqa: F841 — mantém o lock enquanto o processo vive
     engine = Engine()
+    threading.Thread(target=timer_loop, daemon=True).start()
     while True:
         try:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:

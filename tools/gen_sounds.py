@@ -8,6 +8,8 @@ Gera em assets/sounds/:
   hud_open.wav   — o core saltando do relógio
   tick.wav       — clique do disco girando
   error.wav      — DNA bloqueado / falha (bip-bip grave)
+  beep.wav       — aviso do timer (último minuto antes de destransformar)
+  recharge.wav   — Omnitrix recarregado (pronto para transformar)
 
 Uso (dependência só de dev: numpy):
   .venv/bin/python tools/gen_sounds.py
@@ -121,9 +123,24 @@ def error() -> np.ndarray:
     return out
 
 
+def beep() -> np.ndarray:
+    b = tone(1900, 0.09) * envelope(int(RATE * 0.09), 0.003, 0.02)
+    out = np.zeros(int(RATE * 0.2))
+    return mix_at(out, b, 0.0)
+
+
+def recharge() -> np.ndarray:
+    out = np.zeros(int(RATE * 0.6))
+    for i, f in enumerate((880, 1175, 1568)):
+        out = mix_at(out, tone(f, 0.16) * envelope(int(RATE * 0.16), 0.005, 0.1), i * 0.11, 0.6)
+    return out
+
+
 if __name__ == "__main__":
     save("transform.wav", transform())
     save("neutral.wav", neutral())
     save("hud_open.wav", hud_open(), 0.5)
     save("tick.wav", tick(), 0.35)
     save("error.wav", error(), 0.5)
+    save("beep.wav", beep(), 0.45)
+    save("recharge.wav", recharge(), 0.45)
