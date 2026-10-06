@@ -33,8 +33,8 @@ hyprland:
 wallpaper:
   path: string            # obrigatório — relativo à raiz do projeto
 
-waybar:
-  style: string            # obrigatório — caminho do CSS relativo à raiz
+bar:
+  visible: bool            # opcional (padrão true) — false esconde a barra (DNA de foco total)
 
 rofi:
   theme: string            # obrigatório — caminho do .rasi relativo à raiz
@@ -71,10 +71,13 @@ a mesma coisa.
 ### Arquivos derivados da `palette`
 
 A palette é a fonte única de cor. O `core.py` gera a partir dela, a cada troca:
-`~/.config/waybar/style.css` (`@define-color` + `waybar/base.css` + `waybar.style`),
+`~/.local/state/azmuth/theme.json` (lido pela barra/HUD/widgets em Quickshell),
 `~/.config/rofi/azmuth.rasi` (variáveis + `rofi/base.rasi` + `rofi.theme`),
 `~/.config/dunst/dunstrc` e `~/.config/hypr/hyprlock.conf`. Por isso
-`waybar.style` e `rofi.theme` contêm **só os ajustes específicos do DNA**.
+`rofi.theme` contém **só os ajustes específicos do DNA**.
+
+> Histórico: até 2026-10-06 existia o campo obrigatório `waybar.style`; a waybar
+> foi substituída pela barra em Quickshell e o campo virou `bar` (opcional).
 
 ## Regras
 
@@ -100,7 +103,7 @@ O `core.py` valida o DNA inteiro **antes** de tocar no sistema — um DNA
 inválido nunca deixa uma transformação pela metade. Além dos obrigatórios,
 verifica: `dna.id` igual ao nome do arquivo; cores no formato `#rrggbb`;
 inteiros e booleanos do bloco `hyprland`; `layout` em `dwindle|master`;
-existência dos arquivos de `waybar.style` e `rofi.theme`; forma dos itens de
+existência do arquivo de `rofi.theme`; `bar.visible` booleano; forma dos itens de
 `apps.autostart`; `match` em todo trigger. (O wallpaper ausente só gera aviso.)
 
 ## Roster do Omnitrix (`dna/omnitrix.yaml`)

@@ -23,8 +23,8 @@ hyprland:
 wallpaper:
   path: "assets/wallpapers/massa_cinzenta.png"
 
-waybar:
-  style: "waybar/massa_cinzenta.css"
+bar:
+  visible: true
 
 rofi:
   theme: "rofi/massa_cinzenta.rasi"

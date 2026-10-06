@@ -23,8 +23,8 @@ hyprland:
 wallpaper:
   path: "assets/wallpapers/neutral.png"
 
-waybar:
-  style: "waybar/neutral.css"
+bar:
+  visible: true
 
 rofi:
   theme: "rofi/neutral.rasi"

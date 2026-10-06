@@ -4,7 +4,7 @@ Project Azmuth - Core Engine
 
 Lê um DNA (dna/<id>.yaml), valida contra o schema e transforma o sistema:
 Hyprland (via `hyprctl eval`), wallpaper (hyprpaper, todos os monitores),
-waybar, rofi, dunst, daemons, apps e som de transformação.
+barra/HUD (Quickshell), rofi, dunst, hyprlock, daemons, apps e som.
 
 Uso:
   azmuth apply <id | dna/arquivo.yaml>   transforma no DNA
@@ -41,19 +41,18 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 DNA_DIR = ROOT / "dna"
-HUD_DIR = ROOT / "hud"
+SHELL_DIR = ROOT / "shell"   # Quickshell: barra, HUD e widgets
 HOME = Path.home()
 STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state")) / "azmuth"
 STATE_FILE = STATE_DIR / "state.json"
+THEME_FILE = STATE_DIR / "theme.json"   # lido pela shell (Quickshell)
 
-WAYBAR_STYLE = HOME / ".config/waybar/style.css"
 ROFI_THEME = HOME / ".config/rofi/azmuth.rasi"
 DUNST_RC = HOME / ".config/dunst/dunstrc"
 HYPRLOCK_CONF = HOME / ".config/hypr/hyprlock.conf"
-WAYBAR_SIGNAL = 8          # custom/omnitrix escuta SIGRTMIN+8
 SUGGESTION_WINDOW = 6.0    # segundos para aceitar sugestão com Super+Y
 
-REQUIRED_TOP_LEVEL = ["dna", "palette", "hyprland", "wallpaper", "waybar", "rofi"]
+REQUIRED_TOP_LEVEL = ["dna", "palette", "hyprland", "wallpaper", "rofi"]
 REQUIRED_DNA = ["id", "name", "core", "description"]
 REQUIRED_PALETTE = ["primary", "secondary", "background", "foreground", "border_active", "border_inactive"]
 REQUIRED_HYPRLAND = ["gaps_in", "gaps_out", "border_size", "rounding", "animations_enabled", "layout"]
@@ -181,7 +180,6 @@ def validate(data: dict, path: Path) -> None:
     need(data["palette"], REQUIRED_PALETTE, " em 'palette'")
     need(data["hyprland"], REQUIRED_HYPRLAND, " em 'hyprland'")
     need(data["wallpaper"], ["path"], " em 'wallpaper'")
-    need(data["waybar"], ["style"], " em 'waybar'")
     need(data["rofi"], ["theme"], " em 'rofi'")
 
     if data["dna"]["core"] not in ("arch", "kali"):
@@ -199,9 +197,11 @@ def validate(data: dict, path: Path) -> None:
     if data["hyprland"]["layout"] not in ("dwindle", "master"):
         raise ValueError("'hyprland.layout' deve ser 'dwindle' ou 'master'")
     # arquivos de tema são obrigatórios: falhar ANTES de mexer em qualquer coisa
-    for key, rel in (("waybar.style", data["waybar"]["style"]), ("rofi.theme", data["rofi"]["theme"])):
-        if not (ROOT / rel).exists():
-            raise ValueError(f"'{key}' aponta para arquivo inexistente: {rel}")
+    if not (ROOT / data["rofi"]["theme"]).exists():
+        raise ValueError(f"'rofi.theme' aponta para arquivo inexistente: {data['rofi']['theme']}")
+    bar = data.get("bar") or {}
+    if not isinstance(bar.get("visible", True), bool):
+        raise ValueError("'bar.visible' deve ser true/false")
     for app in (data.get("apps") or {}).get("autostart") or []:
         if not (isinstance(app, str) or (isinstance(app, dict) and "cmd" in app)):
             raise ValueError(f"'apps.autostart' aceita string ou {{cmd, class?, workspace?}}: {app!r}")
@@ -264,19 +264,26 @@ def palette_vars(pal: dict) -> dict:
     return {k: v for k, v in pal.items()}
 
 
-def apply_waybar(data: dict) -> None:
-    pal = data["palette"]
-    header = "\n".join(f"@define-color {k} {v};" for k, v in palette_vars(pal).items())
-    css = (
-        f"/* GERADO pelo Project Azmuth — DNA: {data['dna']['id']}. Não edite aqui; edite os CSS em waybar/ no projeto. */\n"
-        f"{header}\n\n{(ROOT / 'waybar/base.css').read_text()}\n"
-        f"/* ── overrides do DNA ── */\n{(ROOT / data['waybar']['style']).read_text()}"
-    )
-    WAYBAR_STYLE.parent.mkdir(parents=True, exist_ok=True)
-    WAYBAR_STYLE.write_text(css)
-    if run(["pkill", "-SIGUSR2", "-x", "waybar"]).returncode != 0:  # recarrega config + estilo sem matar
-        hypr_exec("waybar")
-    log("[OK] Waybar")
+def write_theme(data: dict | None = None) -> None:
+    """theme.json: o que a shell (barra/HUD/widgets) precisa saber do DNA ativo."""
+    state = read_state()
+    if data is None:
+        ref = state.get("current") or load_roster()["neutral"]
+        data = load_dna(resolve(ref))
+    theme = {
+        "id": data["dna"]["id"],
+        "name": data["dna"]["name"],
+        "description": data["dna"]["description"],
+        "master": state.get("master_control", False),
+        "bar": (data.get("bar") or {}).get("visible", True),
+        **data["palette"],
+    }
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = THEME_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(theme))
+    tmp.replace(THEME_FILE)
+    if shell_running():
+        shell_ipc("theme")
 
 
 def apply_rofi(data: dict) -> None:
@@ -374,16 +381,12 @@ def apply_apps(data: dict) -> None:
     log(f"[OK] Apps: {', '.join(launched) if launched else 'já abertos'}")
 
 
-def signal_waybar_module() -> None:
-    run(["pkill", f"-RTMIN+{WAYBAR_SIGNAL}", "-x", "waybar"])
+def shell_running() -> bool:
+    return bool(shutil.which("qs")) and run(["pgrep", "-f", f"qs -p {SHELL_DIR}"]).returncode == 0
 
 
-def hud_running() -> bool:
-    return bool(shutil.which("qs")) and run(["pgrep", "-f", f"qs.*{HUD_DIR}"]).returncode == 0
-
-
-def hud_ipc(*args: str) -> None:
-    spawn(["qs", "-p", str(HUD_DIR), "ipc", "call", "hud", *args])
+def shell_ipc(*args: str) -> None:
+    spawn(["qs", "-p", str(SHELL_DIR), "ipc", "call", "hud", *args])
 
 
 # ───────────────────────────── transformação ─────────────────────────────
@@ -400,10 +403,9 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
     if not quiet:
         snd = (data.get("sound") or {}).get("transform")
         play(ROOT / snd if snd else None)
-        if hud_running():
-            hud_ipc("flash", data["palette"]["primary"])
+        if shell_running():
+            shell_ipc("flash", data["palette"]["primary"])
     apply_hyprland(data)
-    apply_waybar(data)
     apply_wallpaper(data, retries=12 if quiet else 0)
     apply_rofi(data)
     apply_dunst(data)
@@ -421,7 +423,7 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
         daemons=daemons,
         pending=None,
     )
-    signal_waybar_module()
+    write_theme(data)
     if not quiet:
         notify(f"DNA: {data['dna']['name']}", data["dna"]["description"])
     log(f"Transformação concluída em {(time.monotonic() - t0) * 1000:.0f} ms.")
@@ -492,7 +494,7 @@ def cmd_master(mode: str) -> None:
     on = read_state().get("master_control", False)
     on = {"on": True, "off": False}.get(mode, not on)
     update_state(master_control=on)
-    signal_waybar_module()
+    write_theme()
     play(sound("hud_open" if on else "neutral"))
     notify("Master Control " + ("ATIVO" if on else "desligado"),
            "Context Engine troca de DNA sozinho. Super+Esc volta ao Neutral." if on else "Context Engine volta ao modo assistido.",
@@ -518,8 +520,8 @@ def roster_entries() -> list[dict]:
 
 
 def cmd_hud(action: str) -> None:
-    if hud_running():
-        hud_ipc(action)
+    if shell_running():
+        shell_ipc(action)
         return
     if action != "toggle":
         return
@@ -573,23 +575,6 @@ def cmd_current(as_json: bool) -> None:
         print(state.get("current", "nenhum"))
 
 
-def cmd_waybar() -> None:
-    """Saída do módulo custom/omnitrix da waybar."""
-    state = read_state()
-    cur = state.get("current") or "neutral"
-    name = cur
-    try:
-        name = yaml.safe_load(resolve(cur).read_text())["dna"]["name"]
-    except (FileNotFoundError, KeyError, TypeError):
-        pass
-    master = state.get("master_control", False)
-    text = f"  {name.upper()}" + ("  " if master else "")
-    tooltip = (f"DNA ativo: {name}\nMaster Control: {'ATIVO' if master else 'off'}\n\n"
-               "Clique: Omnitrix HUD · Direito: Randomizer · Meio: Master Control")
-    print(json.dumps({"text": text, "tooltip": tooltip, "class": ["dna-" + cur] + (["master"] if master else []),
-                      "alt": cur}))
-
-
 def cmd_restore() -> None:
     ref = read_state().get("current") or load_roster()["neutral"]
     if not available(ref):
@@ -616,7 +601,6 @@ def link(target: Path, src: Path) -> None:
 
 def cmd_install() -> None:
     link(HOME / ".local/bin/azmuth", ROOT / "bin/azmuth")
-    link(HOME / ".config/waybar/config.jsonc", ROOT / "waybar/config.jsonc")
     link(HOME / ".config/hypr/azmuth.lua", ROOT / "hypr/azmuth.lua")
     link(HOME / ".config/hypr/hypridle.conf", ROOT / "hypr/hypridle.conf")
 
@@ -632,7 +616,6 @@ COMMANDS = {
     "hud": lambda a: cmd_hud(a[0] if a else "toggle"),
     "current": lambda a: cmd_current("--json" in a),
     "roster": lambda a: print(json.dumps(roster_entries())),
-    "waybar": lambda a: cmd_waybar(),
     "restore": lambda a: cmd_restore(),
     "wallpaper": lambda a: cmd_wallpaper(),
     "install": lambda a: cmd_install(),

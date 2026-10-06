@@ -1,8 +1,9 @@
-// Project Azmuth — Omnitrix HUD (Quickshell / QML)
+// Project Azmuth — shell (Quickshell / QML): barra, Omnitrix HUD e widgets.
 //
 // Camada visual apenas: a lógica dos DNAs continua no core.py.
-//   qs -p hud/                       sobe o HUD (fica residente, invisível)
-//   qs -p hud/ ipc call hud toggle   abre/fecha o disco
+//   qs -p shell/                       sobe a shell (barra + HUD residente)
+//   qs -p shell/ ipc call hud toggle   abre/fecha o disco
+//   ... hud theme                      relê o theme.json (o core.py chama a cada DNA)
 //   ... hud next | prev | confirm    gira / confirma
 //   ... hud flash "#rrggbb"          onda de energia da transformação
 
@@ -26,6 +27,26 @@ ShellRoot {
     readonly property var current: roster.length ? roster[index] : null
     readonly property color accent: current && current.available ? current.color : "#5b6470"
     readonly property string archPath: "M11.39.605C10.376 3.092 9.764 4.72 8.635 7.132c.693.734 1.543 1.589 2.923 2.554-1.484-.61-2.496-1.224-3.252-1.86C6.86 10.842 4.596 15.138 0 23.395c3.612-2.085 6.412-3.37 9.021-3.862a6.61 6.61 0 01-.171-1.547l.003-.115c.058-2.315 1.261-4.095 2.687-3.973 1.426.12 2.534 2.096 2.478 4.409a6.52 6.52 0 01-.146 1.243c2.58.505 5.352 1.787 8.914 3.844-.702-1.293-1.33-2.459-1.929-3.57-.943-.73-1.926-1.682-3.933-2.713 1.38.359 2.367.772 3.137 1.234-6.09-11.334-6.582-12.84-8.67-17.74z"
+
+    // DNA ativo (theme.json, escrito pelo core.py)
+    property var theme: ({ id: "neutral", name: "Neutral", description: "", master: false, bar: true,
+                           primary: "#38bdf8", secondary: "#89b4fa", background: "#0b0f19",
+                           foreground: "#cdd6f4", border_active: "#38bdf8", border_inactive: "#1e293b" })
+    FileView {
+        id: themeFile
+        path: Quickshell.env("HOME") + "/.local/state/azmuth/theme.json"
+        onLoaded: {
+            try { root.theme = JSON.parse(text()) } catch (e) { console.warn("theme.json inválido:", e) }
+        }
+    }
+
+    Variants {
+        model: Quickshell.screens
+        Bar {
+            theme: root.theme
+            shell: root
+        }
+    }
 
     property color flashColor: "#38bdf8"
     property int flashTick: 0
@@ -90,6 +111,7 @@ ShellRoot {
         function next(): void { root.rotate(1) }
         function prev(): void { root.rotate(-1) }
         function confirm(): void { root.confirm() }
+        function theme(): void { themeFile.reload() }
         function flash(color: string): void {
             root.flashColor = color
             root.flashTick++
