@@ -8,7 +8,7 @@
 
 * {
     font-family: "Rajdhani", "Font Awesome 7 Free", "Font Awesome 7 Brands";
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     min-height: 0;
     border: none;
@@ -35,9 +35,9 @@ tooltip label {
 /* ── chip do Omnitrix: DNA ativo ── */
 #custom-omnitrix {
     font-family: "Orbitron", "Font Awesome 7 Free";
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
     color: @background;
     background-image: linear-gradient(90deg, @primary, @secondary);
     padding: 2px 16px 2px 14px;
@@ -106,7 +106,7 @@ tooltip label {
 
 #clock {
     font-family: "Orbitron";
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     color: @primary;
     border-color: alpha(@primary, 0.7);

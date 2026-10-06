@@ -43,17 +43,38 @@ sound:
   transform: string        # opcional — som tocado na transformação de entrada
 
 apps:
-  autostart: [string]      # opcional — comandos a executar ao entrar no DNA
+  autostart:               # opcional — apps abertos ao entrar no DNA (só se ainda não estiverem abertos)
+    - string                 # forma curta: comando; "aberto" = processo com esse nome existe
+    - cmd: string            # forma completa: comando
+      class: regex           #   opcional — "aberto" = existe janela com essa classe
+      workspace: int         #   opcional — workspace onde a janela nasce
 
 daemons:
-  enable: [string]         # opcional — nomes de serviço systemd a ligar
-  disable: [string]        # opcional — nomes de serviço systemd a desligar
+  enable: [string]         # opcional — unidade systemd --user, ou comando (fallback)
+  disable: [string]        # opcional — idem
 
 context_engine:
-  triggers:                # opcional — lista de gatilhos automáticos
-    - match: string          # ex: app em foco, ou evento de hardware
-      suggest: bool           # true = pergunta antes (modo assistido)
+  triggers:                # opcional — lista de gatilhos do Context Engine
+    - match: string          # "class:<regex>" ou "title:<regex>" da janela em foco
+      suggest: bool           # true = sugere no modo assistido; false = só age sob Master Control
+      message: string         # opcional — título da notificação de sugestão
 ```
+
+### Semântica de `daemons`
+
+Cada item é procurado primeiro como unidade `systemctl --user`; se não existir,
+é tratado como comando (ligar = executar se `pgrep -x` não achar; desligar =
+`pkill -x`). **DNAs são autocontidos:** ao sair de um DNA, o que ele ligou é
+desligado e o que ele desligou é religado — a não ser que o novo DNA reafirme
+a mesma coisa.
+
+### Arquivos derivados da `palette`
+
+A palette é a fonte única de cor. O `core.py` gera a partir dela, a cada troca:
+`~/.config/waybar/style.css` (`@define-color` + `waybar/base.css` + `waybar.style`),
+`~/.config/rofi/azmuth.rasi` (variáveis + `rofi/base.rasi` + `rofi.theme`),
+`~/.config/dunst/dunstrc` e `~/.config/hypr/hyprlock.conf`. Por isso
+`waybar.style` e `rofi.theme` contêm **só os ajustes específicos do DNA**.
 
 ## Regras
 
@@ -73,11 +94,20 @@ context_engine:
 5. **`context_engine.triggers` vazio é o padrão** até o Context Engine
    ser implementado — nenhum DNA deve depender dele para funcionar sozinho.
 
-## Validação (a implementar)
+## Validação (implementada)
 
-O `core.py` deve validar um DNA contra este schema antes de aplicá-lo,
-rejeitando arquivos com campos obrigatórios ausentes ou tipos errados,
-em vez de falhar silenciosamente no meio da transformação.
+O `core.py` valida o DNA inteiro **antes** de tocar no sistema — um DNA
+inválido nunca deixa uma transformação pela metade. Além dos obrigatórios,
+verifica: `dna.id` igual ao nome do arquivo; cores no formato `#rrggbb`;
+inteiros e booleanos do bloco `hyprland`; `layout` em `dwindle|master`;
+existência dos arquivos de `waybar.style` e `rofi.theme`; forma dos itens de
+`apps.autostart`; `match` em todo trigger. (O wallpaper ausente só gera aviso.)
+
+## Roster do Omnitrix (`dna/omnitrix.yaml`)
+
+Não é um DNA: é o catálogo que liga cada alien a um slot do numpad (Master
+Control) e ao disco do HUD. Um alien só é desbloqueado quando existe
+`dna/<id>.yaml`; antes disso aparece como "DNA bloqueado".
 
 ## Histórico
 

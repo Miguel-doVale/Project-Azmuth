@@ -235,10 +235,17 @@ def apply_hyprland(data: dict) -> None:
     log(f"[ERRO] hyprctl eval falhou: {err}" if err else "[OK] Hyprland")
 
 
-def apply_wallpaper(data: dict, retries: int = 1) -> None:
+def apply_wallpaper(data: dict, retries: int = 0) -> None:
+    """retries=0: dispara e segue (troca interativa). retries>0: confirma com o
+    hyprpaper, tentando de novo (boot, quando o hyprpaper ainda está subindo)."""
     path = ROOT / data["wallpaper"]["path"]
     if not path.exists():
         log(f"[AVISO] Wallpaper não encontrado: {path} — pulando")
+        return
+    if retries == 0:
+        for m in hypr_json("monitors"):
+            spawn(["hyprctl", "hyprpaper", "wallpaper", f"{m['name']},{path}"])
+        log("[OK] Wallpaper")
         return
     for attempt in range(retries):
         monitors = [m["name"] for m in hypr_json("monitors")]
@@ -267,9 +274,7 @@ def apply_waybar(data: dict) -> None:
     )
     WAYBAR_STYLE.parent.mkdir(parents=True, exist_ok=True)
     WAYBAR_STYLE.write_text(css)
-    if run(["pgrep", "-x", "waybar"]).returncode == 0:
-        run(["pkill", "-SIGUSR2", "-x", "waybar"])  # recarrega config + estilo sem matar
-    else:
+    if run(["pkill", "-SIGUSR2", "-x", "waybar"]).returncode != 0:  # recarrega config + estilo sem matar
         hypr_exec("waybar")
     log("[OK] Waybar")
 
@@ -294,8 +299,7 @@ def apply_dunst(data: dict) -> None:
         return
     DUNST_RC.parent.mkdir(parents=True, exist_ok=True)
     DUNST_RC.write_text(Template(tmpl.read_text()).substitute(palette_vars(data["palette"]), dna=data["dna"]["id"]))
-    if run(["dunstctl", "reload"]).returncode != 0:
-        run(["pkill", "-x", "dunst"])  # o D-Bus reativa o dunst sob demanda com o rc novo
+    spawn(["dunstctl", "reload"])
     log("[OK] Dunst")
 
 
@@ -400,7 +404,7 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
             hud_ipc("flash", data["palette"]["primary"])
     apply_hyprland(data)
     apply_waybar(data)
-    apply_wallpaper(data, retries=12 if quiet else 2)
+    apply_wallpaper(data, retries=12 if quiet else 0)
     apply_rofi(data)
     apply_dunst(data)
     apply_hyprlock(data)

@@ -3,7 +3,7 @@
 {
     "layer": "top",
     "position": "top",
-    "height": 42,
+    "height": 40,
     "spacing": 2,
 
     "modules-left": ["custom/omnitrix", "hyprland/workspaces", "wlr/taskbar"],
@@ -32,7 +32,7 @@
     // botão do meio fecha. Mostra janelas de todos os workspaces.
     "wlr/taskbar": {
         "format": "{icon}",
-        "icon-size": 22,
+        "icon-size": 20,
         "icon-theme": "Papirus",
         "tooltip-format": "{title}",
         "on-click": "activate",
