@@ -88,10 +88,21 @@ hl.bind(mainMod .. " + SHIFT + O", function() hud("config") end)
 local function overview_open()
     return #hl.get_layers({ namespace = "azmuth-overview" }) > 0
 end
-hl.bind("ALT + Tab", function() hud("altTab") end)
-hl.bind("ALT + SHIFT + Tab", function() hud("altTabPrev") end)
--- soltar o Alt confirma (ou, se foi um toque rápido, a shell alterna direto)
-hl.bind("ALT + Alt_L", function() hud("altRelease") end, { release = true })
+-- Soltar o Alt confirma. Bind de "release" não serve: o Hyprland cancela o release
+-- de um modificador quando outra tecla (o Tab) foi apertada no meio. Então um timer
+-- vigia o Alt e avisa a shell quando ele é solto (toque rápido = troca direta).
+local alt_timer = nil
+local function watch_alt()
+    if alt_timer then alt_timer:set_enabled(true); return end
+    alt_timer = hl.timer(function()
+        if not hl.is_key_down("Alt_L") and not hl.is_key_down("Alt_R") then
+            alt_timer:set_enabled(false)
+            hud("altRelease")
+        end
+    end, { timeout = 25, type = "repeat" })
+end
+hl.bind("ALT + Tab", function() hud("altTab"); watch_alt() end)
+hl.bind("ALT + SHIFT + Tab", function() hud("altTabPrev"); watch_alt() end)
 hl.bind(mainMod .. " + Tab", function() hud("overview") end)
 
 -- Área de transferência (cliphist) com busca e miniaturas

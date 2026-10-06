@@ -140,40 +140,37 @@ class Engine:
 
 
 def timer_loop() -> None:
-    """Relógio do Omnitrix: avisa, destransforma e anuncia o fim da recarga."""
+    """Energia do Omnitrix: bipes no último minuto, destransforma em 0% e avisa
+    quando a carga volta ao mínimo para transformar."""
     neutral = core.load_roster()["neutral"]
     warned: set[int] = set()
-    last_started = None
-    recharge_seen = 0.0
+    prev_energy = None
     while True:
         time.sleep(1)
         try:
             state, settings = core.read_state(), core.read_settings()
             info = core.timer_info(state, settings, neutral)
-            now = time.time()
+            e, rate = info["energy"], info["rate"]
 
-            ru = state.get("recharge_until", 0)
-            if ru and ru <= now and ru != recharge_seen and now - ru < 30:
-                recharge_seen = ru
+            # recarregou até o mínimo: pronto para transformar de novo
+            if prev_energy is not None and rate > 0 and prev_energy < info["min"] <= e:
                 core.play(core.sound("recharge"))
-                core.notify("Omnitrix recarregado", "Pronto para transformar.")
+                core.notify("Omnitrix recarregado", f"{round(e * 100)}% · pronto para transformar.")
                 core.write_theme()
+            prev_energy = e
 
-            if info["started"] != last_started:
+            if rate >= 0:            # Neutral, Master Control ou energia desligada
                 warned.clear()
-                last_started = info["started"]
-            if not info["active"]:
                 continue
-
-            remaining = info["started"] + info["duration"] - now
+            remaining = e / -rate    # segundos até 0%
             due = [m for m in BEEP_MARKS if remaining <= m and m not in warned]
             if due and remaining > 0:
                 warned.update(due)
                 core.play(core.sound("beep"))
                 if 60 in due:
-                    core.notify("Omnitrix", "1 minuto até destransformar.", "normal")
-            if remaining <= 0:
-                core.log("[timer] tempo esgotado → Neutral")
+                    core.notify("Omnitrix", "1 minuto de energia.", "normal")
+            if e <= 0:
+                core.log("[timer] energia esgotada → Neutral")
                 subprocess.run([str(core.ROOT / "bin/azmuth"), "timeout"], capture_output=True)
                 warned.clear()
         except Exception as e:  # o timer nunca derruba o daemon

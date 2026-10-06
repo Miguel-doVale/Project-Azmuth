@@ -66,7 +66,9 @@ PanelWindow {
         property string unit: "%"
         property real shown: value
         Behavior on shown { NumberAnimation { duration: 800; easing.type: Easing.OutCubic } }
-        readonly property color tint: value >= 90 ? "#ff5a5a" : (value >= 75 ? "#ffd76a" : desk.primary)
+        property color tintOverride: "transparent"
+        readonly property color tint: tintOverride.a > 0 ? tintOverride
+                                    : (value >= 90 ? "#ff5a5a" : (value >= 75 ? "#ffd76a" : desk.primary))
         width: 76; height: 92
 
         Shape {
@@ -106,5 +108,11 @@ PanelWindow {
         Gauge { label: "CPU"; value: SysStats.cpu }
         Gauge { label: "RAM"; value: SysStats.ram }
         Gauge { label: "TEMP"; value: SysStats.temp; unit: "°" }
+        Gauge {   // energia do Omnitrix
+            visible: Energy.enabled
+            label: Energy.locked ? "RECARGA" : "OMNITRIX"
+            value: Energy.percent
+            tintOverride: Energy.locked ? "#ff5a5a" : desk.primary
+        }
     }
 }

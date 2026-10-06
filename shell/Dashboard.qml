@@ -64,11 +64,7 @@ PanelWindow {
     Timer { id: refresh; interval: 350; onTriggered: settingsProc.running = true }
 
     // ── timer do DNA (mesma conta da barra) ──
-    property real now: Date.now() / 1000
-    Timer { interval: 1000; running: dash.visible; repeat: true; triggeredOnStart: true; onTriggered: dash.now = Date.now() / 1000 }
-    readonly property var tm: theme.timer || ({})
-    readonly property real rechargeLeft: tm.recharge_until ? tm.recharge_until - now : 0
-    readonly property real remaining: tm.active ? tm.started + tm.duration - now : 0
+    // energia do Omnitrix: ver Energy.qml (singleton)
 
     // ───────────────────────── componentes ─────────────────────────
     component Section: Text {
@@ -276,12 +272,34 @@ PanelWindow {
                             text: dash.theme.description || ""
                             font.family: "Rajdhani"; font.weight: Font.DemiBold; font.pixelSize: 14; color: dash.fg
                         }
-                        Text {
-                            text: dash.rechargeLeft > 0 ? "RECARREGANDO · " + dash.mmss(dash.rechargeLeft)
-                                  : (dash.theme.master ? "MASTER CONTROL · sem limite"
-                                     : (dash.tm.active ? "TEMPO RESTANTE · " + dash.mmss(dash.remaining) : "ESTADO BASE"))
-                            font.family: "Orbitron"; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1
-                            color: dash.rechargeLeft > 0 ? "#ff5a5a" : dash.primary
+                        // energia do Omnitrix
+                        Item {
+                            width: parent.width; height: 26
+                            visible: Energy.enabled
+                            Rectangle {
+                                y: 2; width: parent.width; height: 6; radius: 3
+                                color: Qt.alpha(Energy.locked ? "#ff5a5a" : dash.primary, 0.15)
+                                Rectangle {
+                                    height: parent.height; radius: 3
+                                    width: parent.width * Energy.level
+                                    color: Energy.locked ? "#ff5a5a" : dash.primary
+                                }
+                                Rectangle {   // marca do mínimo para transformar
+                                    x: parent.width * Energy.min - 1; y: -3; width: 2; height: 12
+                                    color: Qt.alpha(dash.fg, 0.5)
+                                }
+                            }
+                            Text {
+                                y: 12
+                                text: "ENERGIA " + Energy.percent + "%" + (
+                                      dash.theme.master ? " · MASTER CONTROL (congelada)"
+                                    : Energy.draining ? " · resta " + Energy.mmss(Energy.secondsLeft)
+                                    : Energy.locked ? " · transforma em " + Energy.mmss(Energy.secondsToMin)
+                                    : Energy.charging ? " · cheia em " + Energy.mmss(Energy.secondsToFull)
+                                    : " · carregada")
+                                font.family: "Orbitron"; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1
+                                color: Energy.locked ? "#ff5a5a" : dash.primary
+                            }
                         }
                         Row {
                             topPadding: 4; spacing: 8
@@ -476,21 +494,26 @@ PanelWindow {
                     onToggled: v => dash.set("notifications", v)
                 }
 
-                Section { text: "TIMER" }
+                Section { text: "ENERGIA DO OMNITRIX" }
                 Toggle {
-                    label: "Voltar sozinho pro Neutral"; hint: "Bipes no último minuto, depois destransforma"
+                    label: "Energia ligada"; hint: "Descarrega transformado, recarrega no Neutral, 0% destransforma"
                     checked: configCol.s ? configCol.s.timer.enabled : true
                     onToggled: v => dash.set("timer.enabled", v)
                 }
                 Stepper {
-                    label: "Duração do DNA"; min: 1; max: 120; step: 1
+                    label: "Descarga (100% → 0%)"; min: 1; max: 120; step: 1
                     value: configCol.s ? configCol.s.timer.minutes : 10
                     onEdited: v => dash.set("timer.minutes", v)
                 }
                 Stepper {
-                    label: "Recarga"; min: 0; max: 30; step: 1
-                    value: configCol.s ? configCol.s.timer.recharge_minutes : 2
+                    label: "Recarga (0% → 100%)"; min: 1; max: 60; step: 1
+                    value: configCol.s ? configCol.s.timer.recharge_minutes : 5
                     onEdited: v => dash.set("timer.recharge_minutes", v)
+                }
+                Stepper {
+                    label: "Mínimo para transformar"; min: 0; max: 90; step: 5; unit: "%"
+                    value: configCol.s ? configCol.s.timer.min_percent : 20
+                    onEdited: v => dash.set("timer.min_percent", v)
                 }
 
                 Section { text: "DNAs" }

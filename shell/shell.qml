@@ -37,6 +37,7 @@ ShellRoot {
         path: Quickshell.env("HOME") + "/.local/state/azmuth/theme.json"
         onLoaded: {
             try { root.theme = JSON.parse(text()) } catch (e) { console.warn("theme.json inválido:", e) }
+            Energy.t = root.theme.timer || ({})
         }
     }
 

@@ -22,7 +22,7 @@ PanelWindow {
     required property ShellScreen modelData
     screen: modelData
 
-    readonly property color primary: timer.recharging ? danger : theme.primary
+    readonly property color primary: Energy.locked ? danger : theme.primary
     readonly property color dnaColor: theme.primary
     readonly property color secondary: theme.secondary
     readonly property color bg: theme.background
@@ -60,20 +60,7 @@ PanelWindow {
     function mmss(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") }
 
     // ─────────────────────────── timer do Omnitrix ───────────────────────────
-    QtObject {
-        id: timer
-        property real now: Date.now() / 1000
-        readonly property var t: bar.theme.timer || ({})
-        readonly property real rechargeLeft: t.recharge_until ? t.recharge_until - now : 0
-        readonly property bool recharging: rechargeLeft > 0
-        readonly property real remaining: t.active ? t.started + t.duration - now : 0
-        readonly property bool running: t.active === true && remaining > 0 && !recharging
-        readonly property bool critical: running && remaining <= 60
-        // fração do anel: DNA esvaziando; recarga enchendo; senão cheio
-        readonly property real fraction: recharging ? 1 - rechargeLeft / Math.max(1, t.recharge_total)
-                                        : (running ? remaining / Math.max(1, t.duration) : 1)
-    }
-    Timer { interval: 250; running: true; repeat: true; onTriggered: timer.now = Date.now() / 1000 }
+    // energia do Omnitrix: ver Energy.qml (singleton)
 
     // ─────────────────────────── forma da barra ───────────────────────────
     Item { id: strip; x: 0; y: 0; width: bar.width; height: bar.stripH }
@@ -139,14 +126,14 @@ PanelWindow {
                 strokeColor: bar.primary; strokeWidth: 4; fillColor: "transparent"; capStyle: ShapePath.RoundCap
                 PathAngleArc {
                     centerX: omni.size / 2; centerY: omni.size / 2; radiusX: omni.size / 2 - 2; radiusY: radiusX
-                    startAngle: -90; sweepAngle: 360 * Math.max(0.001, timer.fraction)
+                    startAngle: -90; sweepAngle: 360 * Math.max(0.001, Energy.level)
                 }
             }
             // último minuto: anel pisca
-            opacity: timer.critical ? blink.v : 1
+            opacity: Energy.critical ? blink.v : 1
             QtObject { id: blink; property real v: 1 }
             SequentialAnimation {
-                running: timer.critical; loops: Animation.Infinite
+                running: Energy.critical; loops: Animation.Infinite
                 NumberAnimation { target: blink; property: "v"; to: 0.25; duration: 300 }
                 NumberAnimation { target: blink; property: "v"; to: 1; duration: 300 }
             }
@@ -228,7 +215,7 @@ PanelWindow {
         width: Math.min(implicitWidth, 150)
         elide: Text.ElideRight
         horizontalAlignment: Text.AlignRight
-        text: timer.recharging ? "RECARREGANDO" : (bar.theme.name || "").toUpperCase()
+        text: Energy.locked ? "RECARREGANDO" : (bar.theme.name || "").toUpperCase()
         font.family: "Orbitron"; font.weight: Font.Black; font.pixelSize: 11; font.letterSpacing: 1
         color: bar.primary
     }
@@ -237,10 +224,12 @@ PanelWindow {
         y: bar.stripH + 5
         property date clock: new Date()
         Timer { interval: 1000; running: true; repeat: true; onTriggered: parent.clock = new Date() }
-        text: timer.recharging ? bar.mmss(timer.rechargeLeft)
-              : (timer.running ? bar.mmss(timer.remaining) : Qt.formatTime(clock, "HH:mm"))
+        // transformado: tempo de energia · Neutral: carga e tempo até 100% · cheio: relógio
+        text: Energy.draining ? Energy.mmss(Energy.secondsLeft)
+              : (Energy.charging ? Energy.percent + "% · " + Energy.mmss(Energy.secondsToFull)
+                 : Qt.formatTime(clock, "HH:mm"))
         font.family: "Orbitron"; font.weight: Font.Black; font.pixelSize: 11; font.letterSpacing: 1
-        color: timer.critical ? bar.danger : bar.primary
+        color: Energy.critical ? bar.danger : bar.primary
     }
 
     // ─────────────────────────── esquerda ───────────────────────────

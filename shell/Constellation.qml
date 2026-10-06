@@ -7,6 +7,9 @@
 //   Alt+Tab rápido            alterna direto para a última janela (sem abrir)
 //   Super+Tab                 modo exploração: arrastar gira, scroll = zoom,
 //                             ←/→ janela, ↑/↓ workspace, Enter/clique entra
+//   WASD (na exploração)      câmera livre, como num jogo: W/S frente/trás,
+//                             A/D lados, Espaço/Ctrl sobe/desce, Shift turbo,
+//                             mouse olha, E/Enter entra no que está na mira, R reseta
 
 import QtQuick
 import Quickshell
@@ -31,7 +34,61 @@ PanelWindow {
     property real pitch: 0.3
     property real dist: 1050
     readonly property real focal: 950
-    Behavior on yaw { enabled: !drag.pressed; NumberAnimation { duration: 520; easing.type: Easing.OutCubic } }
+    Behavior on yaw { enabled: !drag.pressed && !cst.free; NumberAnimation { duration: 520; easing.type: Easing.OutCubic } }
+
+    // câmera livre (WASD): posição própria; senão a câmera orbita o centro
+    property bool free: false
+    property real camX: 0
+    property real camY: 0
+    property real camZ: 0
+    property var held: ({})
+    function camPos() {
+        if (free) return [camX, camY, camZ]
+        const cp = Math.cos(pitch), sp = Math.sin(pitch)
+        return [-cp * Math.sin(yaw) * dist, -sp * dist, -cp * Math.cos(yaw) * dist]
+    }
+    function goFree() {
+        if (free) return
+        const c = camPos()
+        camX = c[0]; camY = c[1]; camZ = c[2]
+        free = true
+    }
+    function resetCam() { free = false; held = ({}); dist = 1050; pitch = 0.3; focusSel() }
+    Timer {   // movimento contínuo enquanto as teclas estão pressionadas
+        interval: 16; repeat: true
+        running: cst.open && cst.free && Object.keys(cst.held).length > 0
+        onTriggered: {
+            const h = cst.held, sp = (h.shift ? 26 : 10)
+            const cy = Math.cos(cst.yaw), sy = Math.sin(cst.yaw), cp = Math.cos(cst.pitch), spp = Math.sin(cst.pitch)
+            const f = [cp * sy, spp, cp * cy], r = [cy, 0, -sy]
+            let dx = 0, dy = 0, dz = 0
+            if (h.w) { dx += f[0]; dy += f[1]; dz += f[2] }
+            if (h.s) { dx -= f[0]; dy -= f[1]; dz -= f[2] }
+            if (h.d) { dx += r[0]; dz += r[2] }
+            if (h.a) { dx -= r[0]; dz -= r[2] }
+            if (h.up) dy -= 1
+            if (h.down) dy += 1
+            cst.camX += dx * sp; cst.camY += dy * sp; cst.camZ += dz * sp
+            edges.requestPaint()
+        }
+    }
+    // o que está na mira (centro da tela), o mais próximo primeiro
+    function aimed() {
+        let best = null
+        const pick = (item, kind) => {
+            if (!item || !item.onAim) return
+            if (!best || item.p.depth < best.item.p.depth) best = { item: item, kind: kind }
+        }
+        for (let i = 0; i < nodeRep.count; i++) pick(nodeRep.itemAt(i), "node")
+        for (let i = 0; i < winRep.count; i++) pick(winRep.itemAt(i), "win")
+        return best
+    }
+    function confirmAim() {
+        const a = aimed()
+        if (!a) return
+        if (a.kind === "node") { selNode = a.item.index } else { selNode = -1; sel = a.item.ti }
+        confirm()
+    }
     Behavior on dist { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
     // ── cena ──
@@ -91,6 +148,8 @@ PanelWindow {
         sel = Math.min(startAt, Math.max(0, targets.length - 1))
         if (!targets.length && nodes.length) selNode = 0
         dist = 1050
+        free = false
+        held = ({})
         focusSel()
         open = true
         keys.forceActiveFocus()
@@ -145,12 +204,14 @@ PanelWindow {
     function overview() { open ? (open = false) : show("explore", 0) }
 
     function project(x, y, z) {
+        const c = camPos()
+        x -= c[0]; y -= c[1]; z -= c[2]
         const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch)
         const x1 = x * cy - z * sy, z1 = x * sy + z * cy
         const y2 = y * cp - z1 * sp, z2 = y * sp + z1 * cp
-        const depth = Math.max(80, z2 + dist)
+        const depth = Math.max(60, z2)
         const s = focal / depth
-        return { x: width / 2 + x1 * s, y: height / 2 + 90 + y2 * s, s: s, depth: depth }
+        return { x: width / 2 + x1 * s, y: height / 2 + (free ? 0 : 90) + y2 * s, s: s, depth: depth, behind: z2 < 60 }
     }
 
     // ───────────────────────── fundo ─────────────────────────
@@ -188,13 +249,20 @@ PanelWindow {
         onPositionChanged: mouse => {
             if (!pressed) return
             cst.yaw += (mouse.x - lx) * 0.006
-            cst.pitch = Math.max(-0.2, Math.min(1.1, cst.pitch + (mouse.y - ly) * 0.004))
+            cst.pitch = cst.free ? Math.max(-1.3, Math.min(1.3, cst.pitch + (mouse.y - ly) * 0.004))
+                                 : Math.max(-0.2, Math.min(1.1, cst.pitch + (mouse.y - ly) * 0.004))
             if (Math.abs(mouse.x - lx) + Math.abs(mouse.y - ly) > 2) moved = true
             lx = mouse.x; ly = mouse.y
             edges.requestPaint()
         }
-        onReleased: if (!moved) cst.open = false
-        onWheel: wheel => { cst.dist = Math.max(650, Math.min(2600, cst.dist - wheel.angleDelta.y * 1.2)); edges.requestPaint() }
+        onReleased: if (!moved) { if (cst.free) cst.confirmAim(); else cst.open = false }
+        onWheel: wheel => {
+            if (cst.free) {
+                const k = wheel.angleDelta.y * 1.5, cp = Math.cos(cst.pitch)
+                cst.camX += cp * Math.sin(cst.yaw) * k; cst.camY += Math.sin(cst.pitch) * k; cst.camZ += cp * Math.cos(cst.yaw) * k
+            } else cst.dist = Math.max(650, Math.min(2600, cst.dist - wheel.angleDelta.y * 1.2))
+            edges.requestPaint()
+        }
     }
 
     // ligações (anel entre workspaces + nó → janelas)
@@ -209,6 +277,7 @@ PanelWindow {
             ctx.lineWidth = 1.6
             for (let i = 0; i < ns.length && ns.length > 1; i++) {
                 const a = ns[i], b = ns[(i + 1) % ns.length]
+                if (a.behind || b.behind) continue
                 ctx.strokeStyle = Qt.alpha(cst.primary, 0.12 + 0.35 * Math.min(1, (a.s + b.s)))
                 ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke()
             }
@@ -216,6 +285,7 @@ PanelWindow {
             ctx.lineWidth = 1
             cst.wins.forEach(w => {
                 const a = ns[w.node], b = cst.project(w.x, w.y, w.z)
+                if (a.behind || b.behind) return
                 ctx.strokeStyle = Qt.alpha(cst.primary, 0.1 + 0.3 * b.s)
                 ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke()
             })
@@ -224,12 +294,15 @@ PanelWindow {
             target: cst
             function onYawChanged() { edges.requestPaint() }
             function onDistChanged() { edges.requestPaint() }
+            function onPitchChanged() { edges.requestPaint() }
+            function onFreeChanged() { edges.requestPaint() }
             function onNodesChanged() { edges.requestPaint() }
         }
     }
 
     // ───────────────────────── nós (workspaces) ─────────────────────────
     Repeater {
+        id: nodeRep
         model: cst.nodes
         Item {
             id: nd
@@ -239,6 +312,8 @@ PanelWindow {
             readonly property bool picked: cst.selNode === index
             readonly property bool current: modelData.ws.focused
             readonly property real size: 76 * p.s
+            readonly property bool onAim: cst.free && !p.behind && Math.abs(p.x - cst.width / 2) < size / 2 && Math.abs(p.y - cst.height / 2) < size / 2
+            visible: !p.behind
             x: p.x - size / 2; y: p.y - size / 2
             width: size; height: size
             z: 10000 - p.depth
@@ -247,7 +322,7 @@ PanelWindow {
             Rectangle {   // halo
                 anchors.centerIn: parent
                 width: parent.width * 1.9; height: width; radius: width / 2
-                color: Qt.alpha(cst.primary, nd.picked ? 0.28 : 0.1)
+                color: Qt.alpha(cst.primary, nd.picked || nd.onAim ? 0.32 : 0.1)
             }
             Rectangle {
                 anchors.fill: parent
@@ -279,14 +354,17 @@ PanelWindow {
 
     // ───────────────────────── janelas (miniaturas ao vivo) ─────────────────────────
     Repeater {
+        id: winRep
         model: cst.wins
         Item {
             id: wn
             required property var modelData
             readonly property var p: cst.project(modelData.x, modelData.y, modelData.z)
             readonly property int ti: cst.targets.indexOf(modelData)
-            readonly property bool picked: cst.selNode < 0 && cst.sel === ti
-            property real w: 360 * Math.min(p.s, 0.95) * (picked ? 1.12 : 1)
+            readonly property bool onAim: cst.free && !p.behind && Math.abs(p.x - cst.width / 2) < width / 2 && Math.abs(p.y - cst.height / 2) < height / 2
+            readonly property bool picked: cst.free ? onAim : (cst.selNode < 0 && cst.sel === ti)
+            visible: !p.behind
+            property real w: 360 * Math.min(p.s, cst.free ? 2.2 : 0.95) * (picked ? 1.12 : 1)
             readonly property real aspect: cap.hasContent && cap.sourceSize.width > 0 ? cap.sourceSize.height / cap.sourceSize.width : 0.62
             Behavior on w { NumberAnimation { duration: 180 } }
             width: w
@@ -311,7 +389,14 @@ PanelWindow {
                     live: true
                 }
             }
+            Rectangle {   // fundo do título (legível mesmo com a inclinação)
+                anchors.centerIn: wtitle
+                width: Math.min(parent.width, wtitle.implicitWidth) + 14; height: wtitle.implicitHeight + 4
+                radius: height / 2
+                color: Qt.alpha(cst.bg, 0.85)
+            }
             Text {
+                id: wtitle
                 anchors.top: frame.bottom; anchors.topMargin: 4
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
@@ -336,6 +421,18 @@ PanelWindow {
         anchors.fill: parent
         focus: cst.open
         Keys.onPressed: event => {
+            const mv = { [Qt.Key_W]: "w", [Qt.Key_A]: "a", [Qt.Key_S]: "s", [Qt.Key_D]: "d",
+                         [Qt.Key_Space]: "up", [Qt.Key_Control]: "down", [Qt.Key_Shift]: "shift" }
+            if (!cst.altMode && mv[event.key] !== undefined && (cst.free || event.key !== Qt.Key_Shift)) {
+                if (!event.isAutoRepeat) {
+                    cst.goFree()
+                    const h = Object.assign({}, cst.held); h[mv[event.key]] = true; cst.held = h
+                }
+                event.accepted = true
+                return
+            }
+            if (cst.free && (event.key === Qt.Key_E || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) { cst.confirmAim(); event.accepted = true; return }
+            if (!cst.altMode && event.key === Qt.Key_R) { cst.resetCam(); event.accepted = true; return }
             switch (event.key) {
             case Qt.Key_Tab: case Qt.Key_Right: cst.step(1); break
             case Qt.Key_Backtab: case Qt.Key_Left: cst.step(-1); break
@@ -348,7 +445,34 @@ PanelWindow {
             event.accepted = true
         }
         Keys.onReleased: event => {
-            if (event.key === Qt.Key_Alt && cst.altMode && cst.open) { cst.confirm(); event.accepted = true }
+            if (event.key === Qt.Key_Alt && cst.altMode && cst.open) { cst.confirm(); event.accepted = true; return }
+            const mv = { [Qt.Key_W]: "w", [Qt.Key_A]: "a", [Qt.Key_S]: "s", [Qt.Key_D]: "d",
+                         [Qt.Key_Space]: "up", [Qt.Key_Control]: "down", [Qt.Key_Shift]: "shift" }
+            if (!event.isAutoRepeat && mv[event.key] !== undefined) {
+                const h = Object.assign({}, cst.held); delete h[mv[event.key]]; cst.held = h
+                event.accepted = true
+            }
+        }
+    }
+
+    Item {   // mira da câmera livre
+        visible: cst.free
+        anchors.centerIn: parent
+        width: 34; height: 34
+        z: 20001
+        opacity: cst.reveal
+        Rectangle { anchors.centerIn: parent; width: 6; height: 6; radius: 3; color: cst.primary }
+        Rectangle { anchors.centerIn: parent; width: 34; height: 34; radius: 17; color: "transparent"; border.width: 2; border.color: Qt.alpha(cst.primary, 0.7) }
+    }
+
+    Rectangle {   // faixa escura atrás do rodapé
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        height: 150
+        z: 19999
+        opacity: cst.reveal
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "transparent" }
+            GradientStop { position: 0.6; color: Qt.alpha("#000000", 0.85) }
         }
     }
 
@@ -361,7 +485,8 @@ PanelWindow {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             readonly property var t: cst.selNode >= 0 ? null : cst.targets[cst.sel]
-            text: cst.selNode >= 0 && cst.nodes[cst.selNode] ? "WORKSPACE " + cst.nodes[cst.selNode].id
+            text: cst.free ? "CÂMERA LIVRE"
+                  : cst.selNode >= 0 && cst.nodes[cst.selNode] ? "WORKSPACE " + cst.nodes[cst.selNode].id
                   : (t ? (t.top.wayland ? t.top.wayland.appId : "") + "  ·  workspace " + t.ws.id : "")
             font.family: "Orbitron"; font.weight: Font.Bold; font.pixelSize: 15; font.letterSpacing: 2
             color: cst.primary
@@ -369,7 +494,8 @@ PanelWindow {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: cst.altMode ? "TAB próxima · SHIFT+TAB anterior · solte ALT para ir"
-                              : "arrastar gira · scroll zoom · ←/→ janela · ↑/↓ workspace · ENTER entra · ESC sai"
+                  : (cst.free ? "WASD mover · mouse olha · ESPAÇO/CTRL sobe/desce · SHIFT turbo · E entra na mira · R volta · ESC sai"
+                              : "arrastar gira · scroll zoom · ←/→ janela · ↑/↓ workspace · ENTER entra · WASD voa · ESC sai")
             font.family: "Rajdhani"; font.weight: Font.DemiBold; font.pixelSize: 15; font.letterSpacing: 1
             color: Qt.alpha(cst.fg, 0.6)
         }

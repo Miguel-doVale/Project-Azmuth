@@ -56,9 +56,10 @@ DEFAULT_SETTINGS = {
     "notifications": True,          # notificação a cada transformação
     "context_engine": True,         # sugestões automáticas de DNA
     "timer": {
-        "enabled": True,            # volta sozinho pro Neutral (Master Control desliga)
-        "minutes": 10,
-        "recharge_minutes": 2,      # 0 = sem recarga
+        "enabled": True,            # energia do Omnitrix (Master Control congela)
+        "minutes": 10,              # 100% → 0% transformado
+        "recharge_minutes": 5,      # 0% → 100% no Neutral
+        "min_percent": 20,          # carga mínima para transformar
     },
     "dna": {},                      # por DNA: {"<id>": {"autostart_apps": bool}}
 }
@@ -191,17 +192,46 @@ def set_setting(path: str, value) -> dict:
     return read_settings()
 
 
+# ── energia do Omnitrix ──
+# A carga (0–1) é guardada como valor + momento; a taxa depende do estado:
+# transformado descarrega, Neutral recarrega, Master Control congela.
+
+def energy_rate(state: dict, settings: dict, neutral: str) -> float:
+    t = settings["timer"]
+    if not t["enabled"]:
+        return 0.0
+    if state.get("current") in (None, neutral):
+        return 1.0 / max(1.0, t["recharge_minutes"] * 60)
+    if state.get("master_control", False):
+        return 0.0
+    return -1.0 / max(1.0, t["minutes"] * 60)
+
+
+def energy_now(state: dict, settings: dict, neutral: str, now: float | None = None) -> float:
+    now = now or time.time()
+    e = state.get("energy", 1.0)
+    ts = state.get("energy_ts", now)
+    return max(0.0, min(1.0, e + energy_rate(state, settings, neutral) * (now - ts)))
+
+
+def settle_energy() -> None:
+    """Fixa a carga atual antes de qualquer coisa que mude a taxa (DNA, Master, config)."""
+    now = time.time()
+    update_state(energy=energy_now(read_state(), read_settings(), load_roster()["neutral"], now), energy_ts=now)
+
+
 def timer_info(state: dict, settings: dict, roster_neutral: str) -> dict:
+    """O que a shell precisa para animar a energia sozinha (sem perguntar de novo)."""
     t = settings["timer"]
     now = time.time()
-    active = (t["enabled"] and not state.get("master_control", False)
-              and state.get("current") not in (None, roster_neutral))
     return {
-        "active": bool(active),
-        "started": state.get("changed_at", now),
-        "duration": int(t["minutes"] * 60),
-        "recharge_until": state.get("recharge_until", 0) if state.get("recharge_until", 0) > now else 0,
-        "recharge_total": int(t["recharge_minutes"] * 60),
+        "enabled": bool(t["enabled"]),
+        "energy": energy_now(state, settings, roster_neutral, now),
+        "ts": now,
+        "rate": energy_rate(state, settings, roster_neutral),
+        "min": t["min_percent"] / 100,
+        "drain_s": int(t["minutes"] * 60),
+        "charge_s": int(t["recharge_minutes"] * 60),
     }
 
 
@@ -478,14 +508,20 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
     now = time.time()
     neutral = load_roster()["neutral"]
 
-    # Omnitrix recarregando: só o Neutral (e o restore do sistema) passam
-    if (state.get("recharge_until", 0) > now and data["dna"]["id"] != neutral
-            and source not in ("restore", "timeout")):
-        left = int(state["recharge_until"] - now)
+    # Omnitrix sem carga: só o Neutral (e o restore do sistema) passam
+    settings = read_settings()
+    energy = energy_now(state, settings, neutral, now)
+    minimum = settings["timer"]["min_percent"] / 100
+    if (settings["timer"]["enabled"] and energy < minimum and data["dna"]["id"] != neutral
+            and data["dna"]["id"] != state.get("current") and source not in ("restore", "timeout")):
+        left = int((minimum - energy) / energy_rate({"current": neutral}, settings, neutral))
         play(sound("error"))
-        notify("Omnitrix recarregando", f"Transformação disponível em {left // 60}:{left % 60:02d}.", "normal")
-        log(f"[RECARREGANDO] faltam {left}s")
+        notify(f"Omnitrix recarregando · {round(energy * 100)}%",
+               f"Transformação disponível em {left // 60}:{left % 60:02d}.", "normal")
+        log(f"[RECARREGANDO] {energy:.0%}, faltam {left}s")
         return data
+    settle_energy()
+    state = read_state()
 
     same = data["dna"]["id"] == state.get("current")
     duration = read_settings()["timer"]["minutes"] * 60
@@ -514,8 +550,7 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
         previous=previous if previous != data["dna"]["id"] else state.get("previous"),
         changed_at=changed_at,
         source=source,
-        recharge_until=(now + read_settings()["timer"]["recharge_minutes"] * 60) if source == "timeout"
-                       else state.get("recharge_until", 0),
+        energy_ts=time.time(),
         daemons=daemons,
         pending=None,
     )
@@ -589,6 +624,7 @@ def cmd_accept() -> None:
 def cmd_master(mode: str) -> None:
     on = read_state().get("master_control", False)
     on = {"on": True, "off": False}.get(mode, not on)
+    settle_energy()
     update_state(master_control=on)
     write_theme()
     play(sound("hud_open" if on else "neutral"))
@@ -670,6 +706,8 @@ def cmd_set(path: str, raw: str) -> None:
         value = json.loads(raw)          # true/false/números/listas
     except json.JSONDecodeError:
         value = raw                      # texto puro
+    if path.startswith("timer"):
+        settle_energy()                  # fecha a conta com a taxa antiga
     set_setting(path, value)
     write_theme()                        # barra/timer refletem na hora
     log(f"[OK] {path} = {json.dumps(value)}")
