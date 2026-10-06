@@ -1,0 +1,12 @@
+[SddmGreeterTheme]
+Name=Azmuth
+Description=Project Azmuth — tela de login Omnitrix (Arch Core)
+Author=Miguel (Sun_Akuma)
+License=MIT
+Type=sddm-theme
+Version=1.0
+MainScript=Main.qml
+ConfigFile=theme.conf
+Theme-Id=azmuth
+Theme-API=2.0
+QtVersion=6
