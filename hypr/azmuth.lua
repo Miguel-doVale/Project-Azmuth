@@ -28,7 +28,7 @@ hl.layer_rule({
 })
 hl.layer_rule({
     name   = "azmuth-hud-blur",
-    match  = { namespace = "^azmuth-(hud|dashboard)$" },
+    match  = { namespace = "^azmuth-(hud|dashboard|clipboard)$" },
     blur   = true,
     ignore_alpha = 0.1,
 })
@@ -83,6 +83,9 @@ end
 -- Dashboard (relógio, DNA, música, calendário) e painel de Configuração do Omnitrix
 hl.bind(mainMod .. " + W", function() hud("dashboard") end)
 hl.bind(mainMod .. " + SHIFT + O", function() hud("config") end)
+
+-- Área de transferência (cliphist) com busca e miniaturas
+hl.bind(mainMod .. " + SHIFT + V", function() hud("clipboard") end)
 
 -- Rollback para o Neutral
 hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd(AZ .. " neutral"))

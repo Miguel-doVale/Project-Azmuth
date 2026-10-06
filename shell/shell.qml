@@ -53,6 +53,12 @@ ShellRoot {
         Widgets { theme: root.theme }
     }
 
+    Clipboard {
+        id: clipboard
+        theme: root.theme
+        screen: root.targetScreen()
+    }
+
     Dashboard {
         id: dashboard
         theme: root.theme
@@ -124,6 +130,7 @@ ShellRoot {
         function confirm(): void { root.confirm() }
         function theme(): void { themeFile.reload() }
         function dashboard(): void { dashboard.screen = root.targetScreen(); dashboard.toggle(0) }
+        function clipboard(): void { clipboard.screen = root.targetScreen(); clipboard.toggle() }
         function config(): void { dashboard.screen = root.targetScreen(); dashboard.toggle(1) }
         function flash(color: string): void {
             root.flashColor = color
