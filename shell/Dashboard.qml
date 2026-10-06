@@ -542,6 +542,11 @@ PanelWindow {
                     onToggled: v => dash.set("sounds", v)
                 }
                 Toggle {
+                    label: "Área de trabalho viva"; hint: "Omnitrix animado e circuitos com energia (desligado = wallpaper parado)"
+                    checked: configCol.s ? configCol.s.live_desktop : true
+                    onToggled: v => dash.set("live_desktop", v)
+                }
+                Toggle {
                     label: "Não perturbe"; hint: "Notificações vão direto pro histórico (críticas ainda aparecem)"
                     checked: configCol.s ? configCol.s.dnd : false
                     onToggled: v => dash.set("dnd", v)

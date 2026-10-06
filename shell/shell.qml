@@ -51,6 +51,11 @@ ShellRoot {
 
     Variants {
         model: Quickshell.screens
+        LiveDesktop { theme: root.theme; hudOpen: root.open }
+    }
+
+    Variants {
+        model: Quickshell.screens
         Widgets { theme: root.theme }
     }
 
@@ -209,10 +214,10 @@ ShellRoot {
             readonly property real size: Math.min(parent.width, parent.height) * 0.62
             width: size; height: size
             anchors.centerIn: parent
-            anchors.verticalCenterOffset: -parent.height * 0.04
-            scale: 0.72 + 0.28 * root.reveal
+            // nasce do Omnitrix da área de trabalho: mesmo centro, começa do tamanho dele
+            scale: 0.87 + 0.13 * root.reveal
             opacity: root.reveal
-            rotation: (1 - root.reveal) * -40   // o core "gira para fora" ao abrir
+            rotation: (1 - root.reveal) * -25   // o core "gira para fora" ao abrir
 
             SequentialAnimation {
                 id: shake

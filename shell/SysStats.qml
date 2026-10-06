@@ -33,6 +33,7 @@ Singleton {
             stat.reload(); meminfo.reload()
             const c = stat.text().split("\n")[0].trim().split(/\s+/).slice(1).map(Number)
             const idle = c[3] + c[4], total = c.reduce((a, b) => a + b, 0)
+            if (!isFinite(total) || total <= 0) return   // leitura vazia: não contamina a próxima
             if (stats.last) stats.cpu = 100 * (1 - (idle - stats.last.idle) / Math.max(1, total - stats.last.total))
             stats.last = { idle: idle, total: total }
 

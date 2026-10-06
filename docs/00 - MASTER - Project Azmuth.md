@@ -405,9 +405,17 @@ context_engine: { triggers: [...] }        # opcional
 - ✅ Shell em Quickshell (`shell/`): barra + Omnitrix HUD + widgets numa só
   instância. Troca de DNA agora em ~60 ms (meta < 100 ms atingida).
 - ✅ Terminal (kitty + prompt + fastfetch) e tema SDDM seguindo a estética.
-- ✅ **Timer do Omnitrix** (canon): 10 min por DNA, bipes no último minuto,
-  destransforma e fica vermelho recarregando 2 min (transformar = som de erro).
-  Master Control desliga o timer. Anel do timer na cápsula da barra.
+- ✅ **Energia do Omnitrix** (canon): carga 0–100% que descarrega transformado
+  (10 min) e recarrega no Neutral (5 min); abaixo de 20% não transforma; em 0%
+  destransforma. Master Control congela a carga. % e tempo até 100% na barra,
+  no Dashboard e no anel OMNITRIX da área de trabalho.
+- ✅ **Área de trabalho viva**: o Omnitrix do centro é desenhado ao vivo (Arch
+  no core no Neutral), circuitos com pulsos de energia (velocidade = CPU), anel
+  de energia; clique abre o HUD, que nasce do próprio símbolo. Desligável.
+- ✅ Notificações próprias (saem da cápsula, clique abre o app, ações,
+  histórico no Dashboard, Não perturbe); menu de energia Omnitrix (Super+Shift+Q)
+  com contagem cancelável; área de transferência 2.0 (prévia, filtros, fixados);
+  Constelação com câmera livre (WASD).
 - ✅ **Painel de Configuração** (Super+Shift+O): sons, notificações, sugestões,
   Master Control, timer (duração/recarga), abrir apps por DNA — grava em
   `~/.local/state/azmuth/settings.json` (`azmuth set <chave> <valor>`).
@@ -433,7 +441,8 @@ context_engine: { triggers: [...] }        # opcional
 | Super + Shift + M | Liga/desliga Master Control (troca automática) |
 | Super + D | Menu de apps (rofi) |
 | Super + W / Super + Shift + O | Dashboard / painel de Configuração do Omnitrix |
-| Alt + Tab (segurando) / Super + Tab | Constelação 3D: alternar janelas / explorar workspaces |
+| Alt + Tab (segurando) / Super + Tab | Constelação 3D: alternar janelas / explorar workspaces (WASD voa) |
+| Super + Shift + Q | Menu de energia (sair/reiniciar/desligar com contagem de 3 s) |
 | Super + Shift + V | Área de transferência (busca, miniaturas) |
 | Super + Q | Fechar janela (terminal/editor pede 2º toque em 1 s) |
 | Super + N / Super + Shift + N | Minimizar / restaurar |

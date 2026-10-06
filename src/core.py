@@ -55,6 +55,7 @@ DEFAULT_SETTINGS = {
     "sounds": True,                 # sons do Omnitrix
     "notifications": True,          # notificação a cada transformação
     "dnd": False,                   # não perturbe: notificações só vão pro histórico
+    "live_desktop": True,           # Omnitrix vivo + circuitos animados na área de trabalho
     "context_engine": True,         # sugestões automáticas de DNA
     "timer": {
         "enabled": True,            # energia do Omnitrix (Master Control congela)
@@ -371,6 +372,7 @@ def write_theme(data: dict | None = None) -> None:
         "master": state.get("master_control", False),
         "bar": (data.get("bar") or {}).get("visible", True),
         "dnd": settings["dnd"],
+        "live": settings["live_desktop"],
         "timer": timer_info(state, settings, load_roster()["neutral"]),
         "art": str(ROOT / data["hud"]["art"]) if (data.get("hud") or {}).get("art") else "",
         **data["palette"],
