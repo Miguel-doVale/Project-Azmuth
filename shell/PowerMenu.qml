@@ -24,7 +24,7 @@ PanelWindow {
 
     readonly property var actions: [
         { key: "B", name: "BLOQUEAR",  desc: "Trava a sessão (desbloqueio pelo Omnitrix)", icon: "", color: theme.primary, risky: false, cmd: [az, "lock"] },
-        { key: "S", name: "SUSPENDER", desc: "Dorme e trava ao acordar", icon: "", color: theme.primary, risky: false, cmd: ["systemctl", "suspend"] },
+        { key: "S", name: "SUSPENDER", desc: "Dorme e trava ao acordar", icon: "", color: theme.primary, risky: false, cmd: ["sh", "-c", "$HOME/.local/bin/azmuth lock; sleep 0.8; systemctl suspend"] },
         { key: "E", name: "SAIR",      desc: "Encerra a sessão do Hyprland", icon: "", color: danger, risky: true, cmd: ["hyprctl", "dispatch", "hl.dsp.exit()"] },
         { key: "R", name: "REINICIAR", desc: "Reinicia o computador", icon: "", color: danger, risky: true, cmd: ["systemctl", "reboot"] },
         { key: "D", name: "DESLIGAR",  desc: "Desliga o computador", icon: "", color: danger, risky: true, cmd: ["systemctl", "poweroff"] }

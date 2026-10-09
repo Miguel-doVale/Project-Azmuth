@@ -35,6 +35,7 @@ Item {
     property bool passwordMode: false
     property bool failed: false
     property bool busy: false
+    property int spin: 0
     property string note: ""              // aviso temporário (ex.: prévia não verifica senha)
     Timer { id: noteTimer; interval: 2600; onTriggered: face.note = "" }
     property var seq: null
@@ -151,6 +152,13 @@ Item {
             font.family: "Rajdhani"; font.weight: Font.Bold; font.pixelSize: face.height * 0.022; font.letterSpacing: 3
             color: Qt.alpha(face.fg, 0.8)
         }
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            topPadding: 6
+            text: "DNA ATIVO · " + (face.theme.name || "").toUpperCase()
+            font.family: "Orbitron"; font.weight: Font.Bold; font.pixelSize: face.height * 0.014; font.letterSpacing: 3
+            color: face.primary
+        }
     }
 
     // o Omnitrix parado
@@ -159,10 +167,18 @@ Item {
         size: face.height * 0.44
         anchors.centerIn: parent
         anchors.verticalCenterOffset: face.height * 0.03
-        showSlots: false
+        // modo senha: o aro de slots aparece e cada caractere vira uma runa num slot
+        showSlots: face.passwordMode && pass.text.length > 0
         accent: face.primary
-        opacity: face.passwordMode ? 0.35 : 1
-        Behavior on opacity { NumberAnimation { duration: 200 } }
+        maxSlots: 12
+        items: face.passwordMode ? Array.from({ length: pass.text.length }, (_, i) =>
+                   ({ glyph: Galvan.glyphs[(face.glyphSeed * 3 + i * 11) % Galvan.glyphs.length].id, color: face.primary })) : []
+        index: Math.max(0, pass.text.length - 1)
+        turn: Math.max(0, pass.text.length - 1) + face.spin
+        Timer {   // autenticando: o aro gira sozinho
+            interval: 110; repeat: true; running: face.busy && face.passwordMode
+            onTriggered: face.spin++
+        }
 
         SequentialAnimation {   // ↑: aperta o core
             id: press
@@ -186,9 +202,15 @@ Item {
             }
         }
 
+        Glyph {   // modo senha: a runa Chave no core
+            visible: face.passwordMode
+            anchors.centerIn: parent
+            width: dial.faceSize * 0.5; height: width
+            name: "chave"; color: dial.accent; stroke: 3.2
+        }
         Shape {   // ampulheta (DNA)
             id: hg
-            visible: !face.neutral
+            visible: !face.neutral && !face.passwordMode
             anchors.fill: parent
             readonly property real f: dial.faceSize
             ShapePath {
@@ -212,7 +234,7 @@ Item {
         }
         Shape {   // core Arch (Neutral)
             id: arch
-            visible: face.neutral
+            visible: face.neutral && !face.passwordMode
             anchors.centerIn: parent
             width: dial.faceSize * 0.56; height: width
             ShapePath {
@@ -244,53 +266,32 @@ Item {
         }
     }
 
-    // senha
-    Rectangle {
+    // senha: digitada "em volta do Omnitrix" (o campo real é invisível, só captura o teclado)
+    Item {
         visible: face.passwordMode
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: dial.bottom; anchors.topMargin: face.height * 0.03
-        width: face.height * 0.36; height: face.height * 0.058; radius: 6
-        color: Qt.alpha(face.bg, 0.85)
-        border.width: 2; border.color: face.primary
+        anchors.top: dial.bottom; anchors.topMargin: face.height * 0.035
+        width: 1; height: 1
         TextInput {
             id: pass
-            anchors.fill: parent; anchors.margins: 14
-            verticalAlignment: TextInput.AlignVCenter
-            horizontalAlignment: TextInput.AlignHCenter
-            echoMode: TextInput.NoEcho        // os caracteres aparecem como runas (abaixo)
-            cursorDelegate: Item {}           // sem o traço do cursor: só as runas
-            font.family: "Rajdhani"; font.pixelSize: face.height * 0.026; font.letterSpacing: 4
-            color: face.fg
+            width: 0; height: 0; opacity: 0
+            echoMode: TextInput.NoEcho
+            cursorDelegate: Item {}
             enabled: !face.busy
+            onTextChanged: if (text.length) face.failed = false
             Keys.onReturnPressed: face.submitPassword()
             Keys.onEnterPressed: face.submitPassword()
             Keys.onPressed: event => {
                 if (event.key === Qt.Key_Tab && face.hasSeq && face.attempts < 3) { face.passwordMode = false; face.focusInput(); event.accepted = true }
                 else if (event.key === Qt.Key_Escape && face.preview) { face.dismissed(); event.accepted = true }
-            }
-        }
-        Row {   // cada caractere da senha vira uma runa Galvan sorteada
-            anchors.centerIn: parent
-            spacing: 6
-            Repeater {
-                model: Math.min(pass.text.length, 18)
-                Glyph {
-                    required property int index
-                    width: 20; height: 20
-                    name: Galvan.glyphs[(face.glyphSeed * 3 + index * 11) % Galvan.glyphs.length].id
-                    color: face.primary
-                    stroke: 1.8
-                    Component.onCompleted: { scale = 0.3; grow.start() }
-                    NumberAnimation on scale { id: grow; running: false; to: 1; duration: 180; easing.type: Easing.OutBack }
-                }
+                else if (event.key === Qt.Key_Escape) { pass.text = ""; event.accepted = true }
             }
         }
         Text {
-            anchors.centerIn: parent
-            visible: pass.text.length === 0
-            text: face.busy ? "SEQUENCIANDO DNA..." : "SENHA"
-            font.family: "Orbitron"; font.pixelSize: face.height * 0.014; font.letterSpacing: 2
-            color: Qt.alpha(face.fg, 0.45)
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: face.busy ? "SEQUENCIANDO DNA…" : (pass.text.length ? pass.text.length + (pass.text.length === 1 ? " RUNA" : " RUNAS") : "DIGITE A SENHA DO SISTEMA")
+            font.family: "Orbitron"; font.pixelSize: face.height * 0.016; font.letterSpacing: 2
+            color: Qt.alpha(face.fg, 0.6)
         }
     }
 

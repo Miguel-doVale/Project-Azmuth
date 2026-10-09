@@ -140,11 +140,20 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         rotation: -dial.total
-                        visible: slot.d && !slot.d.image
+                        visible: slot.d && !slot.d.image && !slot.d.glyph
                         text: slot.d ? (slot.d.icon || "") : ""
                         font.family: "Font Awesome 7 Free"; font.styleName: "Solid"
                         font.pixelSize: parent.width * 0.36
                         color: slot.d && slot.d.dim ? "#4a525c" : parent.c
+                    }
+                    Glyph {   // slot com runa Galvan: { glyph: "chave" }
+                        anchors.centerIn: parent
+                        rotation: -dial.total
+                        visible: slot.d && !!slot.d.glyph
+                        width: parent.width * 0.5; height: width
+                        name: slot.d && slot.d.glyph ? slot.d.glyph : "nucleo"
+                        color: parent.c
+                        stroke: 1.8
                     }
                     IconImage {
                         anchors.centerIn: parent
