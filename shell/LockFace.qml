@@ -2,7 +2,8 @@
 //
 // O relógio fica parado (como o da área de trabalho). ← e → dão um "tranco" no
 // aro, que volta ao lugar; ↑ aperta o core. A senha é a sequência de movimentos
-// (ex.: ← ← → ↑ → ←). Enter confirma · Backspace desfaz · Esc limpa.
+// (ex.: ← ← → ↑ → ←). Acertou o último movimento → desbloqueia na hora (sem Enter);
+// errou ao completar o tamanho da sequência → rejeita e zera. Backspace desfaz · Esc limpa.
 // Tab alterna para a senha do sistema (PAM). 3 sequências erradas → só a senha.
 // Configurar: `azmuth lockseq set L L R U R L ...` (L = ←, R = →, U = ↑).
 
@@ -32,6 +33,8 @@ Item {
     property bool passwordMode: false
     property bool failed: false
     property bool busy: false
+    property string note: ""              // aviso temporário (ex.: prévia não verifica senha)
+    Timer { id: noteTimer; interval: 2600; onTriggered: face.note = "" }
     property var seq: null
     readonly property bool hasSeq: seq !== null && seq.length > 0
     readonly property bool seqAllowed: hasSeq && attempts < 3
@@ -54,7 +57,7 @@ Item {
         else if (token === "R") dial.nudge(1)
         else press.restart()
         sound(token === "U" ? "beep" : "tick")
-        if (entered.length > 64) entered = entered.slice(-64)
+        if (hasSeq && entered.length >= seq.length) check()   // sem Enter: confere ao completar
     }
     function check() {
         if (passwordMode || busy || !entered.length || !hasSeq) return
@@ -82,7 +85,12 @@ Item {
     }
     function submitPassword() {
         if (busy || !pass.text) return
-        if (preview) { fail(); return }
+        if (preview) {   // a prévia nunca autentica (e não gasta tentativas do faillock)
+            pass.text = ""
+            note = "PRÉVIA — a senha não é verificada aqui. No bloqueio real (Super+M) ela funciona."
+            noteTimer.restart()
+            return
+        }
         busy = true
         pam.start()
     }
@@ -116,7 +124,6 @@ Item {
             else if (k === Qt.Key_Left) face.move("L")
             else if (k === Qt.Key_Right) face.move("R")
             else if (k === Qt.Key_Up) face.move("U")
-            else if (k === Qt.Key_Return || k === Qt.Key_Enter) face.check()
             else if (k === Qt.Key_Backspace) face.entered = face.entered.slice(0, -1)
             else return
             event.accepted = true
@@ -272,16 +279,17 @@ Item {
         spacing: 6
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: face.failed ? (face.attempts >= 3 ? "DNA REJEITADO · use a senha" : "DNA REJEITADO")
+            text: face.note ? face.note
+                  : face.failed ? (face.attempts >= 3 ? "DNA REJEITADO · use a senha" : "DNA REJEITADO")
                   : (face.passwordMode ? "OMNITRIX // DNA LOCK" : "ATIVE O OMNITRIX")
             font.family: "Orbitron"; font.weight: Font.Bold; font.pixelSize: face.height * 0.018; font.letterSpacing: 3
-            color: face.primary
+            color: face.note ? "#ffd76a" : face.primary
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: face.passwordMode
                   ? (face.hasSeq && face.attempts < 3 ? "ENTER desbloqueia · TAB volta para o Omnitrix" : "ENTER desbloqueia")
-                  : "← → girar · ↑ apertar · ENTER confirmar · BACKSPACE desfazer · TAB senha"
+                  : "← → girar · ↑ apertar · BACKSPACE desfazer · TAB senha"
             font.family: "Rajdhani"; font.weight: Font.DemiBold; font.pixelSize: face.height * 0.017; font.letterSpacing: 1
             color: Qt.alpha(face.fg, 0.55)
         }
