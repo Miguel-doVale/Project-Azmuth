@@ -258,7 +258,7 @@ Item {
             verticalAlignment: TextInput.AlignVCenter
             horizontalAlignment: TextInput.AlignHCenter
             echoMode: TextInput.NoEcho        // os caracteres aparecem como runas (abaixo)
-            cursorVisible: false
+            cursorDelegate: Item {}           // sem o traço do cursor: só as runas
             font.family: "Rajdhani"; font.pixelSize: face.height * 0.026; font.letterSpacing: 4
             color: face.fg
             enabled: !face.busy
