@@ -206,6 +206,7 @@ Item {
                 spacing: 6
                 Text { text: Qt.locale("pt_BR").toString(cal.today, "MMMM yyyy").toUpperCase(); font.family: "Orbitron"; font.weight: Font.Bold; font.pixelSize: 12; color: dw.primary }
                 Grid {
+                    id: calGrid
                     columns: 7; width: parent.width
                     readonly property real cell: width / 7
                     readonly property date t: cal.today
@@ -224,6 +225,25 @@ Item {
                             width: parent.cell; height: 24
                             Rectangle { anchors.centerIn: parent; width: 22; height: 22; radius: 11; color: dw.primary; visible: parent.isToday }
                             Text { anchors.centerIn: parent; text: parent.day >= 1 && parent.day <= parent.parent.days ? parent.day : ""; font.family: "Rajdhani"; font.weight: Font.Bold; font.pixelSize: 13; color: parent.isToday ? dw.bg : dw.fg }
+                            Rectangle {   // tem evento
+                                anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom
+                                width: 4; height: 4; radius: 2
+                                visible: parent.day >= 1 && parent.day <= parent.parent.days && Events.hasDay(new Date(parent.parent.t.getFullYear(), parent.parent.t.getMonth(), parent.day))
+                                color: parent.isToday ? dw.fg : dw.primary
+                            }
+                        }
+                    }
+                }
+                Repeater {   // próximos eventos
+                    model: Events.upcoming(3)
+                    Item {
+                        required property var modelData
+                        width: calCol.width; height: 20
+                        Rectangle { y: 7; width: 6; height: 6; radius: 3; color: parent.modelData.color }
+                        Text {
+                            x: 14; width: parent.width - 14; elide: Text.ElideRight
+                            text: parent.modelData.date.slice(8) + "/" + parent.modelData.date.slice(5, 7) + (parent.modelData.time ? " " + parent.modelData.time : "") + " · " + parent.modelData.title
+                            font.family: "Rajdhani"; font.weight: Font.DemiBold; font.pixelSize: 13; color: dw.fg
                         }
                     }
                 }

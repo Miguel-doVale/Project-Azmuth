@@ -20,6 +20,7 @@ Formato do gatilho:  match: "class:<regex>"  ou  "title:<regex>"
 """
 
 import fcntl
+import json
 import os
 import re
 import socket
@@ -139,15 +140,52 @@ class Engine:
                 self.suggesting = False
 
 
+EVENTS_FILE = core.STATE_DIR / "events.json"
+
+
+def check_events(now: float) -> None:
+    """Lembretes do calendário (Central → Calendário). Dia inteiro = às 8h."""
+    import datetime as dt
+    try:
+        events = json.loads(EVENTS_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return
+    done = set(core.read_state().get("notified_events", []))
+    fired = []
+    for e in events:
+        remind = e.get("remind", -1)
+        if remind is None or remind < 0:
+            continue
+        try:
+            when = dt.datetime.strptime(f"{e['date']} {e.get('time') or '08:00'}", "%Y-%m-%d %H:%M").timestamp()
+        except (KeyError, ValueError):
+            continue
+        tag = f"{e.get('id')}@{e['date']}{e.get('time', '')}-{remind}"
+        if tag in done or not (when - remind * 60 <= now <= when + 15 * 60):
+            continue
+        hora = e.get("time") or "hoje"
+        quando = "agora" if now >= when else f"em {round((when - now) / 60)} min"
+        core.play(core.sound("beep"))
+        core.notify(f"Lembrete · {e.get('title', '')}", f"{hora} · {quando}", "normal", 10000)
+        fired.append(tag)
+    if fired:
+        keep = [t for t in done if t.split("@")[1][:10] >= dt.date.today().isoformat()][-200:]
+        core.update_state(notified_events=keep + fired)
+
+
 def timer_loop() -> None:
     """Energia do Omnitrix: bipes no último minuto, destransforma em 0% e avisa
     quando a carga volta ao mínimo para transformar."""
     neutral = core.load_roster()["neutral"]
     warned: set[int] = set()
     prev_energy = None
+    last_events = 0.0
     while True:
         time.sleep(1)
         try:
+            if time.time() - last_events >= 20:
+                last_events = time.time()
+                check_events(last_events)
             state, settings = core.read_state(), core.read_settings()
             info = core.timer_info(state, settings, neutral)
             e, rate = info["energy"], info["rate"]

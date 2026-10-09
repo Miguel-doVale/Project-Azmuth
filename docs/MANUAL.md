@@ -121,7 +121,7 @@ desce, Shift acelera), a mira + **E** entra, **R** volta.
 - O relógio fica parado. **←** e **→** dão um tranco no aro; **↑** aperta o core.
 - A senha é a sequência de movimentos. Acertou, desbloqueia (sem Enter).
 - Cada movimento aparece como uma runa Galvan sorteada.
-- **Tab** troca para a senha do Arch (os caracteres também viram runas).
+- **Tab** troca para a senha do Arch: o aro de slots aparece e cada caractere vira uma runa nele.
 - 3 sequências erradas → só a senha.
 - Gravar a sequência (num terminal seu): `azmuth lockseq set L R R U L R`
   (L = ←, R = →, U = ↑; mínimo 6).
@@ -142,12 +142,17 @@ rodar `python3 tools/gen_galvan.py`.
   O chip de rede da barra abre esta aba.
 - **Som**: saída e microfone padrão, volume e mudo por dispositivo e por app, visualizador com o
   nível real do áudio. O chip de volume da barra abre esta aba (clique direito = mudo).
-- **Área de trabalho**: área viva, widgets na tela (tamanho, remover), catálogo e **Editar na tela**.
+- **Área de trabalho**: área viva, widgets na tela (tamanho, remover), catálogo, imagens e **Editar na tela**.
+- **Calendário**: mês com marcas nos dias com evento, eventos do dia, adicionar/editar/apagar com
+  hora, cor e lembrete (na hora, 10/30 min, 1 h, 1 dia antes; dia inteiro avisa às 8h). Os
+  widgets de calendário mostram as marcas e os próximos eventos.
 
 ### Desktop canvas
 `Super + Alt + E` (ou Central → Área de trabalho → Editar na tela): arraste os widgets, scroll muda
-o tamanho (50–200%), ✕ remove, guias puxam para o centro, a barra do topo adiciona do catálogo
-(relógio, anéis, energia, DNA, música, calendário, barras do sistema). Esc ou Concluir sai.
+o tamanho (50–200%), ✕ remove, **guias inteligentes** alinham com bordas e centros dos outros
+widgets e da tela, **réguas** mostram o espaço até o vizinho, a barra do topo adiciona do catálogo
+(relógio, anéis, energia, DNA, música, calendário, barras do sistema). **Imagem**: Central → Área de
+trabalho → Imagem, escolha na grade. Esc ou Concluir sai.
 Salvo em `~/.local/state/azmuth/desktop.json`.
 
 ### Notificações

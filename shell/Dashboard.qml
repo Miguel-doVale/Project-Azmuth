@@ -428,6 +428,12 @@ PanelWindow {
                                     width: parent.cell; height: 26
                                     visible: index < Math.ceil((first + days) / 7) * 7
                                     Rectangle { anchors.centerIn: parent; width: 24; height: 24; radius: 12; color: dash.primary; visible: parent.isToday }
+                                    Rectangle {   // tem evento
+                                        anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom
+                                        width: 4; height: 4; radius: 2
+                                        visible: parent.day >= 1 && parent.day <= parent.days && Events.hasDay(new Date(cal.month.getFullYear(), cal.month.getMonth(), parent.day))
+                                        color: parent.isToday ? dash.fg : dash.primary
+                                    }
                                     Text {
                                         anchors.centerIn: parent
                                         text: parent.day >= 1 && parent.day <= parent.days ? parent.day : ""

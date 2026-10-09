@@ -26,7 +26,7 @@ PanelWindow {
 
     readonly property var tabs: [
         { name: "OMNITRIX", glyph: "tempo" }, { name: "APPS", glyph: "portal" }, { name: "WI-FI", glyph: "rede" },
-        { name: "SOM", glyph: "som" }, { name: "ÁREA DE TRABALHO", glyph: "midia" }
+        { name: "SOM", glyph: "som" }, { name: "ÁREA DE TRABALHO", glyph: "midia" }, { name: "CALENDÁRIO", glyph: "dados" }
     ]
 
     function toggle(t) {
@@ -566,9 +566,11 @@ PanelWindow {
                 onEditOnScreen: { cc.open = false; DeskLayout.editing = true }
             }
 
+            CalendarPanel { anchors.fill: parent; visible: cc.tab === 5 }
+
             // ═════════════ próximas abas ═════════════
             Column {
-                visible: cc.tab >= 5
+                visible: cc.tab >= 6
                 anchors.centerIn: parent
                 spacing: 12
                 Glyph { anchors.horizontalCenter: parent.horizontalCenter; width: 64; height: 64; name: cc.tabs[cc.tab].glyph; color: Qt.alpha(cc.primary, 0.5); stroke: 2.4 }
