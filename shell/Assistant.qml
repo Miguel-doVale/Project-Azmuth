@@ -116,9 +116,11 @@ PanelWindow {
                     anchors.centerIn: parent; width: 56; height: 56; radius: 28
                     color: "#0a0f0b"; border.width: 3; border.color: ai.galvan
                     Glyph {
+                        id: orbGlyph
                         anchors.centerIn: parent; width: 30; height: 30; name: "mente"; color: ai.galvan; stroke: 2.2
-                        RotationAnimation on rotation { running: ai.thinking; loops: Animation.Infinite; from: 0; to: 360; duration: 2400 }
-                        onRotationChanged: if (!ai.thinking && rotation !== 0) rotation = 0
+                        RotationAnimation on rotation { id: orbSpin; running: ai.thinking; loops: Animation.Infinite; from: 0; to: 360; duration: 2400 }
+                        // terminou de pensar: volta a runa para a posição certa
+                        Connections { target: ai; function onThinkingChanged() { if (!ai.thinking) { orbSpin.stop(); orbGlyph.rotation = 0 } } }
                     }
                 }
             }
@@ -180,6 +182,7 @@ PanelWindow {
             TextInput {
                 id: input
                 anchors.fill: parent; anchors.leftMargin: 22; anchors.rightMargin: 60
+                clip: true   // texto longo rola dentro da caixa em vez de vazar
                 verticalAlignment: TextInput.AlignVCenter
                 font.family: "Rajdhani"; font.weight: Font.DemiBold; font.pixelSize: 17; color: Colors.fg
                 selectionColor: ai.galvan
