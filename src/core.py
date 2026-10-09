@@ -21,7 +21,7 @@ Uso:
   azmuth set <chave> <valor>             altera uma preferência (ex.: timer.minutes 15)
   azmuth settings                        preferências em JSON (painel de configuração)
   azmuth lock [--preview]                bloqueia a tela (Super + M) · --preview só mostra
-  azmuth lockseq set N 1 4 0 ...         sequência do Omnitrix para desbloquear (clear/status)
+  azmuth lockseq set L L R U R L ...     sequência do Omnitrix para desbloquear (clear/status)
   azmuth power                           menu de energia (Super + Shift + Q)
   azmuth shot [area|full|window|menu]    capturas (Super+Shift+S, Print, Super+Print, Super+Alt+S)
   azmuth install                         liga as configs do sistema ao projeto
@@ -687,24 +687,28 @@ def cmd_hud(action: str) -> None:
 
 
 LOCKSEQ_FILE = STATE_DIR / "lockseq.json"
-LOCK_TOKENS = ["N"] + [str(k) for k in (1, 2, 3, 4, 5, 6, 7, 8, 9, 0)]
+# movimentos do Omnitrix na tela de bloqueio: ← (L), → (R), ↑ apertar o core (U)
+LOCK_ALIASES = {"L": "L", "←": "L", "ESQ": "L", "R": "R", "→": "R", "DIR": "R", "U": "U", "↑": "U", "CIMA": "U"}
 
 
 def cmd_lockseq(args: list[str]) -> None:
-    """azmuth lockseq set N 1 4 0 7 · azmuth lockseq clear · azmuth lockseq status"""
+    """azmuth lockseq set L L R U R L … · azmuth lockseq clear · azmuth lockseq status"""
     action = args[0] if args else "status"
     if action == "set":
-        seq = [t.upper() for t in args[1:]]
-        bad = [t for t in seq if t not in LOCK_TOKENS]
-        if bad or len(seq) < 4:
-            raise SystemExit(f"[ERRO] use 4+ posições entre {' '.join(LOCK_TOKENS)} (N = Neutral). Inválidas: {bad}")
+        raw = [t.upper() for t in args[1:]]
+        bad = [t for t in raw if t not in LOCK_ALIASES]
+        if bad or len(raw) < 6:
+            raise SystemExit("[ERRO] use 6+ movimentos: L (←), R (→), U (↑ apertar). "
+                             f"Ex.: azmuth lockseq set L L R U R L R L. Inválidos: {bad}")
+        seq = [LOCK_ALIASES[t] for t in raw]
         import hashlib
         salt = os.urandom(8).hex()
         STATE_DIR.mkdir(parents=True, exist_ok=True)
         LOCKSEQ_FILE.write_text(json.dumps({"salt": salt, "length": len(seq),
                                             "hash": hashlib.md5(f"{salt}:{','.join(seq)}".encode()).hexdigest()}))
         LOCKSEQ_FILE.chmod(0o600)
-        log(f"[OK] sequência de {len(seq)} posições gravada. Teste: azmuth lock --preview")
+        combos = (3 if "U" in seq else 2) ** len(seq)
+        log(f"[OK] sequência de {len(seq)} movimentos gravada (~{combos:,} combinações). Teste: azmuth lock --preview")
     elif action == "clear":
         LOCKSEQ_FILE.unlink(missing_ok=True)
         log("[OK] sequência removida (bloqueio só com senha)")
