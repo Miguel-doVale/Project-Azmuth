@@ -11,6 +11,7 @@ import Quickshell.Services.Mpris
 Item {
     id: dw
     property string type: "relogio"
+    property string src: ""          // widget "imagem": caminho do arquivo
     property var theme: ({})
     readonly property color primary: Colors.primary
     readonly property color fg: Colors.fg
@@ -21,7 +22,7 @@ Item {
 
     Loader {
         id: loader
-        sourceComponent: ({ relogio: clockC, aneis: ringsC, energia: energyC, dna: dnaC, musica: musicC, calendario: calC, sistema: sysC })[dw.type] || clockC
+        sourceComponent: ({ relogio: clockC, aneis: ringsC, energia: energyC, dna: dnaC, musica: musicC, calendario: calC, sistema: sysC, imagem: imageC })[dw.type] || clockC
     }
 
     component Card: Rectangle {
@@ -227,6 +228,29 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    // ── imagem ──
+    Component {
+        id: imageC
+        Item {
+            readonly property real ratio: img.implicitWidth > 0 ? img.implicitHeight / img.implicitWidth : 0.75
+            implicitWidth: 300; implicitHeight: Math.round(300 * ratio)
+            ClippingRectangle {
+                anchors.fill: parent
+                radius: 14
+                color: Qt.alpha(dw.primary, 0.08)
+                Image {
+                    id: img
+                    anchors.fill: parent
+                    source: dw.src ? "file://" + dw.src : ""
+                    sourceSize.width: 600
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                }
+            }
+            Rectangle { anchors.fill: parent; radius: 14; color: "transparent"; border.width: 2; border.color: Qt.alpha(dw.primary, 0.6) }
         }
     }
 

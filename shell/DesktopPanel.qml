@@ -1,11 +1,21 @@
 // Project Azmuth — aba Área de trabalho da Central: widgets do "desktop canvas".
 import QtQuick
+import Qt.labs.folderlistmodel
+import Quickshell
 
 Item {
     id: dp
     property var settings: null          // preferências (azmuth settings)
     signal setPref(string path, var value)
     signal editOnScreen
+    property bool picking: false
+    property string folder: Quickshell.env("HOME") + "/Pictures"
+    readonly property var folders: [
+        { name: "IMAGENS", path: Quickshell.env("HOME") + "/Pictures" },
+        { name: "CAPTURAS", path: Quickshell.env("HOME") + "/Pictures/Screenshots" },
+        { name: "DOWNLOADS", path: Quickshell.env("HOME") + "/Downloads" },
+        { name: "WALLPAPERS AZMUTH", path: Quickshell.env("HOME") + "/Documents/Coding/Project Azmuth/assets/wallpapers" }
+    ]
 
     Flickable {
         anchors.fill: parent
@@ -68,7 +78,56 @@ Item {
                 spacing: 8
                 Repeater {
                     model: DeskLayout.catalog
-                    UiButton { required property var modelData; glyph: modelData.glyph; text: modelData.name.toUpperCase(); onClicked: DeskLayout.add(modelData.type) }
+                    UiButton {
+                        required property var modelData
+                        glyph: modelData.glyph; text: modelData.name.toUpperCase()
+                        filled: modelData.type === "imagem" && dp.picking
+                        onClicked: modelData.type === "imagem" ? (dp.picking = !dp.picking) : DeskLayout.add(modelData.type)
+                    }
+                }
+            }
+
+            // seletor de imagem (sem depender de zenity/kdialog)
+            Column {
+                visible: dp.picking
+                width: parent.width
+                spacing: 8
+                UiSection { text: "ESCOLHA UMA IMAGEM" }
+                Flow {
+                    width: parent.width; spacing: 6
+                    Repeater {
+                        model: dp.folders
+                        UiButton { required property var modelData; text: modelData.name; filled: dp.folder === modelData.path; onClicked: dp.folder = modelData.path }
+                    }
+                }
+                FolderListModel {
+                    id: pics
+                    folder: "file://" + dp.folder
+                    nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.PNG", "*.JPG"]
+                    showDirs: false
+                    sortField: FolderListModel.Time
+                }
+                Text { visible: pics.count === 0; text: "Nenhuma imagem nesta pasta."; font.family: "Rajdhani"; font.pixelSize: 15; color: Qt.alpha(Colors.fg, 0.5) }
+                Grid {
+                    columns: Math.max(1, Math.floor(parent.width / 132))
+                    spacing: 8
+                    Repeater {
+                        model: pics
+                        Rectangle {
+                            required property string filePath
+                            required property string fileName
+                            width: 124; height: 96; radius: 10
+                            color: Qt.alpha(Colors.primary, 0.06)
+                            border.width: pm.containsMouse ? 2 : 1; border.color: pm.containsMouse ? Colors.primary : Qt.alpha(Colors.fg, 0.15)
+                            clip: true
+                            Image { anchors.fill: parent; anchors.margins: 4; source: "file://" + parent.filePath; sourceSize.width: 240; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                            MouseArea {
+                                id: pm
+                                anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: { DeskLayout.add("imagem", { src: parent.filePath }); dp.picking = false }
+                            }
+                        }
+                    }
                 }
             }
             Item { width: 1; height: 6 }

@@ -25,6 +25,7 @@ PanelWindow {
         DeskWidget {
             required property var modelData
             type: modelData.type
+            src: modelData.src || ""
             theme: desk.theme
             scale: modelData.s || 1
             x: desk.width * modelData.x - width / 2

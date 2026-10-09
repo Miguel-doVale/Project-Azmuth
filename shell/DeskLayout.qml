@@ -22,7 +22,8 @@ Singleton {
         { type: "dna",        name: "DNA ativo",        glyph: "mente" },
         { type: "musica",     name: "Música",           glyph: "som" },
         { type: "calendario", name: "Calendário",       glyph: "dados" },
-        { type: "sistema",    name: "Barras do sistema",glyph: "sistema" }
+        { type: "sistema",    name: "Barras do sistema",glyph: "sistema" },
+        { type: "imagem",     name: "Imagem",           glyph: "midia" }
     ]
     readonly property var defaults: [
         { uid: "w1", type: "relogio", x: 0.5, y: 0.17, s: 1 },
@@ -35,9 +36,9 @@ Singleton {
         Quickshell.execDetached(["sh", "-c", "mkdir -p \"$(dirname \"$1\")\" && printf '%s' \"$2\" > \"$1\"", "sh", path,
                                  JSON.stringify({ version: 1, widgets: next })])
     }
-    function add(type) {
+    function add(type, extra) {
         const uid = "w" + Date.now().toString(36)
-        commit(widgets.concat([{ uid: uid, type: type, x: 0.5, y: 0.5, s: 1 }]))
+        commit(widgets.concat([Object.assign({ uid: uid, type: type, x: 0.5, y: 0.5, s: 1 }, extra || {})]))
         return uid
     }
     function remove(uid) { commit(widgets.filter(w => w.uid !== uid)) }
