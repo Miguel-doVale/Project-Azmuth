@@ -13,6 +13,7 @@ Singleton {
     readonly property string path: Quickshell.env("HOME") + "/.local/state/azmuth/desktop.json"
     property var widgets: []
     property bool editing: false
+    property bool pickImage: false   // abre o seletor de imagem na Central
 
     // catálogo (nome e runa usados no editor e na Central)
     readonly property var catalog: [

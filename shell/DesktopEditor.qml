@@ -12,6 +12,7 @@ PanelWindow {
     id: ed
 
     required property var theme
+    property var shell: null
     visible: DeskLayout.editing
     anchors { top: true; left: true; right: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
@@ -210,13 +211,18 @@ PanelWindow {
                 Text { text: "arraste · scroll = tamanho · ✕ remove"; font.family: "Rajdhani"; font.pixelSize: 12; color: Qt.alpha(Colors.fg, 0.55) }
             }
             Repeater {
-                model: DeskLayout.catalog.filter(c => c.type !== "imagem")   // imagem: escolha na Central
+                model: DeskLayout.catalog
                 UiButton {
                     required property var modelData
                     anchors.verticalCenter: parent.verticalCenter
                     glyph: modelData.glyph
                     text: modelData.name.split(" ")[0].toUpperCase()
-                    onClicked: DeskLayout.add(modelData.type)
+                    // imagem: abre o seletor na Central (Área de trabalho)
+                    onClicked: {
+                        if (modelData.type !== "imagem") { DeskLayout.add(modelData.type); return }
+                        DeskLayout.editing = false; DeskLayout.pickImage = true
+                        if (ed.shell) ed.shell.openConfig(4)
+                    }
                 }
             }
             Rectangle { width: 1; height: 30; color: Qt.alpha(Colors.primary, 0.3); anchors.verticalCenter: parent.verticalCenter }

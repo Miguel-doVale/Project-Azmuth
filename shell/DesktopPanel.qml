@@ -9,6 +9,11 @@ Item {
     signal setPref(string path, var value)
     signal editOnScreen
     property bool picking: false
+    // o modo edição pede o seletor de imagem: abre e consome o pedido
+    Connections {
+        target: DeskLayout
+        function onPickImageChanged() { if (DeskLayout.pickImage) { dp.picking = true; DeskLayout.pickImage = false } }
+    }
     property string folder: Quickshell.env("HOME") + "/Pictures"
     readonly property var folders: [
         { name: "IMAGENS", path: Quickshell.env("HOME") + "/Pictures" },

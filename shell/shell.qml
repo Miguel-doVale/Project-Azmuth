@@ -57,8 +57,14 @@ ShellRoot {
 
     Variants {
         model: Quickshell.screens
-        Widgets { theme: root.theme }
+        Widgets { theme: root.theme; shell: root }
     }
+
+    QuickEvent {
+        id: quickEventWin
+        screen: root.targetScreen()
+    }
+    function quickEvent(d) { quickEventWin.screen = targetScreen(); quickEventWin.show(d) }
 
     Constellation {
         id: constellation
@@ -74,6 +80,7 @@ ShellRoot {
 
     DesktopEditor {
         theme: root.theme
+        shell: root
         screen: root.targetScreen()
     }
 
@@ -111,6 +118,7 @@ ShellRoot {
         id: dashboard
         theme: root.theme
         notifications: notifs
+        onQuickEvent: d => root.quickEvent(d)
         onOpenCentral: { configCenter.screen = root.targetScreen(); configCenter.toggle(0) }
         screen: root.targetScreen()
     }

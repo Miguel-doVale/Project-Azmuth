@@ -12,6 +12,7 @@ Item {
     id: dw
     property string type: "relogio"
     property string src: ""          // widget "imagem": caminho do arquivo
+    signal dayClicked(date d)        // calendário: clique num dia → evento rápido
     property var theme: ({})
     readonly property color primary: Colors.primary
     readonly property color fg: Colors.fg
@@ -225,6 +226,12 @@ Item {
                             width: parent.cell; height: 24
                             Rectangle { anchors.centerIn: parent; width: 22; height: 22; radius: 11; color: dw.primary; visible: parent.isToday }
                             Text { anchors.centerIn: parent; text: parent.day >= 1 && parent.day <= parent.parent.days ? parent.day : ""; font.family: "Rajdhani"; font.weight: Font.Bold; font.pixelSize: 13; color: parent.isToday ? dw.bg : dw.fg }
+                            MouseArea {
+                                anchors.fill: parent
+                                enabled: parent.day >= 1 && parent.day <= parent.parent.days
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: dw.dayClicked(new Date(parent.parent.t.getFullYear(), parent.parent.t.getMonth(), parent.day))
+                            }
                             Rectangle {   // tem evento
                                 anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom
                                 width: 4; height: 4; radius: 2

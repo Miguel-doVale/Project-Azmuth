@@ -20,6 +20,7 @@ PanelWindow {
     property bool allNotifs: false        // histórico: 4 por padrão, "ver mais" mostra tudo
     property int tab: 0                 // só o Painel; configurações ficam na Central (Super+Shift+O)
     signal openCentral
+    signal quickEvent(date d)
     property real reveal: open ? 1 : 0
     Behavior on reveal { NumberAnimation { duration: dash.open ? 320 : 200; easing.type: Easing.OutCubic } }
 
@@ -428,6 +429,12 @@ PanelWindow {
                                     width: parent.cell; height: 26
                                     visible: index < Math.ceil((first + days) / 7) * 7
                                     Rectangle { anchors.centerIn: parent; width: 24; height: 24; radius: 12; color: dash.primary; visible: parent.isToday }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        enabled: parent.day >= 1 && parent.day <= parent.days
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: { dash.open = false; dash.quickEvent(new Date(cal.month.getFullYear(), cal.month.getMonth(), parent.day)) }
+                                    }
                                     Rectangle {   // tem evento
                                         anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom
                                         width: 4; height: 4; radius: 2
