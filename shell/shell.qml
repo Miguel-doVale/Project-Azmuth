@@ -72,6 +72,11 @@ ShellRoot {
         screen: root.targetScreen()
     }
 
+    DesktopEditor {
+        theme: root.theme
+        screen: root.targetScreen()
+    }
+
     ConfigCenter {
         id: configCenter
         theme: root.theme
@@ -187,6 +192,7 @@ ShellRoot {
         function power(): void { powerMenu.screen = root.targetScreen(); powerMenu.toggle() }
         function clipboard(): void { clipboard.screen = root.targetScreen(); clipboard.toggle() }
         function config(): void { configCenter.screen = root.targetScreen(); configCenter.toggle() }
+        function editDesktop(): void { DeskLayout.editing = !DeskLayout.editing }
         function configTab(tab: int): void { configCenter.screen = root.targetScreen(); configCenter.toggle(tab) }
         function flash(color: string): void {
             root.flashColor = color

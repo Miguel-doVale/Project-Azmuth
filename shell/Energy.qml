@@ -1,7 +1,6 @@
+pragma Singleton
 // Project Azmuth — energia do Omnitrix calculada ao vivo (barra, dashboard, widgets).
 // A shell alimenta `t` com theme.timer; daqui pra frente a conta é local.
-pragma Singleton
-
 import QtQuick
 import Quickshell
 

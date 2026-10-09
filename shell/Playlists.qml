@@ -1,8 +1,7 @@
+pragma Singleton
 // Project Azmuth — playlists de apps (dados), compartilhadas pelo lançador e pela
 // Central de Configuração. Persistem em ~/.local/state/azmuth/playlists.json.
 // Na primeira vez são geradas pelas categorias dos .desktop; depois, só o usuário muda.
-pragma Singleton
-
 import QtQuick
 import Quickshell
 import Quickshell.Io

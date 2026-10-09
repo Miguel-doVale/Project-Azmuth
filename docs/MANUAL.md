@@ -39,6 +39,7 @@ explica o *porquê* do projeto; este manual explica o *como usar*.
 | `Super + Shift + M` | Liga/desliga Master Control (troca automática, energia congelada) |
 | `Super + Shift + O` | Central de Configuração |
 | `Super + W` | Dashboard (relógio, DNA, música, calendário, notificações) |
+| `Super + Alt + E` | Modo edição da área de trabalho (desktop canvas) |
 
 ### Apps e janelas
 | Atalho | Ação |
@@ -133,6 +134,21 @@ Estrela, Energia, Tempo, Visão, Dados, Fogo, Água, Cristal, Velocidade,
 Força, Fantasma, Chave, Núcleo, Social, Mídia, Portal, Instinto). Usadas nas
 playlists, menus e no bloqueio. Novas runas: editar `tools/gen_galvan.py` e
 rodar `python3 tools/gen_galvan.py`.
+
+### Central de Configuração (`Super + Shift + O`)
+- **Omnitrix**: Master Control, sugestões, área viva, sons, Não perturbe, energia, apps por DNA, bloqueio.
+- **Apps**: playlists do lançador (nome, runa, cor, ordem, apps; apps soltos em SEM PLAYLIST).
+- **Wi-Fi**: liga/desliga, rede atual, lista com sinal, conectar com senha (via D-Bus), esquecer.
+  O chip de rede da barra abre esta aba.
+- **Som**: saída e microfone padrão, volume e mudo por dispositivo e por app, visualizador com o
+  nível real do áudio. O chip de volume da barra abre esta aba (clique direito = mudo).
+- **Área de trabalho**: área viva, widgets na tela (tamanho, remover), catálogo e **Editar na tela**.
+
+### Desktop canvas
+`Super + Alt + E` (ou Central → Área de trabalho → Editar na tela): arraste os widgets, scroll muda
+o tamanho (50–200%), ✕ remove, guias puxam para o centro, a barra do topo adiciona do catálogo
+(relógio, anéis, energia, DNA, música, calendário, barras do sistema). Esc ou Concluir sai.
+Salvo em `~/.local/state/azmuth/desktop.json`.
 
 ### Notificações
 Saem de baixo da cápsula da barra. Clique abre o app; × fecha; botões de ação

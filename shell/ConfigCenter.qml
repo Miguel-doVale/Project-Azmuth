@@ -558,9 +558,17 @@ PanelWindow {
             WifiPanel { anchors.fill: parent; visible: cc.tab === 2; active: cc.open && cc.tab === 2 }
             SoundPanel { anchors.fill: parent; visible: cc.tab === 3; active: cc.open && cc.tab === 3 }
 
+            DesktopPanel {
+                anchors.fill: parent
+                visible: cc.tab === 4
+                settings: cc.cfg ? cc.cfg.settings : null
+                onSetPref: (path, value) => cc.set(path, value)
+                onEditOnScreen: { cc.open = false; DeskLayout.editing = true }
+            }
+
             // ═════════════ próximas abas ═════════════
             Column {
-                visible: cc.tab >= 4
+                visible: cc.tab >= 5
                 anchors.centerIn: parent
                 spacing: 12
                 Glyph { anchors.horizontalCenter: parent.horizontalCenter; width: 64; height: 64; name: cc.tabs[cc.tab].glyph; color: Qt.alpha(cc.primary, 0.5); stroke: 2.4 }

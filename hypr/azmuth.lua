@@ -108,6 +108,9 @@ hl.bind(mainMod .. " + Tab", function() hud("overview") end)
 -- Lançador de apps com playlists no disco do Omnitrix
 hl.bind(mainMod .. " + D", function() hud("launcher") end)
 
+-- Modo edição da área de trabalho (desktop canvas)
+hl.bind(mainMod .. " + ALT + E", function() hud("editDesktop") end)
+
 -- Área de transferência (cliphist) com busca e miniaturas
 hl.bind(mainMod .. " + SHIFT + V", function() hud("clipboard") end)
 

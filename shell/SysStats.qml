@@ -1,6 +1,5 @@
-// Project Azmuth — métricas do sistema compartilhadas (barra, widgets, dashboard).
 pragma Singleton
-
+// Project Azmuth — métricas do sistema compartilhadas (barra, widgets, dashboard).
 import QtQuick
 import Quickshell
 import Quickshell.Io

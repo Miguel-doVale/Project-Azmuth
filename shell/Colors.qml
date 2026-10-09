@@ -1,7 +1,6 @@
+pragma Singleton
 // Project Azmuth — cores do DNA ativo para os componentes de interface (Ui*.qml).
 // A shell atualiza a partir do theme.json a cada transformação.
-pragma Singleton
-
 import QtQuick
 import Quickshell
 
