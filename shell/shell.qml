@@ -60,6 +60,11 @@ ShellRoot {
         Widgets { theme: root.theme; shell: root }
     }
 
+    Assistant {
+        id: assistant
+        screen: root.targetScreen()
+    }
+
     QuickEvent {
         id: quickEventWin
         screen: root.targetScreen()
@@ -200,6 +205,7 @@ ShellRoot {
         function power(): void { powerMenu.screen = root.targetScreen(); powerMenu.toggle() }
         function clipboard(): void { clipboard.screen = root.targetScreen(); clipboard.toggle() }
         function config(): void { configCenter.screen = root.targetScreen(); configCenter.toggle() }
+        function assistant(): void { assistant.screen = root.targetScreen(); assistant.toggle() }
         function editDesktop(): void { DeskLayout.editing = !DeskLayout.editing }
         function configTab(tab: int): void { configCenter.screen = root.targetScreen(); configCenter.toggle(tab) }
         function flash(color: string): void {

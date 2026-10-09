@@ -24,6 +24,9 @@ Uso:
   azmuth lockseq set L L R U R L ...     sequência do Omnitrix para desbloquear (clear/status)
   azmuth power                           menu de energia (Super + Shift + Q)
   azmuth shot [area|full|window|menu]    capturas (Super+Shift+S, Print, Super+Print, Super+Alt+S)
+  azmuth event add AAAA-MM-DD [HH:MM] t  marca evento no calendário · azmuth event list
+  azmuth app "<nome>"                    abre um app pelo nome
+  azmuth ask "pergunta" [--new]          conversa com o assistente Azmuth (Super + A)
   azmuth install                         liga as configs do sistema ao projeto
 
 Compatível com o uso original: python src/core.py dna/neutral.yaml
@@ -844,6 +847,60 @@ def cmd_shot(mode: str) -> None:
                      start_new_session=True)
 
 
+EVENTS_FILE = STATE_DIR / "events.json"
+
+
+def cmd_event(args: list[str]) -> None:
+    """azmuth event add AAAA-MM-DD [HH:MM] "título" · azmuth event list"""
+    try:
+        events = json.loads(EVENTS_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        events = []
+    if not args or args[0] == "list":
+        today = time.strftime("%Y-%m-%d")
+        for e in sorted([e for e in events if e.get("date", "") >= today], key=lambda e: e["date"] + (e.get("time") or ""))[:10]:
+            print(f"{e['date']} {e.get('time') or 'dia todo':>8}  {e['title']}")
+        return
+    if args[0] == "add" and len(args) >= 3:
+        date = args[1]
+        hm = args[2] if re.match(r"^\d{1,2}:\d{2}$", args[2]) else ""
+        title = " ".join(args[3:] if hm else args[2:]).strip()
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", date) or not title:
+            raise SystemExit("[ERRO] uso: azmuth event add AAAA-MM-DD [HH:MM] título")
+        events.append({"id": "e" + hex(int(time.time() * 1000))[2:], "date": date, "time": hm.zfill(5) if hm else "",
+                       "title": title, "color": "#38bdf8", "remind": 10 if hm else -1})
+        EVENTS_FILE.write_text(json.dumps(events, indent=1))
+        log(f"[OK] evento: {date} {hm} {title}".replace("  ", " "))
+        return
+    raise SystemExit("[ERRO] uso: azmuth event add AAAA-MM-DD [HH:MM] título | azmuth event list")
+
+
+def cmd_app(name: str) -> None:
+    """Abre um app pelo nome (procura nos .desktop)."""
+    import configparser
+    q = name.lower().strip()
+    dirs = [Path("/usr/share/applications"), HOME / ".local/share/applications", Path("/var/lib/flatpak/exports/share/applications")]
+    best = None
+    for d in dirs:
+        for f in d.glob("*.desktop") if d.exists() else []:
+            cp = configparser.ConfigParser(interpolation=None, strict=False)
+            try:
+                cp.read(f, encoding="utf-8")
+                e = cp["Desktop Entry"]
+            except (configparser.Error, KeyError, UnicodeDecodeError):
+                continue
+            if e.get("NoDisplay", "false") == "true":
+                continue
+            names = [e.get("Name", "").lower(), f.stem.lower(), e.get("GenericName", "").lower()]
+            score = 0 if q in (names[0], names[1]) else (1 if any(n.startswith(q) for n in names) else (2 if any(q in n for n in names) else 9))
+            if score < 9 and (best is None or score < best[0]):
+                best = (score, f.stem, e.get("Name"))
+    if not best:
+        raise SystemExit(f"[ERRO] nenhum app parecido com '{name}'")
+    hypr_exec(f"gtk-launch {best[1]}")
+    log(f"[OK] abrindo {best[2]}")
+
+
 def cmd_current(as_json: bool, as_name: bool = False) -> None:
     state = read_state()
     if as_json:
@@ -916,6 +973,9 @@ COMMANDS = {
     "timeout": lambda a: cmd_timeout(),
     "power": lambda a: cmd_power(),
     "shot": lambda a: cmd_shot(a[0] if a else "area"),
+    "event": lambda a: cmd_event(a),
+    "app": lambda a: cmd_app(" ".join(a)),
+    "ask": lambda a: __import__("azmuth_ai").main(a),
 }
 NEEDS_ARG = {"apply", "slot", "set"}
 

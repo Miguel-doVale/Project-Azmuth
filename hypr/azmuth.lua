@@ -28,7 +28,7 @@ hl.layer_rule({
 })
 hl.layer_rule({
     name   = "azmuth-hud-blur",
-    match  = { namespace = "^azmuth-(hud|dashboard|clipboard|overview|power|launcher|config)$" },
+    match  = { namespace = "^azmuth-(hud|dashboard|clipboard|overview|power|launcher|config|assistant|quickevent)$" },
     blur   = true,
     ignore_alpha = 0.1,
 })
@@ -107,6 +107,9 @@ hl.bind(mainMod .. " + Tab", function() hud("overview") end)
 
 -- Lançador de apps com playlists no disco do Omnitrix
 hl.bind(mainMod .. " + D", function() hud("launcher") end)
+
+-- Assistente Azmuth (Claude Code em modo não interativo, só age por comandos azmuth)
+hl.bind(mainMod .. " + A", function() hud("assistant") end)
 
 -- Modo edição da área de trabalho (desktop canvas)
 hl.bind(mainMod .. " + ALT + E", function() hud("editDesktop") end)
