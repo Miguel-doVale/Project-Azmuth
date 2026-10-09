@@ -554,9 +554,13 @@ PanelWindow {
                 }
             }
 
+            // ═════════════ WI-FI e SOM ═════════════
+            WifiPanel { anchors.fill: parent; visible: cc.tab === 2; active: cc.open && cc.tab === 2 }
+            SoundPanel { anchors.fill: parent; visible: cc.tab === 3; active: cc.open && cc.tab === 3 }
+
             // ═════════════ próximas abas ═════════════
             Column {
-                visible: cc.tab >= 2
+                visible: cc.tab >= 4
                 anchors.centerIn: parent
                 spacing: 12
                 Glyph { anchors.horizontalCenter: parent.horizontalCenter; width: 64; height: 64; name: cc.tabs[cc.tab].glyph; color: Qt.alpha(cc.primary, 0.5); stroke: 2.4 }

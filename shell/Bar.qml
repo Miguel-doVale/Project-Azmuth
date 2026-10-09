@@ -452,7 +452,7 @@ PanelWindow {
             tint: audio && audio.muted ? Qt.alpha(bar.fg, 0.45) : bar.fg
             onClicked: mouse => {
                 if (mouse.button === Qt.RightButton) { if (audio) audio.muted = !audio.muted }
-                else bar.run(["pavucontrol"])
+                else bar.shell.openConfig(3)   // Central → Som
             }
             onWheel: wheel => {
                 if (!audio) return
@@ -466,7 +466,7 @@ PanelWindow {
             icon: !dev ? "" : (dev.type === DeviceType.Wifi ? "" : "")
             label: !dev ? "Sem rede" : (net ? net.name : dev.name)
             tint: dev ? bar.fg : bar.danger
-            onClicked: bar.run(["nm-connection-editor"])
+            onClicked: bar.shell.openConfig(2)   // Central → Wi-Fi
         }
 
         Chip {

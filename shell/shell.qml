@@ -38,6 +38,7 @@ ShellRoot {
         onLoaded: {
             try { root.theme = JSON.parse(text()) } catch (e) { console.warn("theme.json inválido:", e) }
             Energy.t = root.theme.timer || ({})
+            Colors.primary = root.theme.primary; Colors.bg = root.theme.background; Colors.fg = root.theme.foreground
         }
     }
 
@@ -142,6 +143,8 @@ ShellRoot {
         for (let i = 0; i < roster.length; i++)
             if (roster[i].key === k) { index = i; play("tick"); return }
     }
+
+    function openConfig(tab) { configCenter.screen = targetScreen(); if (!configCenter.open || configCenter.tab !== tab) configCenter.toggle(tab) }
 
     function targetScreen() {
         const name = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
