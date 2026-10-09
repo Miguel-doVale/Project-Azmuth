@@ -28,7 +28,7 @@ hl.layer_rule({
 })
 hl.layer_rule({
     name   = "azmuth-hud-blur",
-    match  = { namespace = "^azmuth-(hud|dashboard|clipboard|overview|power|launcher)$" },
+    match  = { namespace = "^azmuth-(hud|dashboard|clipboard|overview|power|launcher|config)$" },
     blur   = true,
     ignore_alpha = 0.1,
 })

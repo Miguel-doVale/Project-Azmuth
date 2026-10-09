@@ -71,6 +71,12 @@ ShellRoot {
         screen: root.targetScreen()
     }
 
+    ConfigCenter {
+        id: configCenter
+        theme: root.theme
+        screen: root.targetScreen()
+    }
+
     Launcher {
         id: launcher
         theme: root.theme
@@ -176,7 +182,8 @@ ShellRoot {
         function lockPreview(): void { lockScreen.screen = root.targetScreen(); lockScreen.preview() }
         function power(): void { powerMenu.screen = root.targetScreen(); powerMenu.toggle() }
         function clipboard(): void { clipboard.screen = root.targetScreen(); clipboard.toggle() }
-        function config(): void { dashboard.screen = root.targetScreen(); dashboard.toggle(1) }
+        function config(): void { configCenter.screen = root.targetScreen(); configCenter.toggle() }
+        function configTab(tab: int): void { configCenter.screen = root.targetScreen(); configCenter.toggle(tab) }
         function flash(color: string): void {
             root.flashColor = color
             root.flashTick++

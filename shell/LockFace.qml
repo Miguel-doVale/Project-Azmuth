@@ -13,6 +13,7 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pam
+import "Galvan.js" as Galvan
 
 Item {
     id: face
@@ -29,6 +30,7 @@ Item {
     readonly property string home: Quickshell.env("HOME")
 
     property var entered: []
+    property int glyphSeed: Math.floor(Math.random() * 1000)   // runas sorteadas a cada bloqueio
     property int attempts: 0
     property bool passwordMode: false
     property bool failed: false
@@ -40,7 +42,7 @@ Item {
     readonly property bool seqAllowed: hasSeq && attempts < 3
 
     function sound(n) { Quickshell.execDetached(["pw-play", decodeURIComponent(Qt.resolvedUrl("../assets/sounds/" + n + ".wav").toString().replace("file://", ""))]) }
-    function reset() { entered = []; failed = false; passwordMode = !seqAllowed; pass.text = ""; focusInput() }
+    function reset() { glyphSeed = Math.floor(Math.random() * 1000); entered = []; failed = false; passwordMode = !seqAllowed; pass.text = ""; focusInput() }
     function focusInput() { if (passwordMode) pass.forceActiveFocus(); else keys.forceActiveFocus() }
 
     FileView {
@@ -221,20 +223,23 @@ Item {
         }
     }
 
-    // movimentos feitos (só a quantidade — não revela o tamanho da senha)
+    // cada movimento vira uma runa Galvan sorteada (não revela qual seta, nem o tamanho da senha)
     Row {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: dial.bottom; anchors.topMargin: face.height * 0.035
-        spacing: 10
+        spacing: 12
         visible: face.hasSeq && !face.passwordMode
-        height: 12
+        height: 30
         Repeater {
             model: Math.min(face.entered.length, 24)
-            Rectangle {
-                width: 10; height: 10; radius: 5
+            Glyph {
+                required property int index
+                width: 28; height: 28
+                name: Galvan.glyphs[(face.glyphSeed + index * 7) % Galvan.glyphs.length].id
                 color: face.primary
+                stroke: 2
                 Component.onCompleted: { scale = 0.2; popIn.start() }
-                NumberAnimation on scale { id: popIn; running: false; to: 1; duration: 200; easing.type: Easing.OutBack }
+                NumberAnimation on scale { id: popIn; running: false; to: 1; duration: 220; easing.type: Easing.OutBack }
             }
         }
     }
