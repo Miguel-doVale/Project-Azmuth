@@ -71,7 +71,14 @@ Item {
         if (!seqAllowed) passwordMode = true
         focusInput()
     }
-    function success() { busy = true; sound("transform"); flash.restart(); unlockLater.restart() }
+    // acertou: 1 s de "SEQUENCIANDO DNA…" (arco girando) antes do flash e do desbloqueio
+    property bool holding: false
+    function success() { busy = true; holding = true; sound("hud_open"); hold.restart() }
+    Timer {
+        id: hold
+        interval: 1000
+        onTriggered: { face.holding = false; face.sound("transform"); flash.restart(); unlockLater.restart() }
+    }
     function fail() { failed = true; sound("error"); dial.shake() }
     Timer { id: unlockLater; interval: 650; onTriggered: { face.busy = false; face.unlocked() } }
 
@@ -176,7 +183,7 @@ Item {
         index: Math.max(0, pass.text.length - 1)
         turn: Math.max(0, pass.text.length - 1) + face.spin
         Timer {   // autenticando: o aro gira sozinho
-            interval: 110; repeat: true; running: face.busy && face.passwordMode
+            interval: 110; repeat: true; running: face.busy
             onTriggered: face.spin++
         }
 
@@ -245,6 +252,23 @@ Item {
         }
     }
 
+    // arco de energia girando enquanto sequencia o DNA
+    Shape {
+        anchors.centerIn: dial
+        width: dial.size * 1.16; height: width
+        visible: face.holding
+        preferredRendererType: Shape.CurveRenderer
+        RotationAnimation on rotation { running: face.holding; loops: Animation.Infinite; from: 0; to: 360; duration: 700 }
+        ShapePath {
+            strokeColor: face.theme.primary; strokeWidth: 6; fillColor: "transparent"; capStyle: ShapePath.RoundCap
+            PathAngleArc { centerX: dial.size * 0.58; centerY: dial.size * 0.58; radiusX: dial.size * 0.55; radiusY: radiusX; startAngle: 0; sweepAngle: 110 }
+        }
+        ShapePath {
+            strokeColor: Qt.alpha(face.theme.primary, 0.45); strokeWidth: 3; fillColor: "transparent"; capStyle: ShapePath.RoundCap
+            PathAngleArc { centerX: dial.size * 0.58; centerY: dial.size * 0.58; radiusX: dial.size * 0.55; radiusY: radiusX; startAngle: 180; sweepAngle: 70 }
+        }
+    }
+
     // cada movimento vira uma runa Galvan sorteada (não revela qual seta, nem o tamanho da senha)
     Row {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -302,6 +326,7 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: face.note ? face.note
+                  : face.holding ? "SEQUENCIANDO DNA…"
                   : face.failed ? (face.attempts >= 3 ? "DNA REJEITADO · use a senha" : "DNA REJEITADO")
                   : (face.passwordMode ? "OMNITRIX // DNA LOCK" : "ATIVE O OMNITRIX")
             font.family: "Orbitron"; font.weight: Font.Bold; font.pixelSize: face.height * 0.018; font.letterSpacing: 3
