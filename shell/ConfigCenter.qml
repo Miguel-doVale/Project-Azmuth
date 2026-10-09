@@ -440,6 +440,7 @@ PanelWindow {
 
                             Section { text: "RUNA GALVAN" }
                             Flow {
+                                z: 2   // o significado (hover) passa por cima das seções de baixo
                                 width: parent.width
                                 spacing: 6
                                 Repeater {
@@ -447,6 +448,7 @@ PanelWindow {
                                     Rectangle {
                                         required property var modelData
                                         readonly property bool on: parent.parent.p && parent.parent.p.glyph === modelData.id
+                                        z: gm.containsMouse ? 10 : 0
                                         width: 46; height: 46; radius: 10
                                         color: on ? Qt.alpha(parent.parent.p.color, 0.22) : (gm.containsMouse ? Qt.alpha(cc.primary, 0.08) : "transparent")
                                         border.width: on ? 2 : 1; border.color: on ? parent.parent.p.color : Qt.alpha(cc.fg, 0.15)
@@ -456,9 +458,10 @@ PanelWindow {
                                             anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                             onClicked: Playlists.setGlyph(parent.parent.parent.p.id, parent.modelData.id)
                                         }
-                                        Text {   // significado no hover
+                                        Text {   // significado no hover — preso dentro da área (não some atrás das bordas)
                                             visible: gm.containsMouse
-                                            anchors.top: parent.bottom; anchors.topMargin: 4; anchors.horizontalCenter: parent.horizontalCenter
+                                            y: parent.height + 6
+                                            x: Math.max(-parent.x + 6, Math.min(parent.width / 2 - implicitWidth / 2, parent.parent.width - parent.x - implicitWidth - 6))
                                             z: 10
                                             text: parent.modelData.meaning
                                             font.family: "Rajdhani"; font.weight: Font.Bold; font.pixelSize: 13; color: cc.fg

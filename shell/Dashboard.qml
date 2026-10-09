@@ -18,7 +18,8 @@ PanelWindow {
     property var notifications: null      // Notifications.qml (servidor + popups)
     property bool open: false
     property bool allNotifs: false        // histórico: 4 por padrão, "ver mais" mostra tudo
-    property int tab: 0                 // 0 = Painel, 1 = Configuração
+    property int tab: 0                 // só o Painel; configurações ficam na Central (Super+Shift+O)
+    signal openCentral
     property real reveal: open ? 1 : 0
     Behavior on reveal { NumberAnimation { duration: dash.open ? 320 : 200; easing.type: Easing.OutCubic } }
 
@@ -193,7 +194,7 @@ PanelWindow {
             x: 20; y: 16
             spacing: 18
             Repeater {
-                model: ["PAINEL", "CONFIGURAÇÃO"]
+                model: ["PAINEL", "CENTRAL ↗"]
                 Text {
                     required property int index
                     required property string modelData
@@ -206,14 +207,14 @@ PanelWindow {
                         color: dash.primary
                         visible: dash.tab === parent.index
                     }
-                    MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: dash.tab = parent.index }
+                    MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: { if (parent.index === 1) { dash.open = false; dash.openCentral() } else dash.tab = 0 } }
                 }
             }
         }
 
         Flickable {
             anchors { top: tabs.bottom; topMargin: 20; left: parent.left; right: parent.right; bottom: parent.bottom; margins: 20 }
-            contentHeight: dash.tab === 0 ? painelCol.implicitHeight : configCol.implicitHeight
+            contentHeight: painelCol.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
 
@@ -524,86 +525,6 @@ PanelWindow {
                             }
                         }
                     }
-                }
-            }
-
-            // ═════════════════════ aba CONFIGURAÇÃO ═════════════════════
-            Column {
-                id: configCol
-                visible: dash.tab === 1
-                width: parent.width
-                spacing: 8
-                readonly property var s: dash.cfg ? dash.cfg.settings : null
-
-                Section { text: "OMNITRIX" }
-                Toggle {
-                    label: "Master Control"; hint: "Troca automática de DNA e sem limite de tempo"
-                    checked: dash.cfg ? dash.cfg.master_control : false
-                    onToggled: v => { Quickshell.execDetached([dash.az, "master", v ? "on" : "off"]); refresh.restart() }
-                }
-                Toggle {
-                    label: "Sugestões automáticas"; hint: "Context Engine sugere DNAs pelo app em foco"
-                    checked: configCol.s ? configCol.s.context_engine : true
-                    onToggled: v => dash.set("context_engine", v)
-                }
-                Toggle {
-                    label: "Sons"; hint: "Transformação, HUD, bipes do timer"
-                    checked: configCol.s ? configCol.s.sounds : true
-                    onToggled: v => dash.set("sounds", v)
-                }
-                Toggle {
-                    label: "Área de trabalho viva"; hint: "Omnitrix animado e circuitos com energia (desligado = wallpaper parado)"
-                    checked: configCol.s ? configCol.s.live_desktop : true
-                    onToggled: v => dash.set("live_desktop", v)
-                }
-                Toggle {
-                    label: "Não perturbe"; hint: "Notificações vão direto pro histórico (críticas ainda aparecem)"
-                    checked: configCol.s ? configCol.s.dnd : false
-                    onToggled: v => dash.set("dnd", v)
-                }
-                Toggle {
-                    label: "Notificações"; hint: "Aviso a cada transformação"
-                    checked: configCol.s ? configCol.s.notifications : true
-                    onToggled: v => dash.set("notifications", v)
-                }
-
-                Section { text: "ENERGIA DO OMNITRIX" }
-                Toggle {
-                    label: "Energia ligada"; hint: "Descarrega transformado, recarrega no Neutral, 0% destransforma"
-                    checked: configCol.s ? configCol.s.timer.enabled : true
-                    onToggled: v => dash.set("timer.enabled", v)
-                }
-                Stepper {
-                    label: "Descarga (100% → 0%)"; min: 1; max: 120; step: 1
-                    value: configCol.s ? configCol.s.timer.minutes : 10
-                    onEdited: v => dash.set("timer.minutes", v)
-                }
-                Stepper {
-                    label: "Recarga (0% → 100%)"; min: 1; max: 60; step: 1
-                    value: configCol.s ? configCol.s.timer.recharge_minutes : 5
-                    onEdited: v => dash.set("timer.recharge_minutes", v)
-                }
-                Stepper {
-                    label: "Mínimo para transformar"; min: 0; max: 90; step: 5; unit: "%"
-                    value: configCol.s ? configCol.s.timer.min_percent : 20
-                    onEdited: v => dash.set("timer.min_percent", v)
-                }
-
-                Section { text: "DNAs" }
-                Repeater {
-                    model: dash.cfg ? dash.cfg.dnas.filter(d => d.apps.length > 0) : []
-                    Toggle {
-                        required property var modelData
-                        label: "Abrir apps · " + modelData.name
-                        hint: modelData.apps.join(", ")
-                        checked: modelData.autostart_apps
-                        onToggled: v => dash.set("dna." + modelData.id + ".autostart_apps", v)
-                    }
-                }
-                Text {
-                    width: parent.width; wrapMode: Text.WordWrap; topPadding: 10
-                    text: "Novos DNAs aparecem aqui sozinhos quando dna/<id>.yaml existir."
-                    font.family: "Rajdhani"; font.pixelSize: 13; color: Qt.alpha(dash.fg, 0.45)
                 }
             }
         }

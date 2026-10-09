@@ -257,8 +257,8 @@ Item {
             anchors.fill: parent; anchors.margins: 14
             verticalAlignment: TextInput.AlignVCenter
             horizontalAlignment: TextInput.AlignHCenter
-            echoMode: TextInput.Password
-            passwordCharacter: "●"
+            echoMode: TextInput.NoEcho        // os caracteres aparecem como runas (abaixo)
+            cursorVisible: false
             font.family: "Rajdhani"; font.pixelSize: face.height * 0.026; font.letterSpacing: 4
             color: face.fg
             enabled: !face.busy
@@ -267,6 +267,22 @@ Item {
             Keys.onPressed: event => {
                 if (event.key === Qt.Key_Tab && face.hasSeq && face.attempts < 3) { face.passwordMode = false; face.focusInput(); event.accepted = true }
                 else if (event.key === Qt.Key_Escape && face.preview) { face.dismissed(); event.accepted = true }
+            }
+        }
+        Row {   // cada caractere da senha vira uma runa Galvan sorteada
+            anchors.centerIn: parent
+            spacing: 6
+            Repeater {
+                model: Math.min(pass.text.length, 18)
+                Glyph {
+                    required property int index
+                    width: 20; height: 20
+                    name: Galvan.glyphs[(face.glyphSeed * 3 + index * 11) % Galvan.glyphs.length].id
+                    color: face.primary
+                    stroke: 1.8
+                    Component.onCompleted: { scale = 0.3; grow.start() }
+                    NumberAnimation on scale { id: grow; running: false; to: 1; duration: 180; easing.type: Easing.OutBack }
+                }
             }
         }
         Text {

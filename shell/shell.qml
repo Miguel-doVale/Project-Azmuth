@@ -105,6 +105,7 @@ ShellRoot {
         id: dashboard
         theme: root.theme
         notifications: notifs
+        onOpenCentral: { configCenter.screen = root.targetScreen(); configCenter.toggle(0) }
         screen: root.targetScreen()
     }
 
