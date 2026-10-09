@@ -155,6 +155,8 @@ code { color: var(--dna); background: color-mix(in srgb, var(--dna) 8%, transpar
         <tr><td><kbd>Super</kbd><kbd>Shift</kbd><kbd>O</kbd></td><td>Central de Configuração</td><td>Omnitrix</td></tr>
         <tr><td><kbd>Super</kbd><kbd>W</kbd></td><td>Dashboard: relógio, DNA, música, calendário, notificações</td><td>Omnitrix</td></tr>
         <tr><td><kbd>Super</kbd><kbd>Alt</kbd><kbd>E</kbd></td><td>Modo edição da área de trabalho (desktop canvas)</td><td>Omnitrix</td></tr>
+        <tr><td><kbd>Super</kbd><kbd>A</kbd></td><td>Assistente Azmuth: conversa e age pelos comandos azmuth</td><td>Omnitrix</td></tr>
+        <tr><td><kbd>Super</kbd><kbd>Shift</kbd><kbd>L</kbd></td><td>Life-Form Lock: trava o DNA atual sem timeout</td><td>Omnitrix</td></tr>
         <tr><td><kbd>Super</kbd><kbd>D</kbd></td><td>Lançador: ←/→ app, ↑/↓ playlist, digitar busca, Ctrl+F favorita</td><td>Apps</td></tr>
         <tr><td><kbd>Alt</kbd><kbd>Tab</kbd></td><td>Constelação: próxima janela; soltar o Alt vai (Shift volta)</td><td>Apps</td></tr>
         <tr><td><kbd>Super</kbd><kbd>Tab</kbd></td><td>Constelação exploração: arrastar gira, scroll zoom, WASD voa</td><td>Apps</td></tr>
@@ -194,6 +196,9 @@ code { color: var(--dna); background: color-mix(in srgb, var(--dna) 8%, transpar
           <li>Em 0% destransforma, com bipes no último minuto.</li>
           <li>Master Control congela a carga.</li>
           <li>Ajustes: Central → Omnitrix.</li></ul></div>
+        <div class="plate"><h3>CORES DO CORE</h3><p><span class="chip warn">AMARELO · SCAN</span> download em andamento ou app novo instalado. <span class="chip neu">AZUL · RECALIBRANDO</span> o pacman está rodando; não transforma. Vermelho: recarga.</p></div>
+        <div class="plate"><h3>LIFE-FORM LOCK E FAILSAFE</h3><p><kbd>Super</kbd><kbd>Shift</kbd><kbd>L</kbd> trava o DNA sem timeout; liberar por comando pede o código: <code>azmuth lifeform off 1010</code>. Failsafe: bateria ≤ 7% ou CPU ≥ 95 °C volta ao Neutral.</p></div>
+        <div class="plate"><h3>ASSISTENTE AZMUTH</h3><p><kbd>Super</kbd><kbd>A</kbd>: conversa com o Azmuth (Claude Code na sua conta). Ele vê DNA, energia, janelas e eventos e só age pelos comandos <code>azmuth</code>. Nada destrutivo. Cada pergunta gasta um pouco do limite de uso.</p></div>
         <div class="plate"><h3>CONTEXT ENGINE</h3><p>Com VS Code ou outra IDE em foco por 1,5 s, sugere o Massa Cinzenta numa notificação de 5 s. <kbd>Super</kbd><kbd>Y</kbd> aceita. Com Master Control ligado, troca sozinho.</p></div>
         <div class="plate"><h3>ÁREA DE TRABALHO VIVA</h3><p>O Omnitrix do centro é desenhado ao vivo: pulsos de energia nos circuitos (mais rápidos com a CPU alta), anel de energia, o Arch que muta em ampulheta ao transformar e a silhueta do alien. Clicar nele abre o HUD.</p></div>
         <div class="plate"><h3>BARRA</h3><p>Workspaces com os apps dentro, minimizados, janela ativa, bandeja, volume (scroll ajusta), rede, CPU/RAM, bateria. A cápsula central mostra o DNA, a energia e o tempo. Omnitrix da barra: clique abre o HUD, direito sorteia, meio liga o Master Control.</p></div>
@@ -201,7 +206,7 @@ code { color: var(--dna); background: color-mix(in srgb, var(--dna) 8%, transpar
         <div class="plate"><h3>CONSTELAÇÃO</h3><p>Workspaces como nós em 3D, janelas como miniaturas ao vivo. Exploração: WASD voa, Espaço/Ctrl sobem e descem, Shift acelera, a mira + <kbd>E</kbd> entra, <kbd>R</kbd> volta.</p></div>
         <div class="plate"><h3>CENTRAL DE CONFIGURAÇÃO</h3><p><kbd>Super</kbd><kbd>Shift</kbd><kbd>O</kbd>. Abas: Omnitrix (preferências e energia), Apps (playlists), Wi-Fi (redes, senha, esquecer — o chip de rede da barra abre aqui), Som (saída, microfone, volume por app, visualizador real — o chip de volume abre aqui) e Área de trabalho.</p></div>
         <div class="plate"><h3>DESKTOP CANVAS</h3><p><kbd>Super</kbd><kbd>Alt</kbd><kbd>E</kbd>: arraste os widgets, scroll muda o tamanho, ✕ remove. Guias inteligentes alinham com as bordas e centros dos outros widgets, e réguas mostram os espaços entre eles. Imagens: Central → Área de trabalho → Imagem. Esc ou Concluir sai.</p></div>
-        <div class="plate"><h3>CALENDÁRIO</h3><p>Central → Calendário: mês com marcas nos dias com evento; adicione com título, hora, cor e lembrete (na hora, 10/30 min, 1 h, 1 dia antes; dia inteiro avisa às 8h). Os widgets de calendário mostram as marcas e os próximos eventos.</p></div>
+        <div class="plate"><h3>CALENDÁRIO</h3><p>Central → Calendário: mês com marcas nos dias com evento; adicione com título, hora, cor e lembrete (na hora, 10/30 min, 1 h, 1 dia antes; dia inteiro avisa às 8h). Os widgets de calendário mostram as marcas e os próximos eventos; clicar num dia cria um evento rápido.</p></div>
         <div class="plate"><h3>NOTIFICAÇÕES</h3><p>Saem de baixo da cápsula da barra. Clique abre o app, × fecha, botões de ação quando o app oferece, mouse em cima pausa. Histórico no Dashboard; Não perturbe na Central.</p></div>
         <div class="plate"><h3>ÁREA DE TRANSFERÊNCIA</h3><p>Busca, prévia completa, filtros (Tudo, Texto, Links, Cores, Imagens, Fixados), amostra de cores, miniaturas, <kbd>Ctrl</kbd><kbd>P</kbd> fixa, Apagar tudo em 2 cliques (fixados ficam).</p></div>
         <div class="plate"><h3>CAPTURAS</h3><p>Vão para a área de transferência, ficam em <code>~/Pictures/Screenshots</code> e notificam com miniatura. Gravações em <code>~/Videos/Recordings</code>.</p></div>

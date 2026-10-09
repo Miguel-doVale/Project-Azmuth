@@ -22,7 +22,7 @@ PanelWindow {
     required property ShellScreen modelData
     screen: modelData
 
-    readonly property color primary: Energy.locked ? danger : theme.primary
+    readonly property color primary: Colors.mode ? Colors.modeColor : (Energy.locked ? danger : theme.primary)
     readonly property color dnaColor: theme.primary
     readonly property color secondary: theme.secondary
     readonly property color bg: theme.background
@@ -113,6 +113,30 @@ PanelWindow {
         width: size; height: size
         x: bar.cx - size / 2
         y: bar.stripH + bar.podDepth - size + 4
+
+        // modo do core: arco girando (scan amarelo / recalibração azul)
+        Shape {
+            anchors.fill: parent
+            anchors.margins: -6
+            visible: Colors.mode !== ""
+            preferredRendererType: Shape.CurveRenderer
+            RotationAnimation on rotation { running: Colors.mode !== ""; loops: Animation.Infinite; from: 0; to: 360; duration: Colors.mode === "scan" ? 900 : 1600 }
+            ShapePath {
+                strokeColor: Colors.modeColor; strokeWidth: 3; fillColor: "transparent"; capStyle: ShapePath.RoundCap
+                PathAngleArc { centerX: omni.size / 2 + 6; centerY: omni.size / 2 + 6; radiusX: omni.size / 2 + 4; radiusY: radiusX; startAngle: 0; sweepAngle: 100 }
+            }
+            ShapePath {
+                strokeColor: Colors.modeColor; strokeWidth: 3; fillColor: "transparent"; capStyle: ShapePath.RoundCap
+                PathAngleArc { centerX: omni.size / 2 + 6; centerY: omni.size / 2 + 6; radiusX: omni.size / 2 + 4; radiusY: radiusX; startAngle: 180; sweepAngle: 100 }
+            }
+        }
+        // Life-Form Lock: runa Chave no canto do Omnitrix
+        Rectangle {
+            visible: Colors.lifeform
+            x: omni.size - 18; y: -2; width: 20; height: 20; radius: 10
+            color: bar.bg; border.width: 1.5; border.color: bar.primary
+            Glyph { anchors.centerIn: parent; width: 12; height: 12; name: "chave"; color: bar.primary; stroke: 1.5 }
+        }
 
         // anel do timer (fundo + arco)
         Shape {
@@ -215,7 +239,7 @@ PanelWindow {
         width: Math.min(implicitWidth, 150)
         elide: Text.ElideRight
         horizontalAlignment: Text.AlignRight
-        text: Energy.locked ? "RECARREGANDO" : (bar.theme.name || "").toUpperCase()
+        text: Colors.modeLabel || (Energy.locked ? "RECARREGANDO" : (bar.theme.name || "").toUpperCase())
         font.family: "Orbitron"; font.weight: Font.Black; font.pixelSize: 11; font.letterSpacing: 1
         color: bar.primary
     }

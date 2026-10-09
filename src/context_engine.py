@@ -173,6 +173,94 @@ def check_events(now: float) -> None:
         core.update_state(notified_events=keep + fired)
 
 
+# ── cores do core (cânone: amarelo = scan/coleta, azul = recalibração) e failsafe ──
+DOWNLOADS = Path.home() / "Downloads"
+APP_DIRS = [Path("/usr/share/applications"), Path.home() / ".local/share/applications"]
+PARTIAL = (".part", ".crdownload", ".download", ".partial")
+
+
+class CoreWatch:
+    def __init__(self) -> None:
+        self.apps = self.list_apps()
+        self.scan_until = 0.0
+        self.last_apps = 0.0
+        self.hot_since = 0.0
+        self.failsafe_done = False
+
+    @staticmethod
+    def list_apps() -> dict:
+        out = {}
+        for d in APP_DIRS:
+            for f in d.glob("*.desktop") if d.exists() else []:
+                out[f.stem] = f
+        return out
+
+    @staticmethod
+    def app_name(f: Path) -> str:
+        for line in f.read_text(errors="ignore").splitlines():
+            if line.startswith("Name="):
+                return line[5:]
+        return f.stem
+
+    def tick(self, now: float) -> None:
+        state = core.read_state()
+        # recalibração: pacman segurando o banco de dados
+        recal = Path("/var/lib/pacman/db.lck").exists()
+        # novos apps instalados (a cada 10 s): pulso amarelo de scan
+        if now - self.last_apps >= 10:
+            self.last_apps = now
+            cur = self.list_apps()
+            new = [cur[k] for k in cur.keys() - self.apps.keys()]
+            self.apps = cur
+            for f in new[:3]:
+                name = self.app_name(f)
+                if "NoDisplay=true" in f.read_text(errors="ignore"):
+                    continue
+                self.scan_until = now + 5
+                core.play(core.sound("hud_open"))
+                core.notify("Novo DNA coletado", f"{name} → SEM PLAYLIST (organize na Central → Apps)")
+        downloading = DOWNLOADS.exists() and any(p.suffix in PARTIAL for p in DOWNLOADS.iterdir())
+        mode = "recalibrate" if recal else ("scan" if downloading or now < self.scan_until else "")
+        if mode != state.get("core_mode", ""):
+            core.update_state(core_mode=mode)
+            core.write_theme()
+            if state.get("core_mode") == "recalibrate" and mode != "recalibrate":
+                core.play(core.sound("recharge"))
+                core.notify("Recalibração concluída", "Sistema atualizado. Omnitrix pronto.")
+            elif mode == "recalibrate":
+                core.play(core.sound("beep"))
+                core.log("[core] recalibrando (pacman)")
+        self.check_failsafe(state, now)
+
+    def check_failsafe(self, state: dict, now: float) -> None:
+        if state.get("current") in (None, core.load_roster()["neutral"]):
+            self.failsafe_done = False
+            return
+        reason = ""
+        for bat in Path("/sys/class/power_supply").glob("BAT*"):
+            try:
+                cap = int((bat / "capacity").read_text())
+                if cap <= 7 and (bat / "status").read_text().strip() == "Discharging":
+                    reason = f"Bateria em {cap}%"
+            except (OSError, ValueError):
+                pass
+        try:
+            temps = [int(z.joinpath("temp").read_text()) / 1000 for z in Path("/sys/class/thermal").glob("thermal_zone*")
+                     if z.joinpath("type").read_text().strip() == "x86_pkg_temp"]
+            if temps and max(temps) >= 95:
+                self.hot_since = self.hot_since or now
+                if now - self.hot_since >= 10:
+                    reason = f"Superaquecimento ({round(max(temps))}°C)"
+            else:
+                self.hot_since = 0.0
+        except (OSError, ValueError):
+            pass
+        if reason and not self.failsafe_done:
+            self.failsafe_done = True
+            core.log(f"[failsafe] {reason}")
+            subprocess.run([str(core.ROOT / "bin/azmuth"), "failsafe", reason], capture_output=True)
+
+
 def timer_loop() -> None:
     """Energia do Omnitrix: bipes no último minuto, destransforma em 0% e avisa
     quando a carga volta ao mínimo para transformar."""
@@ -180,9 +268,14 @@ def timer_loop() -> None:
     warned: set[int] = set()
     prev_energy = None
     last_events = 0.0
+    watch = CoreWatch()
+    last_watch = 0.0
     while True:
         time.sleep(1)
         try:
+            if time.time() - last_watch >= 2:
+                last_watch = time.time()
+                watch.tick(last_watch)
             if time.time() - last_events >= 20:
                 last_events = time.time()
                 check_events(last_events)

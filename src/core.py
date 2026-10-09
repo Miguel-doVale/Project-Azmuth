@@ -25,6 +25,7 @@ Uso:
   azmuth power                           menu de energia (Super + Shift + Q)
   azmuth shot [area|full|window|menu]    capturas (Super+Shift+S, Print, Super+Print, Super+Alt+S)
   azmuth event add AAAA-MM-DD [HH:MM] t  marca evento no calendário · azmuth event list
+  azmuth lifeform on | off 1010          Life-Form Lock: trava o DNA atual sem timeout (Super+Shift+L)
   azmuth app "<nome>"                    abre um app pelo nome
   azmuth ask "pergunta" [--new]          conversa com o assistente Azmuth (Super + A)
   azmuth install                         liga as configs do sistema ao projeto
@@ -209,7 +210,7 @@ def energy_rate(state: dict, settings: dict, neutral: str) -> float:
         return 0.0
     if state.get("current") in (None, neutral):
         return 1.0 / max(1.0, t["recharge_minutes"] * 60)
-    if state.get("master_control", False):
+    if state.get("master_control", False) or state.get("lifeform_lock", False):
         return 0.0
     return -1.0 / max(1.0, t["minutes"] * 60)
 
@@ -377,6 +378,8 @@ def write_theme(data: dict | None = None) -> None:
         "master": state.get("master_control", False),
         "bar": (data.get("bar") or {}).get("visible", True),
         "dnd": settings["dnd"],
+        "mode": state.get("core_mode", ""),            # "", "scan", "recalibrate"
+        "lifeform": state.get("lifeform_lock", False),
         "live": settings["live_desktop"],
         "wallpaper": str(ROOT / data["wallpaper"]["path"]),
         "timer": timer_info(state, settings, load_roster()["neutral"]),
@@ -521,6 +524,19 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
     now = time.time()
     neutral = load_roster()["neutral"]
 
+    # recalibrando (pacman) e Life-Form Lock: nada transforma (o restore do sistema passa)
+    if source not in ("restore", "failsafe") and data["dna"]["id"] != state.get("current"):
+        if state.get("core_mode") == "recalibrate":
+            play(sound("error"))
+            notify("Omnitrix recalibrando", azmuth_says("recalibrate"), "normal")
+            log("[RECALIBRANDO] transformação bloqueada durante a atualização")
+            return data
+        if state.get("lifeform_lock") and source != "lifeform":
+            play(sound("error"))
+            notify("Life-Form Lock", azmuth_says("lifeform"), "normal")
+            log("[LIFE-FORM LOCK] transformação bloqueada")
+            return data
+
     # Omnitrix sem carga: só o Neutral (e o restore do sistema) passam
     settings = read_settings()
     energy = energy_now(state, settings, neutral, now)
@@ -529,8 +545,8 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
             and data["dna"]["id"] != state.get("current") and source not in ("restore", "timeout")):
         left = int((minimum - energy) / energy_rate({"current": neutral}, settings, neutral))
         play(sound("error"))
-        notify(f"Omnitrix recarregando · {round(energy * 100)}%",
-               f"Transformação disponível em {left // 60}:{left % 60:02d}.", "normal")
+        notify(f"Omnitrix recarregando · {round(energy * 100)}% · {left // 60}:{left % 60:02d}",
+               azmuth_says("recharge"), "normal")
         log(f"[RECARREGANDO] {energy:.0%}, faltam {left}s")
         return data
     settle_energy()
@@ -574,9 +590,24 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
     return data
 
 
+AZMUTH_SAYS = {
+    "locked": ["Pathetic workmanship!", "Esse DNA nem foi sequenciado. Paciência não é seu forte.",
+               "Você quer usar um alien que não existe? Fascinante. E inútil."],
+    "recharge": ["Paciência, garoto. O Omnitrix não é um brinquedo.", "Recarregando. Até eu preciso de um minuto.",
+                 "Insistir não acelera a recarga. Física básica."],
+    "recalibrate": ["Recalibrando. Mexer agora seria… uma péssima ideia.", "Atualização em curso. Não toque em nada."],
+    "lifeform": ["Life-Form Lock ativo. Você mesmo pediu isso.", "Travado no DNA atual. Command Code 1010 para liberar."],
+    "error": ["Pathetic workmanship!", "Algo deu errado. Não foi culpa minha, obviamente."],
+}
+
+
+def azmuth_says(kind: str) -> str:
+    return random.choice(AZMUTH_SAYS.get(kind, AZMUTH_SAYS["error"]))
+
+
 def locked(name: str) -> None:
     play(sound("error"))
-    notify("DNA bloqueado", f"{name} ainda não foi sequenciado (dna/*.yaml inexistente).", "normal")
+    notify(f"DNA bloqueado · {name}", azmuth_says("locked"), "normal")
     log(f"[BLOQUEADO] {name}")
 
 
@@ -901,6 +932,42 @@ def cmd_app(name: str) -> None:
     log(f"[OK] abrindo {best[2]}")
 
 
+def cmd_lifeform(args: list[str]) -> None:
+    """Life-Form Lock (Omniverse): trava o DNA atual, sem timeout.
+    azmuth lifeform on · azmuth lifeform off 1010 (Command Code 1010 libera) · azmuth lifeform toggle"""
+    state = read_state()
+    on = state.get("lifeform_lock", False)
+    action = args[0] if args else "toggle"
+    if action == "toggle":
+        action = "off" if on else "on"
+    if action == "on":
+        if state.get("current") in (None, load_roster()["neutral"]):
+            notify("Life-Form Lock", "Trave um DNA, não o Neutral. Lógica elementar.", "normal")
+            return
+        settle_energy()
+        update_state(lifeform_lock=True)
+        play(sound("hud_open"))
+        notify("Life-Form Lock ativado", "DNA travado, sem timeout. Command Code 1010 para liberar.", "normal")
+    elif action == "off":
+        if "1010" not in args and "toggle" not in (args[:1] or ["toggle"]):
+            raise SystemExit("[ERRO] informe o Command Code: azmuth lifeform off 1010")
+        settle_energy()
+        update_state(lifeform_lock=False)
+        play(sound("recharge"))
+        notify("Life-Form Lock desativado", "Command Code 1010 aceito. Tennyson Benjamin… digo, Miguel, liberado.")
+    write_theme()
+    log(f"Life-Form Lock: {read_state().get('lifeform_lock', False)}")
+
+
+def cmd_failsafe(reason: str) -> None:
+    """Failsafe (Omnitrix): risco ao "usuário" (bateria crítica, superaquecimento) → Neutral,
+    mesmo com Life-Form Lock ou recarga."""
+    update_state(lifeform_lock=False)
+    play(sound("error"))
+    notify("FAILSAFE ATIVADO", f"{reason}. Voltando ao Neutral para proteger o sistema.", "critical", 0)
+    transform(load_roster()["neutral"], source="failsafe")
+
+
 def cmd_current(as_json: bool, as_name: bool = False) -> None:
     state = read_state()
     if as_json:
@@ -974,6 +1041,8 @@ COMMANDS = {
     "power": lambda a: cmd_power(),
     "shot": lambda a: cmd_shot(a[0] if a else "area"),
     "event": lambda a: cmd_event(a),
+    "lifeform": lambda a: cmd_lifeform(a),
+    "failsafe": lambda a: cmd_failsafe(" ".join(a) or "Risco detectado"),
     "app": lambda a: cmd_app(" ".join(a)),
     "ask": lambda a: __import__("azmuth_ai").main(a),
 }

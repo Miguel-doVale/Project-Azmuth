@@ -39,6 +39,7 @@ ShellRoot {
             try { root.theme = JSON.parse(text()) } catch (e) { console.warn("theme.json inválido:", e) }
             Energy.t = root.theme.timer || ({})
             Colors.primary = root.theme.primary; Colors.bg = root.theme.background; Colors.fg = root.theme.foreground
+            Colors.mode = root.theme.mode || ""; Colors.lifeform = root.theme.lifeform === true
         }
     }
 

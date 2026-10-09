@@ -124,6 +124,8 @@ hl.bind(mainMod .. " + SHIFT + R", hl.dsp.exec_cmd(AZ .. " random"))
 -- Context Engine: aceitar sugestão / ligar-desligar Master Control (troca automática)
 hl.bind(mainMod .. " + Y", hl.dsp.exec_cmd(AZ .. " accept"))
 hl.bind(mainMod .. " + SHIFT + M", hl.dsp.exec_cmd(AZ .. " master toggle"))
+-- Life-Form Lock (Omniverse): trava o DNA atual sem timeout (por comando: azmuth lifeform off 1010)
+hl.bind(mainMod .. " + SHIFT + L", hl.dsp.exec_cmd(AZ .. " lifeform toggle"))
 
 ----------------------------------
 ---- MINIMIZAR (workspace oculto) ----

@@ -10,4 +10,9 @@ Singleton {
     property color fg: "#cdd6f4"
     readonly property color danger: "#ff5a5a"
     readonly property color warn: "#ffd76a"
+    // modo do core (cânone): "scan" = amarelo (coleta), "recalibrate" = azul (atualização)
+    property string mode: ""
+    property bool lifeform: false
+    readonly property color modeColor: mode === "scan" ? "#ffd76a" : (mode === "recalibrate" ? "#3b82f6" : primary)
+    readonly property string modeLabel: mode === "scan" ? "SCAN DE DNA" : (mode === "recalibrate" ? "RECALIBRANDO" : "")
 }

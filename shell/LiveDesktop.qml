@@ -18,7 +18,7 @@ PanelWindow {
     property bool hudOpen: false
     screen: modelData
 
-    readonly property color primary: Energy.locked ? "#ff5a5a" : theme.primary
+    readonly property color primary: Colors.mode ? Colors.modeColor : (Energy.locked ? "#ff5a5a" : theme.primary)
     readonly property color dna: theme.primary
     readonly property color bg: theme.background
     readonly property bool neutral: theme.id === "neutral"
@@ -234,7 +234,8 @@ PanelWindow {
         Item {   // marcações girando devagar
             id: ticks
             anchors.fill: parent
-            NumberAnimation on rotation { from: 0; to: 360; duration: 90000; loops: Animation.Infinite; running: live.visible }
+            // marcações: devagar no normal, rápidas no scan/recalibração
+            NumberAnimation on rotation { from: 0; to: 360; duration: Colors.mode ? 4000 : 90000; loops: Animation.Infinite; running: live.visible }
             Repeater {
                 model: 36
                 Rectangle {

@@ -37,6 +37,8 @@ explica o *porquê* do projeto; este manual explica o *como usar*.
 | `Super + Shift + R` | Randomizer (sorteia um DNA) |
 | `Super + Y` | Aceita a sugestão do Context Engine |
 | `Super + Shift + M` | Liga/desliga Master Control (troca automática, energia congelada) |
+| `Super + Shift + L` | Life-Form Lock: trava o DNA atual sem timeout (comando: `azmuth lifeform off 1010`) |
+| `Super + A` | Assistente Azmuth (conversa e age pelos comandos `azmuth`) |
 | `Super + Shift + O` | Central de Configuração |
 | `Super + W` | Dashboard (relógio, DNA, música, calendário, notificações) |
 | `Super + Alt + E` | Modo edição da área de trabalho (desktop canvas) |
@@ -88,6 +90,26 @@ foco em código). Os outros 9 aliens aparecem bloqueados até ganharem um DNA.
 - Em 0% destransforma sozinho, com bipes no último minuto.
 - Master Control congela a carga. Tudo ajustável na Central → Omnitrix.
 - Onde ver: cápsula da barra, Dashboard, anel OMNITRIX na área de trabalho.
+
+### Cores do core (cânone)
+- **Amarelo · SCAN DE DNA:** download em andamento, ou app novo instalado (avisa "Novo DNA
+  coletado → SEM PLAYLIST").
+- **Azul · RECALIBRANDO:** o pacman está rodando (atualização); não dá para transformar. Ao terminar,
+  avisa "Recalibração concluída".
+- **Vermelho:** recarga da energia.
+
+### Life-Form Lock e Failsafe
+- **Life-Form Lock** (`Super + Shift + L`): trava o DNA atual sem timeout; nada transforma até liberar.
+  Liberar por comando exige o código: `azmuth lifeform off 1010`. A runa Chave aparece no Omnitrix da barra.
+- **Failsafe:** bateria ≤ 7% descarregando ou CPU ≥ 95 °C por 10 s → volta ao Neutral (mesmo travado
+  ou recarregando), com notificação crítica.
+
+### Assistente Azmuth (`Super + A`)
+Conversa com o Azmuth (Claude Code em modo não interativo, na sua conta). Ele vê o contexto (DNA,
+energia, janelas, eventos, hora) e **só age pelos comandos `azmuth`** (transformar, abrir apps,
+marcar eventos, preferências). Não executa ações destrutivas. A conversa continua por 30 min;
+"Nova conversa" recomeça. Cada pergunta gasta um pouco do limite de uso do Claude.
+Pelo terminal: `azmuth ask "pergunta"`.
 
 ### Context Engine
 Observa o app em foco. Com VS Code/IDE aberto por 1,5 s, sugere o Massa
@@ -143,7 +165,7 @@ rodar `python3 tools/gen_galvan.py`.
 - **Som**: saída e microfone padrão, volume e mudo por dispositivo e por app, visualizador com o
   nível real do áudio. O chip de volume da barra abre esta aba (clique direito = mudo).
 - **Área de trabalho**: área viva, widgets na tela (tamanho, remover), catálogo, imagens e **Editar na tela**.
-- **Calendário**: mês com marcas nos dias com evento, eventos do dia, adicionar/editar/apagar com
+- **Calendário** (também clicando num dia de qualquer widget de calendário → evento rápido): mês com marcas nos dias com evento, eventos do dia, adicionar/editar/apagar com
   hora, cor e lembrete (na hora, 10/30 min, 1 h, 1 dia antes; dia inteiro avisa às 8h). Os
   widgets de calendário mostram as marcas e os próximos eventos.
 
@@ -193,6 +215,9 @@ remover: `bash sddm/install.sh --remove`.
 | `azmuth hud` · `power` · `lock [--preview]` | Abre HUD · energia · bloqueio |
 | `azmuth lockseq set … / clear / status` | Sequência do bloqueio |
 | `azmuth shot area/full/window/menu` | Capturas |
+| `azmuth ask "…"` · `app "<nome>"` | Pergunta ao Azmuth · abre um app pelo nome |
+| `azmuth event add AAAA-MM-DD [HH:MM] título` · `event list` | Eventos do calendário |
+| `azmuth lifeform on / off 1010` · `failsafe` | Life-Form Lock · failsafe manual |
 | `azmuth set <chave> <valor>` · `settings` | Preferências (ex.: `timer.minutes 15`) |
 | `azmuth current [--json/--name]` · `roster` | DNA ativo · catálogo |
 | `azmuth restore` · `wallpaper` · `install` | Reaplicar · wallpaper · links das configs |
