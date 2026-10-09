@@ -28,7 +28,7 @@ hl.layer_rule({
 })
 hl.layer_rule({
     name   = "azmuth-hud-blur",
-    match  = { namespace = "^azmuth-(hud|dashboard|clipboard|overview|power)$" },
+    match  = { namespace = "^azmuth-(hud|dashboard|clipboard|overview|power|launcher)$" },
     blur   = true,
     ignore_alpha = 0.1,
 })
@@ -104,6 +104,9 @@ end
 hl.bind("ALT + Tab", function() hud("altTab"); watch_alt() end)
 hl.bind("ALT + SHIFT + Tab", function() hud("altTabPrev"); watch_alt() end)
 hl.bind(mainMod .. " + Tab", function() hud("overview") end)
+
+-- Lançador de apps com playlists no disco do Omnitrix
+hl.bind(mainMod .. " + D", function() hud("launcher") end)
 
 -- Área de transferência (cliphist) com busca e miniaturas
 hl.bind(mainMod .. " + SHIFT + V", function() hud("clipboard") end)

@@ -71,6 +71,12 @@ ShellRoot {
         screen: root.targetScreen()
     }
 
+    Launcher {
+        id: launcher
+        theme: root.theme
+        screen: root.targetScreen()
+    }
+
     Lock {
         id: lockScreen
         theme: root.theme
@@ -165,6 +171,7 @@ ShellRoot {
         function altTabPrev(): void { if (!constellation.open) constellation.screen = root.targetScreen(); constellation.altTab(-1) }
         function altRelease(): void { constellation.altRelease() }
         function overview(): void { if (!constellation.open) constellation.screen = root.targetScreen(); constellation.overview() }
+        function launcher(): void { launcher.screen = root.targetScreen(); launcher.toggle() }
         function lock(): void { lockScreen.lock() }
         function lockPreview(): void { lockScreen.screen = root.targetScreen(); lockScreen.preview() }
         function power(): void { powerMenu.screen = root.targetScreen(); powerMenu.toggle() }
