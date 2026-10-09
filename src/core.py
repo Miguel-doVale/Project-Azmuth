@@ -20,7 +20,8 @@ Uso:
   azmuth wallpaper                       reaplica o wallpaper (hotplug de monitor)
   azmuth set <chave> <valor>             altera uma preferência (ex.: timer.minutes 15)
   azmuth settings                        preferências em JSON (painel de configuração)
-  azmuth lock                            bloqueia a tela (Super + M)
+  azmuth lock [--preview]                bloqueia a tela (Super + M) · --preview só mostra
+  azmuth lockseq set N 1 4 0 ...         sequência do Omnitrix para desbloquear (clear/status)
   azmuth power                           menu de energia (Super + Shift + Q)
   azmuth shot [area|full|window|menu]    capturas (Super+Shift+S, Print, Super+Print, Super+Alt+S)
   azmuth install                         liga as configs do sistema ao projeto
@@ -374,6 +375,7 @@ def write_theme(data: dict | None = None) -> None:
         "bar": (data.get("bar") or {}).get("visible", True),
         "dnd": settings["dnd"],
         "live": settings["live_desktop"],
+        "wallpaper": str(ROOT / data["wallpaper"]["path"]),
         "timer": timer_info(state, settings, load_roster()["neutral"]),
         "art": str(ROOT / data["hud"]["art"]) if (data.get("hud") or {}).get("art") else "",
         **data["palette"],
@@ -684,7 +686,36 @@ def cmd_hud(action: str) -> None:
     transform(e["id"], source="hud")
 
 
-def cmd_lock() -> None:
+LOCKSEQ_FILE = STATE_DIR / "lockseq.json"
+LOCK_TOKENS = ["N"] + [str(k) for k in (1, 2, 3, 4, 5, 6, 7, 8, 9, 0)]
+
+
+def cmd_lockseq(args: list[str]) -> None:
+    """azmuth lockseq set N 1 4 0 7 · azmuth lockseq clear · azmuth lockseq status"""
+    action = args[0] if args else "status"
+    if action == "set":
+        seq = [t.upper() for t in args[1:]]
+        bad = [t for t in seq if t not in LOCK_TOKENS]
+        if bad or len(seq) < 4:
+            raise SystemExit(f"[ERRO] use 4+ posições entre {' '.join(LOCK_TOKENS)} (N = Neutral). Inválidas: {bad}")
+        import hashlib
+        salt = os.urandom(8).hex()
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        LOCKSEQ_FILE.write_text(json.dumps({"salt": salt, "length": len(seq),
+                                            "hash": hashlib.md5(f"{salt}:{','.join(seq)}".encode()).hexdigest()}))
+        LOCKSEQ_FILE.chmod(0o600)
+        log(f"[OK] sequência de {len(seq)} posições gravada. Teste: azmuth lock --preview")
+    elif action == "clear":
+        LOCKSEQ_FILE.unlink(missing_ok=True)
+        log("[OK] sequência removida (bloqueio só com senha)")
+    else:
+        log(f"sequência: {'configurada' if LOCKSEQ_FILE.exists() else 'não configurada'}")
+
+
+def cmd_lock(args: list[str] | None = None) -> None:
+    if shell_running():
+        shell_ipc("lockPreview" if args and "--preview" in args else "lock")
+        return
     if shutil.which("hyprlock"):
         if run(["pidof", "hyprlock"]).returncode != 0:
             spawn(["hyprlock"])
@@ -874,7 +905,8 @@ COMMANDS = {
     "restore": lambda a: cmd_restore(),
     "wallpaper": lambda a: cmd_wallpaper(),
     "install": lambda a: cmd_install(),
-    "lock": lambda a: cmd_lock(),
+    "lock": lambda a: cmd_lock(a),
+    "lockseq": lambda a: cmd_lockseq(a),
     "set": lambda a: cmd_set(a[0], a[1]),
     "settings": lambda a: cmd_settings(),
     "timeout": lambda a: cmd_timeout(),

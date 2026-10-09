@@ -160,6 +160,9 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("command -v hypridle >/dev/null && hypridle")
 end)
 
+-- se a shell cair com a tela travada, deixa outra instância retomar a trava
+hl.config({ misc = { allow_session_lock_restore = true } })
+
 -- Super + M bloqueia (antes fazia logout). Sair/reiniciar/desligar: Super + Shift + Q.
 hl.bind(mainMod .. " + M", hl.dsp.exec_cmd(AZ .. " lock"))
 hl.bind(mainMod .. " + SHIFT + Q", hl.dsp.exec_cmd(AZ .. " power"))
