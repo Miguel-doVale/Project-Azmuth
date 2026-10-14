@@ -1,11 +1,11 @@
 [Desktop Entry]
 Type=Service
 MimeType=inode/directory;
-Actions=terminal;editor;
+Actions=decorate;terminal;editor;
 X-KDE-Submenu=Azmuth · ferramentas
 X-KDE-Priority=TopLevel
 X-KDE-Protocols=file
-Icon=applications-development
+Icon=${icon}
 
 [Desktop Action terminal]
 Name=Abrir no terminal do Omnitrix
@@ -16,3 +16,8 @@ Exec=${az} files --terminal %f
 Name=Abrir projeto no VS Code
 Icon=visual-studio-code
 Exec=${az} files --code %f
+
+[Desktop Action decorate]
+Name=Personalizar pasta · cores e runas
+Icon=${icon}
+Exec=${az} files --decorate %f

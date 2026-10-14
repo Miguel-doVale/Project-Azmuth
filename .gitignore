@@ -1,3 +1,8 @@
 .venv/
 __pycache__/
 *.pyc
+
+# Metadados locais de notas e personalização de pastas
+.obsidian/
+.directory
+.azmuth-folder/

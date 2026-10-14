@@ -1,0 +1,1 @@
+../../../shell/UiSlider.qml

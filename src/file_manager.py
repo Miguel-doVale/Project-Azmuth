@@ -139,7 +139,49 @@ def apply(data):
     atomic_write(SCHEME, render_scheme(data))
     atomic_write(STYLE, Template((ROOT / "filemanager/dolphin.qss.tmpl").read_text()).substitute(theme_values(data)))
     merge_config(DOLPHIN_RC, {"UiSettings": {"ColorScheme": "AzmuthActive"}})
+    sidebar_icons(data)
     return True
+
+
+def sidebar_icons(data):
+    """Ícones Galvan dos favoritos criados pelo Azmuth."""
+    import folder_style
+    places = DATA / "user-places.xbel"
+    if not places.exists():
+        return
+    tree = ET.fromstring(places.read_text())
+    mapping = {
+        (HOME / "Documents/Coding").as_uri(): "codigo",
+        (ROOT / "assets").as_uri(): "midia",
+        (HOME / "Pictures/Screenshots").as_uri(): "visao",
+    }
+    changed = False
+    for bookmark in tree.findall("bookmark"):
+        rune = mapping.get(bookmark.get("href"))
+        ident = bookmark.find("info/metadata[@owner='http://www.kde.org']/ID")
+        if not rune or ident is None or not (ident.text or "").startswith("azmuth-"):
+            continue
+        primary = data["palette"]["primary"]
+        icon = STATE / "filemanager-icons" / (rune + "-" + primary.lstrip("#") + ".svg")
+        style = {"color": primary, "markers": [{"kind":"glyph", "value":rune, "color":data["palette"]["background"],
+                 "x":.5,"y":.6,"size":.33,"badge":False}]}
+        atomic_write(icon, folder_style.render(style))
+        meta = bookmark.find("info/metadata[@owner='http://freedesktop.org']")
+        if meta is None:
+            continue
+        tag = "{http://www.freedesktop.org/standards/desktop-bookmarks}icon"
+        node = meta.find(tag)
+        if node is None:
+            node = ET.SubElement(meta, tag)
+        if node.get("name") != str(icon):
+            node.set("name", str(icon))
+            changed = True
+    if changed:
+        for prefix, uri in {"bookmark":"http://www.freedesktop.org/standards/desktop-bookmarks",
+                            "kdepriv":"http://www.kde.org/kdepriv","mime":"http://www.freedesktop.org/standards/shared-mime-info"}.items():
+            ET.register_namespace(prefix,uri)
+        ET.indent(tree, space=" ")
+        atomic_write(places, '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE xbel>\n' + ET.tostring(tree,encoding="unicode") + "\n")
 
 
 def places_xml(text):
@@ -178,9 +220,18 @@ def places_xml(text):
     return '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE xbel>\n' + ET.tostring(root, encoding="unicode") + "\n"
 
 
+def install_service_menu():
+    menu = Template((ROOT / "filemanager/azmuth-tools.desktop.tmpl").read_text()).substitute(
+        az=HOME / ".local/bin/azmuth", icon=ROOT / "filemanager/omnitrix.svg")
+    service = DATA / "kio/servicemenus/azmuth-tools.desktop"
+    atomic_write(service, menu)
+    service.chmod(0o755)
+
+
 def install(data=None):
     """Instala uma vez, com backup de cada arquivo alterado e registro do que criou."""
     if MANIFEST.exists():
+        install_service_menu()
         apply(data or current_dna())
         return json.loads(MANIFEST.read_text())["backup"]
     targets = [
@@ -207,7 +258,7 @@ def install(data=None):
             "OpenExternallyCalledFolderInNewTab": "true", "BrowseThroughArchives": "true",
             "GlobalViewProps": "false", "SplitView": "false",
         },
-        "IconsMode": {"IconSize": "48", "PreviewSize": "112", "MaximumTextLines": "2", "TextWidthIndex": "2", "UseSystemFont": "false", "ViewFont": "Sans Serif,11,-1,5,50,0,0,0,0,0"},
+        "IconsMode": {"IconSize": "32", "PreviewSize": "64", "MaximumTextLines": "2", "TextWidthIndex": "1", "UseSystemFont": "false", "ViewFont": "Sans Serif,11,-1,5,50,0,0,0,0,0"},
         "CompactMode": {"IconSize": "24", "PreviewSize": "48"},
         "DetailsMode": {"IconSize": "24", "PreviewSize": "32", "ExpandableFolders": "true", "HighlightEntireRow": "true", "UseSystemFont": "false", "ViewFont": "Sans Serif,11,-1,5,50,0,0,0,0,0"},
         "MainWindow": {"MenuBar": "Disabled", "ToolBarsMovable": "Disabled"},
@@ -223,10 +274,7 @@ def install(data=None):
     atomic_write(places, places_xml(places.read_text() if places.exists() else ""))
     atomic_write(DATA / "kxmlgui5/dolphin/dolphinui.rc", (ROOT / "filemanager/dolphinui.rc").read_text())
     az = HOME / ".local/bin/azmuth"
-    menu = Template((ROOT / "filemanager/azmuth-tools.desktop.tmpl").read_text()).substitute(az=az)
-    service = DATA / "kio/servicemenus/azmuth-tools.desktop"
-    atomic_write(service, menu)
-    service.chmod(0o755)
+    install_service_menu()
     desktop = Path("/usr/share/applications/org.kde.dolphin.desktop").read_text()
     desktop = re.sub(r"^Exec=.*$", "Exec=" + str(az) + " files %U", desktop, flags=re.M)
     desktop = re.sub(r"^DBusActivatable=.*$", "DBusActivatable=false", desktop, flags=re.M)
@@ -252,6 +300,9 @@ def restore():
 
 
 def main(args):
+    if args and args[0] in ("--decorate", "--style-load", "--style-save", "--style-reset", "--style-preview"):
+        __import__("folder_style").main(args)
+        return
     if "--setup" in args:
         print("Backup: " + install())
         return

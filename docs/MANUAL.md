@@ -200,7 +200,10 @@ de 3 s cancelável com Esc. Atalhos: 1–5 ou B S E R D.
 Abas ficam visíveis, o caminho completo aparece e pastas lembram o modo de exibição.
 A barra oferece prévias, divisão em dois painéis e busca; os Lugares incluem Azmuth,
 Projetos, Assets e Capturas. Clique direito numa pasta → **Azmuth · ferramentas**:
-abrir no Kitty ou no VS Code.
+abrir no Kitty, no VS Code ou **Personalizar pasta · cores e runas**.
+
+Personalização: cor livre, vários marcadores Galvan ou letras/texto, posição, tamanho, cor e
+camadas. O ícone acompanha a pasta; **Restaurar ícone** volta ao anterior.
 
 Atalhos: **F3** divide, **F4** abre terminal integrado, **F11** mostra informação/prévia,
 **Ctrl+1/2/3** alterna ícones/compacto/detalhes, **Ctrl+I** filtra a pasta,

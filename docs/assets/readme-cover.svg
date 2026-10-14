@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="420" viewBox="0 0 1440 420" role="img" aria-labelledby="title desc">
+  <title id="title">Project Azmuth</title>
+  <desc id="desc">Um desktop que se transforma com você. Identidade do projeto em verde galvânico e azul, com circuitos e o símbolo do Omnitrix.</desc>
+  <defs>
+    <radialGradient id="halo"><stop stop-color="#4dff8a" stop-opacity=".13"/><stop offset="1" stop-color="#4dff8a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="dna" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#4dff8a"/><stop offset="1" stop-color="#38bdf8"/></linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#16321f" stroke-width=".65"/></pattern>
+  </defs>
+  <path d="M28 0H1412L1440 28V392L1412 420H28L0 392V28Z" fill="#070d09"/>
+  <path d="M28 1H1411L1439 29V391L1411 419H29L1 391V29Z" fill="url(#grid)" opacity=".5" stroke="#244632" stroke-width="1.5"/>
+  <circle cx="1130" cy="220" r="268" fill="url(#halo)"/>
+  <g fill="none" stroke="#244632" stroke-width="2">
+    <path d="M0 88H44L62 106H70M0 330H48L64 346H76M680 0V36L704 60H778L802 84H911"/>
+    <path d="M772 420V377L804 345H915M1440 88H1382L1350 120H1290M1440 332H1350L1314 296H1292"/>
+    <path d="M744 194H835L858 171H902M806 253H878L897 272H934"/>
+  </g>
+  <g fill="#345b40">
+    <circle cx="70" cy="106" r="4"/><circle cx="76" cy="346" r="4"/><circle cx="911" cy="84" r="4"/>
+    <circle cx="915" cy="345" r="4"/><circle cx="902" cy="171" r="4"/><circle cx="934" cy="272" r="4"/>
+  </g>
+  <path d="M64 50H108L120 38H188" fill="none" stroke="#4dff8a" stroke-width="3"/>
+  <path d="M1360 370H1316L1304 382H1236" fill="none" stroke="#38bdf8" stroke-width="3"/>
+  <g font-family="DejaVu Sans, Arial, sans-serif">
+    <text x="94" y="105" fill="#4dff8a" font-size="13" font-weight="700" letter-spacing="4">ARCH LINUX / HYPRLAND / QUICKSHELL</text>
+    <text x="88" y="185" fill="#e4ffec" font-size="62" font-weight="700" letter-spacing="-2">Project Azmuth</text>
+    <text x="94" y="238" fill="#b8cfbf" font-size="27">Um desktop que se transforma com você.</text>
+    <text x="94" y="275" fill="#6e8f79" font-size="17">O Omnitrix, agora no seu desktop.</text>
+    <circle cx="100" cy="339" r="5" fill="#38bdf8"/>
+    <text x="118" y="344" fill="#87c9e8" font-size="13" font-weight="700" letter-spacing="2">NEUTRAL</text>
+    <circle cx="280" cy="339" r="5" fill="#4dff8a"/>
+    <text x="298" y="344" fill="#8adea7" font-size="13" font-weight="700" letter-spacing="2">MASSA CINZENTA</text>
+    <text x="94" y="383" fill="#62806b" font-size="11" letter-spacing="3">DNA · ENERGIA · CONTEXTO</text>
+  </g>
+  <g fill="none">
+    <circle cx="1130" cy="220" r="154" stroke="#20492e" stroke-width="2"/>
+    <circle cx="1130" cy="220" r="146" stroke="url(#dna)" stroke-width="3" stroke-dasharray="144 36" transform="rotate(-34 1130 220)"/>
+    <circle cx="1130" cy="220" r="130" stroke="#264d33" stroke-width="1" stroke-dasharray="3 11"/>
+    <path d="M1122 54H1138M1122 386H1138M964 212V228M1296 212V228" stroke="#4dff8a" stroke-width="2"/>
+  </g>
+  <circle cx="1130" cy="220" r="111" fill="#09170d" stroke="#397951" stroke-width="2"/>
+  <circle cx="1130" cy="220" r="101" fill="#0a1d12" stroke="#184e2a" stroke-width="1"/>
+  <path d="M1069 146H1191L1130 216ZM1069 294H1191L1130 224Z" fill="url(#dna)"/>
+  <path d="M1018 216L1032 205V235L1018 224ZM1242 216L1228 205V235L1242 224Z" fill="#3ba666"/>
+  <g fill="#4dff8a"><circle cx="1066" cy="67" r="3"/><circle cx="1194" cy="373" r="3"/></g>
+</svg>

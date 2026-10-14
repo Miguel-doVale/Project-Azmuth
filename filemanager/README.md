@@ -58,3 +58,16 @@ O backup fica em `~/.config/azmuth-backup-dolphin-<data>` e é preservado.
 
 Configuração e recursos: https://docs.kde.org/trunk_kf6/en/dolphin/dolphin/configuring-dolphin.html
 Ações locais: https://develop.kde.org/docs/apps/dolphin/service-menus/
+
+## Cores e marcadores por pasta
+
+Clique direito numa pasta → **Azmuth · ferramentas → Personalizar pasta · cores e runas**.
+Escolha qualquer cor no seletor ou por #RRGGBB. Cada clique numa runa adiciona um marcador;
+também pode adicionar letras, números e textos. Arraste, ajuste tamanho/cor, troque a ordem
+das camadas ou deixe só a runa sem fundo. A lista não tem um limite fixo de marcadores.
+**Aplicar** grava; **Restaurar ícone** recupera o ícone anterior, preservando a configuração
+de visualização da pasta.
+
+A personalização usa a pasta oculta `.azmuth-folder` e o campo Icon do `.directory`.
+O caminho é relativo: ao mover/copiar a pasta junto com os arquivos ocultos, o ícone acompanha.
+A configuração de ícones agora usa prévias de 64px e legendas mais compactas.
