@@ -27,6 +27,7 @@ Uso:
   azmuth event add AAAA-MM-DD [HH:MM] t  marca evento no calendário · azmuth event list
   azmuth lifeform on | off 1010          Life-Form Lock: trava o DNA atual sem timeout (Super+Shift+L)
   azmuth app "<nome>"                    abre um app pelo nome
+  azmuth files [pasta|--split|--setup|--restore]  Dolphin nas cores do DNA
   azmuth ask "pergunta" [--new]          conversa com o assistente Azmuth (Super + A)
   azmuth install                         liga as configs do sistema ao projeto
 
@@ -438,6 +439,16 @@ def apply_kitty(data: dict) -> None:
     run(["pkill", "-USR1", "-x", "kitty"])
 
 
+def apply_file_manager(data: dict) -> None:
+    """Mantém o tema do Dolphin sincronizado para novas instâncias."""
+    import file_manager
+    try:
+        if file_manager.apply(data):
+            log("[OK] Dolphin · tema preparado")
+    except OSError as exc:
+        log(f"[AVISO] Tema do Dolphin: {exc}")
+
+
 def unit_exists(name: str) -> bool:
     return run(["systemctl", "--user", "cat", name]).returncode == 0
 
@@ -569,6 +580,7 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
     apply_dunst(data)
     apply_hyprlock(data)
     apply_kitty(data)
+    apply_file_manager(data)
     daemons = apply_daemons(data, state)
     if apps:
         apply_apps(data)
@@ -1044,6 +1056,7 @@ COMMANDS = {
     "lifeform": lambda a: cmd_lifeform(a),
     "failsafe": lambda a: cmd_failsafe(" ".join(a) or "Risco detectado"),
     "app": lambda a: cmd_app(" ".join(a)),
+    "files": lambda a: __import__("file_manager").main(a),
     "ask": lambda a: __import__("azmuth_ai").main(a),
 }
 NEEDS_ARG = {"apply", "slot", "set"}

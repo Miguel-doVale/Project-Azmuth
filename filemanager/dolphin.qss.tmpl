@@ -1,0 +1,30 @@
+/* Project Azmuth — Dolphin. Gerado a partir da paleta do DNA.
+   Controles discretos; os nomes e conteúdos dos arquivos têm prioridade. */
+QMainWindow { background: ${surface}; color: ${foreground}; }
+QToolBar { background: ${surface}; border: none; border-bottom: 1px solid ${border_inactive}; spacing: 5px; padding: 7px 10px; }
+QToolButton { color: ${foreground}; padding: 7px; border: 1px solid transparent; border-radius: 6px; }
+QToolButton:hover { background: ${hover}; border-color: ${border_inactive}; }
+QToolButton:checked { background: ${selection}; border-color: ${primary}; }
+QLineEdit { background: ${background}; color: ${foreground}; border: 1px solid ${border_inactive}; border-radius: 6px; padding: 7px; selection-background-color: ${selection}; selection-color: ${foreground}; }
+QLineEdit:focus { border-color: ${primary}; }
+QTabWidget::pane { border: none; }
+QTabBar::tab { color: ${muted}; background: ${surface}; border: none; border-bottom: 2px solid transparent; padding: 10px 18px; min-width: 95px; }
+QTabBar::tab:selected { color: ${primary}; background: ${background}; border-bottom-color: ${primary}; }
+QTabBar::tab:hover { background: ${hover}; color: ${foreground}; }
+QHeaderView::section { background: ${surface}; color: ${muted}; border: none; border-bottom: 1px solid ${border_inactive}; padding: 9px 8px; }
+QDockWidget { color: ${muted}; }
+QDockWidget#placesDock { min-width: 205px; }
+QDockWidget#infoDock { min-width: 240px; }
+QDockWidget::title { background: ${surface}; padding: 6px; }
+QStatusBar { background: ${surface}; color: ${muted}; border-top: 1px solid ${border_inactive}; }
+QStatusBar::item { border: none; }
+QMenu { background: ${raised}; color: ${foreground}; border: 1px solid ${border_inactive}; padding: 6px; }
+QMenu::item { padding: 7px 22px; border-radius: 4px; }
+QMenu::item:selected { background: ${selection}; color: ${foreground}; }
+QMenu::separator { background: ${border_inactive}; height: 1px; margin: 5px 8px; }
+QSplitter::handle { background: ${surface}; width: 4px; }
+QScrollBar:vertical { background: transparent; width: 9px; margin: 0; }
+QScrollBar::handle:vertical { background: ${border_inactive}; border-radius: 4px; min-height: 32px; }
+QScrollBar::handle:vertical:hover { background: ${muted}; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }

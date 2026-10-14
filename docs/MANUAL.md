@@ -4,7 +4,7 @@ Guia de uso de tudo que existe na rice: atalhos, sistemas, comandos, arquivos e
 como resolver problemas. O documento-mestre (`00 - MASTER - Project Azmuth.md`)
 explica o *porquê* do projeto; este manual explica o *como usar*.
 
-Última atualização: 2026-10-09.
+Última atualização: 2026-10-13.
 
 ---
 
@@ -194,6 +194,23 @@ notifica com miniatura (Abrir / Pasta). Gravações em `~/Videos/Recordings`.
 ### Menu de energia (`Super + Shift + Q`)
 Bloquear e Suspender são imediatos; Sair, Reiniciar e Desligar têm contagem
 de 3 s cancelável com Esc. Atalhos: 1–5 ou B S E R D.
+
+### Explorador de arquivos (Dolphin)
+`Super+E` abre o Dolphin com controles escuros e detalhes na paleta do DNA.
+Abas ficam visíveis, o caminho completo aparece e pastas lembram o modo de exibição.
+A barra oferece prévias, divisão em dois painéis e busca; os Lugares incluem Azmuth,
+Projetos, Assets e Capturas. Clique direito numa pasta → **Azmuth · ferramentas**:
+abrir no Kitty ou no VS Code.
+
+Atalhos: **F3** divide, **F4** abre terminal integrado, **F11** mostra informação/prévia,
+**Ctrl+1/2/3** alterna ícones/compacto/detalhes, **Ctrl+I** filtra a pasta,
+**Ctrl+L** digita o caminho. `azmuth files --split projetos downloads` abre duas
+pastas lado a lado.
+
+O tema é preparado em cada transformação e aplicado nas instâncias novas.
+Janelas já abertas mantêm a paleta até serem reabertas. Configuração com backup;
+`azmuth files --restore` restaura os arquivos de configuração do Dolphin.
+Detalhes em [filemanager/README.md](../filemanager/README.md).
 
 ### Terminal
 Cores do DNA (mudam ao vivo), prompt `⧗ DNA usuário pasta`, banner com o

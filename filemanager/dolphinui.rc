@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE gui SYSTEM "kpartgui.dtd">
+<gui name="dolphin" version="50">
+ <ToolBar noMerge="1" name="mainToolBar">
+  <text>Main Toolbar</text>
+  <Action name="go_back"/><Action name="go_forward"/><Action name="go_up"/>
+  <Action name="url_navigators"/>
+  <Action name="view_settings"/><Action name="show_preview"/>
+  <Action name="split_view"/><Action name="show_information_panel"/>
+  <Action name="show_terminal_panel"/><Action name="toggle_search"/>
+  <Action name="hamburger_menu"/>
+ </ToolBar>
+</gui>
