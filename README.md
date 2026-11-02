@@ -6,9 +6,11 @@
 
 <p align="center">
   <strong>Arch Linux · Hyprland · Quickshell · Python</strong><br>
+  <a href="docs/INSTALACAO-E-CONFIGURACAO.md">Instalação e configuração</a> ·
   <a href="docs/MANUAL.md">Manual de uso</a> ·
   <a href="docs/DNA_Schema_Spec.md">Criar um DNA</a> ·
-  <a href="filemanager/README.md">Dolphin</a>
+  <a href="filemanager/README.md">Dolphin</a> ·
+  <a href="taskmanager/README.md">Gerenciador de tarefas</a>
 </p>
 
 **O Omnitrix, agora no seu desktop.**
@@ -54,7 +56,8 @@ na Central. O ambiente deve acompanhar a tarefa que você escolheu.
 | **Desktop canvas** | Widgets que você arrasta e redimensiona, com guias de alinhamento e medidas dos espaços entre eles. |
 | **Calendário** | Eventos, cores, horários e lembretes; criação rápida pelo próprio widget e edição pela Central. |
 | **Área de transferência** | Busca, filtros, favoritos, prévias de imagens, amostras de cores e exclusão em lote. |
-| **Central** | Configurações do Omnitrix, playlists, widgets, calendário, Wi-Fi e som, incluindo áudio por aplicativo. |
+| **Central** | Configurações do Omnitrix, playlists, widgets, calendário, Wi-Fi, som e diagnóstico do sistema. |
+| **Gerenciador de tarefas** | Processos com busca, ordenação, pausa e encerramento; gráficos reais de CPU, memória, disco e rede; controle dos aplicativos de inicialização e de cada DNA. |
 | **Dolphin** | Paleta do DNA, navegação compacta e editor de pastas com cores livres, runas, texto e camadas de marcadores. |
 | **Notificações** | Servidor próprio, ações, histórico no Dashboard, limite de itens visíveis e modo Não perturbe. |
 | **Capturas e gravação** | Seleção de área direta, capturas de tela/janela e gravação, com arquivos salvos e integração com a área de transferência. |
@@ -102,15 +105,16 @@ foco e pode sugerir um DNA apropriado; com Master Control, pode aplicar a
 transformação automaticamente. As sugestões respeitam intervalos de espera
 para evitar trocas a cada alternância de janela.
 
-O **assistente Azmuth** tem uma interface própria e uma integração existente
-com Claude Code em modo não interativo. Essa parte depende de uma conta e
-de acesso válido ao provedor; a rice pode ser usada sem o assistente.
+O **assistente Azmuth** usa o Ollama local, sem conta de IA ou chave de API.
+O modelo inicial é `qwen3.5:4b`; a primeira base de conhecimento cobre os
+personagens, continuidades e aliens clássicos de Ben 10. O guia de instalação
+explica como instalar o Ollama, baixar o modelo e verificar a conexão.
 
-Quando você faz uma pergunta, a integração prepara um resumo do DNA,
-energia, janelas, próximos eventos e hora para enviar ao provedor.
-
-A integração com Gemini é uma possibilidade em avaliação. Voz e novos
-provedores fazem parte dos próximos estudos.
+A conversa e o contexto do Omnitrix são enviados somente ao serviço local em
+`127.0.0.1:11434`. O contexto inclui DNA, energia, eventos e títulos/classes de
+janelas; o assistente não indexa nem lê documentos pessoais. Ele age por uma
+lista validada de comandos `azmuth`, sem terminal genérico ou comandos de
+energia que desliguem o computador. A conversa é mantida por 30 minutos sem uso; o histórico fica armazenado localmente.
 
 ## Atalhos para começar
 
@@ -123,6 +127,7 @@ provedores fazem parte dos próximos estudos.
 | `Super + Tab` | Explorar a Constelação com WASD. |
 | `Super + W` | Abrir o Dashboard. |
 | `Super + Shift + O` | Abrir a Central de Configuração. |
+| `Ctrl + Shift + Esc` | Abrir o gerenciador de tarefas do Azmuth. |
 | `Super + Alt + E` | Editar os widgets na área de trabalho. |
 | `Super + E` | Abrir o Dolphin tematizado. |
 | `Super + Shift + V` | Abrir a área de transferência. |
@@ -152,7 +157,8 @@ adaptados ao ambiente.
 - Hyprland com suporte à API Lua utilizada em `hypr/azmuth.lua`.
 - Quickshell com os módulos de Wayland, Hyprland, PAM, PipeWire,
   MPRIS, notificações e Networking usados pela shell.
-- Python 3 e PyYAML.
+- Python 3 e PyYAML; Linux com `pidfd` para controlar processos.
+- `gio` (GLib) para iniciar os aplicativos escolhidos no login.
 - Hyprpaper, Hypridle, Kitty e Fastfetch.
 - NetworkManager para Wi-Fi; PipeWire e WirePlumber para áudio.
 - Cliphist e wl-clipboard para a área de transferência.
@@ -162,7 +168,8 @@ adaptados ao ambiente.
 - As fontes Orbitron, Rajdhani, JetBrainsMono Nerd Font e
   Font Awesome 7 Free usadas pela interface.
 
-SDDM é opcional. Claude Code é necessário apenas para o assistente atual.
+SDDM e Ollama são opcionais. Ollama é necessário apenas para usar o assistente;
+o restante da rice não depende de um provedor de IA.
 Pillow e NumPy são dependências das ferramentas de geração de arte e som.
 
 ### Preparar o motor
@@ -211,11 +218,20 @@ O Dolphin tem documentação e restauração próprias em
 
 ## Pelo terminal
 
+Para recuperar a rice, use **`azmuth send`** — pedir ao Azmuth que envie o
+Omnitrix de volta. Ele inicia os componentes ausentes, recupera as notificações
+quando o Dunst assumiu a reserva e reaplica o DNA salvo. **`azmuth doctor`**
+confere a interface, os serviços, as ferramentas e os dados da sessão.
+
 ```bash
+azmuth send                       # recuperar o Omnitrix
+azmuth doctor                     # diagnóstico da sessão
 azmuth apply massa_cinzenta       # transformar
 azmuth neutral                    # retornar à base
 azmuth current                    # DNA atual
 azmuth roster                     # catálogo de DNAs
+azmuth tasks                      # gerenciador de tarefas
+azmuth tasks --tab startup         # aplicativos de inicialização
 azmuth files --split projetos downloads
 ```
 
@@ -226,10 +242,11 @@ azmuth files --split projetos downloads
 | **DNA** | Paletas, layout, wallpaper, apps, serviços e gatilhos de contexto. | `dna/*.yaml` |
 | **Motor** | Validar os perfis, aplicar transformações, controlar o estado e oferecer a CLI. | `src/core.py` |
 | **Shell** | Barra, discos, painéis, notificações, bloqueio, widgets e Constelação. | `shell/*.qml` |
-| **Sessão** | Atalhos, autostart e integração com o compositor por Lua e IPC. | `hypr/azmuth.lua` |
+| **Sessão** | Atalhos, autostart, recuperação dos componentes e diagnóstico por Lua e IPC. | `hypr/azmuth.lua`, `src/session_runtime.py` |
 | **Contexto** | Observar o uso, sugerir DNAs e acompanhar condições do sistema. | `src/context_engine.py` |
 | **Assistente** | Preparar o contexto e consultar o provedor de IA configurado na implementação. | `src/azmuth_ai.py` |
 | **Arquivos** | Aplicar o tema do Dolphin e compor ícones de pastas com marcadores. | `src/file_manager.py`, `src/folder_style.py` |
+| **Diagnóstico** | Ler processos e métricas do Linux, controlar tarefas e gerenciar inicialização numa janela independente. | `src/task_manager.py`, `taskmanager/` |
 
 Os perfis ficam no repositório; preferências e dados de execução ficam
 em `~/.local/state/azmuth/`. A configuração Lua liga esses componentes
@@ -247,6 +264,8 @@ hypr/          Integração Lua e configurações da sessão
 shell/         Interface Quickshell/QML
 src/           Motor, contexto, assistente e integrações
 terminal/      Kitty, prompt e Fastfetch
+taskmanager/   Gerenciador de tarefas nativo e telemetria
+tests/         Testes de processos e inicialização
 sddm/          Tema de login
 tools/         Geradores de runas, arte e sons
 ```
@@ -258,7 +277,7 @@ As preferências, os eventos e o estado de execução são gravados em
 
 - Lapidar a experiência dos sistemas existentes no uso diário.
 - Desenvolver a linguagem Galvan, seu dicionário e tradutor.
-- Refinar o Context Engine e estudar a próxima integração do assistente.
+- Aprofundar a base de Ben 10 do assistente e evoluir a IA de contexto por regras.
 - Definir a função de cada alien antes de habilitar novos DNAs.
 - Tornar a instalação mais fácil de reproduzir em outras máquinas.
 

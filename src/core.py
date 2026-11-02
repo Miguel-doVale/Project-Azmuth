@@ -17,6 +17,10 @@ Uso:
   azmuth current [--json]                DNA ativo
   azmuth roster --json                   catálogo do Omnitrix (usado pelo HUD)
   azmuth restore                         reaplica o último DNA (boot da sessão)
+  azmuth send                          envia o Omnitrix: recupera a sessão completa
+  azmuth start [--login]                recupera interface, serviços e notificações
+  azmuth doctor [--json]                confere os componentes da sessão
+  azmuth audio [restore|status]         recupera/consulta a saída do PipeWire
   azmuth wallpaper                       reaplica o wallpaper (hotplug de monitor)
   azmuth set <chave> <valor>             altera uma preferência (ex.: timer.minutes 15)
   azmuth settings                        preferências em JSON (painel de configuração)
@@ -28,7 +32,9 @@ Uso:
   azmuth lifeform on | off 1010          Life-Form Lock: trava o DNA atual sem timeout (Super+Shift+L)
   azmuth app "<nome>"                    abre um app pelo nome
   azmuth files [pasta|--split|--setup|--restore]  Dolphin nas cores do DNA
+  azmuth tasks [--tab startup]           processos, desempenho e inicialização
   azmuth ask "pergunta" [--new]          conversa com o assistente Azmuth (Super + A)
+  azmuth ask --status                   verifica Ollama e o modelo local
   azmuth install                         liga as configs do sistema ao projeto
 
 Compatível com o uso original: python src/core.py dna/neutral.yaml
@@ -419,7 +425,7 @@ def apply_dunst(data: dict) -> None:
     # dunstctl com ele parado o acordaria via D-Bus e ele tomaria as notificações
     if run(["pgrep", "-x", "dunst"]).returncode == 0:
         spawn(["dunstctl", "reload"])
-    log("[OK] Dunst")
+    log("[OK] Dunst · configuração de reserva preparada")
 
 
 def apply_hyprlock(data: dict) -> None:
@@ -502,6 +508,8 @@ def apply_apps(data: dict) -> None:
         if isinstance(app, str):
             app = {"cmd": app}
         cmd = app["cmd"]
+        if cmd in prefs.get("disabled_apps", []):
+            continue
         pattern = app.get("class")
         if pattern:
             running = any(re.search(pattern, c) for c in classes)
@@ -516,7 +524,14 @@ def apply_apps(data: dict) -> None:
 
 
 def shell_running() -> bool:
-    return bool(shutil.which("qs")) and run(["pgrep", "-f", f"qs -p {SHELL_DIR}"]).returncode == 0
+    """Verifica a interface pelo IPC, independentemente dos argumentos do processo."""
+    if not shutil.which("qs"):
+        return False
+    try:
+        result = run(["qs", "-p", str(SHELL_DIR), "ipc", "show"], timeout=2)
+        return result.returncode == 0 and "target hud" in result.stdout.splitlines()
+    except (OSError, subprocess.TimeoutExpired):
+        return False
 
 
 def shell_ipc(*args: str) -> None:
@@ -763,8 +778,12 @@ def cmd_lockseq(args: list[str]) -> None:
 
 
 def cmd_lock(args: list[str] | None = None) -> None:
+    preview = bool(args and "--preview" in args)
     if shell_running():
-        shell_ipc("lockPreview" if args and "--preview" in args else "lock")
+        shell_ipc("lockPreview" if preview else "lock")
+        return
+    if preview:
+        log("[AVISO] A prévia precisa da interface do Azmuth. Execute azmuth start.")
         return
     if shutil.which("hyprlock"):
         if run(["pidof", "hyprlock"]).returncode != 0:
@@ -940,6 +959,8 @@ def cmd_app(name: str) -> None:
                 best = (score, f.stem, e.get("Name"))
     if not best:
         raise SystemExit(f"[ERRO] nenhum app parecido com '{name}'")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", best[1]):
+        raise SystemExit("[ERRO] ID de aplicativo inválido")
     hypr_exec(f"gtk-launch {best[1]}")
     log(f"[OK] abrindo {best[2]}")
 
@@ -1024,6 +1045,7 @@ def cmd_install() -> None:
     link(HOME / ".config/kitty/kitty.conf", ROOT / "terminal/kitty.conf")
     link(HOME / ".config/fastfetch/config.jsonc", ROOT / "terminal/fastfetch.jsonc")
     link(HOME / ".config/fastfetch/omnitrix.txt", ROOT / "terminal/omnitrix.txt")
+    __import__("task_manager").install_entry()
     bashrc = HOME / ".bashrc"
     if BASHRC_LINE not in bashrc.read_text():
         with open(bashrc, "a") as f:
@@ -1057,6 +1079,12 @@ COMMANDS = {
     "failsafe": lambda a: cmd_failsafe(" ".join(a) or "Risco detectado"),
     "app": lambda a: cmd_app(" ".join(a)),
     "files": lambda a: __import__("file_manager").main(a),
+    "tasks": lambda a: __import__("task_manager").main(a),
+    "start": lambda a: __import__("session_runtime").main(["start", *a]),
+    "send": lambda a: __import__("session_runtime").main(["start", *a]),
+    "doctor": lambda a: __import__("session_runtime").main(["doctor", *a]),
+    "audio": lambda a: __import__("audio_runtime").main(a),
+    "session": lambda a: __import__("session_runtime").main(a),
     "ask": lambda a: __import__("azmuth_ai").main(a),
 }
 NEEDS_ARG = {"apply", "slot", "set"}

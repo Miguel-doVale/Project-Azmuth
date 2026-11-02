@@ -496,12 +496,12 @@ PanelWindow {
         Chip {
             icon: ""
             label: Math.round(SysStats.cpu) + "%"
-            onClicked: bar.run(["kitty", "-e", "btop"])
+            onClicked: bar.run([bar.az, "tasks", "--tab", "performance"])
         }
         Chip {
             icon: ""
             label: Math.round(SysStats.ram) + "%"
-            onClicked: bar.run(["kitty", "-e", "btop"])
+            onClicked: bar.run([bar.az, "tasks", "--tab", "performance"])
         }
 
         Chip {   // bateria

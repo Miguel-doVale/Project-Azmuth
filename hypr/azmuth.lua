@@ -6,7 +6,6 @@ local HOME    = os.getenv("HOME")
 local PROJECT = HOME .. "/Documents/Coding/Project Azmuth"
 local AZ      = HOME .. "/.local/bin/azmuth"
 local HUD     = "'" .. PROJECT .. "/shell'"
-local PY      = "'" .. PROJECT .. "/.venv/bin/python'"
 local mainMod = "SUPER"
 
 ---------------------------
@@ -14,10 +13,8 @@ local mainMod = "SUPER"
 ---------------------------
 
 hl.on("hyprland.start", function()
-    hl.exec_cmd("hyprpaper")
-    hl.exec_cmd(AZ .. " restore")                                 -- reaplica o último DNA
-    hl.exec_cmd(PY .. " -u '" .. PROJECT .. "/src/context_engine.py' >> " .. HOME .. "/.local/state/azmuth/context.log 2>&1") -- Context Engine
-    hl.exec_cmd("command -v qs >/dev/null && qs -p " .. HUD)       -- shell: barra + HUD + widgets (Quickshell)
+    -- Recuperação idempotente: uma shell, serviços presentes e notificações do Omnitrix.
+    hl.exec_cmd(AZ .. " start --login")
 end)
 
 -- HUD e flash de transformação desenham a própria animação
@@ -108,6 +105,9 @@ hl.bind(mainMod .. " + Tab", function() hud("overview") end)
 -- Lançador de apps com playlists no disco do Omnitrix
 hl.bind(mainMod .. " + D", function() hud("launcher") end)
 
+-- Gerenciador de tarefas: processos, desempenho e inicialização
+hl.bind("CTRL + SHIFT + Escape", hl.dsp.exec_cmd(AZ .. " tasks"))
+
 -- Assistente Azmuth (Claude Code em modo não interativo, só age por comandos azmuth)
 hl.bind(mainMod .. " + A", function() hud("assistant") end)
 
@@ -166,10 +166,6 @@ end)
 ---------------------------------
 ---- BLOQUEIO E ENERGIA ----
 ---------------------------------
-
-hl.on("hyprland.start", function()
-    hl.exec_cmd("command -v hypridle >/dev/null && hypridle")
-end)
 
 -- se a shell cair com a tela travada, deixa outra instância retomar a trava
 hl.config({ misc = { allow_session_lock_restore = true } })

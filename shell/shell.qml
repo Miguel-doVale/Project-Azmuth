@@ -24,6 +24,11 @@ ShellRoot {
     Behavior on reveal { NumberAnimation { duration: root.open ? 320 : 180; easing.type: Easing.OutCubic } }
 
     readonly property string azmuth: Quickshell.env("HOME") + "/.local/bin/azmuth"
+    // Se o Dunst foi ativado durante uma queda, devolve as notificações à shell.
+    Process {
+        command: [root.azmuth, "session", "notifications"]
+        running: true
+    }
     readonly property var current: roster.length ? roster[index] : null
     readonly property color accent: current && current.available ? current.color : "#5b6470"
     readonly property string archPath: "M11.39.605C10.376 3.092 9.764 4.72 8.635 7.132c.693.734 1.543 1.589 2.923 2.554-1.484-.61-2.496-1.224-3.252-1.86C6.86 10.842 4.596 15.138 0 23.395c3.612-2.085 6.412-3.37 9.021-3.862a6.61 6.61 0 01-.171-1.547l.003-.115c.058-2.315 1.261-4.095 2.687-3.973 1.426.12 2.534 2.096 2.478 4.409a6.52 6.52 0 01-.146 1.243c2.58.505 5.352 1.787 8.914 3.844-.702-1.293-1.33-2.459-1.929-3.57-.943-.73-1.926-1.682-3.933-2.713 1.38.359 2.367.772 3.137 1.234-6.09-11.334-6.582-12.84-8.67-17.74z"
@@ -190,6 +195,27 @@ ShellRoot {
 
     IpcHandler {
         target: "hud"
+        function status(): string {
+            return JSON.stringify({
+                ready: true, dna: root.theme.id,
+                metrics: {cpu: SysStats.cpu, ram: SysStats.ram, totalGiB: SysStats.ramTotalGiB, temperature: SysStats.temp},
+                catalog: {dnas: root.roster.length, apps: Playlists.apps.length, playlists: Playlists.lists.length, ready: Playlists.ready},
+                desktop: {widgets: DeskLayout.widgets.length, live: root.theme.live, editing: DeskLayout.editing},
+                calendar: {events: Events.list.length},
+                clipboard: {entries: clipboard.entries.length, images: clipboard.entries.filter(e=>e.kind==="image").length, pins: clipboard.pins.length},
+                notifications: {history: notifs.server.trackedNotifications.values.length, popups: notifs.popups.length},
+                lock: {locked: lockScreen.locked, preview: lockScreen.previewVisible},
+                panels: {hud: root.open, dashboard: dashboard.open, launcher: launcher.open, power: powerMenu.open,
+                         clipboard: clipboard.open, central: configCenter.open, centralTab: configCenter.tab,
+                         overview: constellation.open, assistant: assistant.open, quickEvent: quickEventWin.open},
+                central: configCenter.diagnostics()
+            })
+        }
+        function dismiss(): void {
+            root.open=false;dashboard.open=false;launcher.open=false;powerMenu.close();clipboard.open=false
+            configCenter.open=false;constellation.open=false;assistant.open=false;quickEventWin.open=false
+            lockScreen.dismissPreview();DeskLayout.editing=false
+        }
         function toggle(): void { root.open ? root.close() : root.show() }
         function next(): void { root.rotate(1) }
         function prev(): void { root.rotate(-1) }

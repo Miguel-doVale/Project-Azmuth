@@ -26,7 +26,7 @@ PanelWindow {
 
     readonly property var tabs: [
         { name: "OMNITRIX", glyph: "tempo" }, { name: "APPS", glyph: "portal" }, { name: "WI-FI", glyph: "rede" },
-        { name: "SOM", glyph: "som" }, { name: "ÁREA DE TRABALHO", glyph: "midia" }, { name: "CALENDÁRIO", glyph: "dados" }
+        { name: "SOM", glyph: "som" }, { name: "ÁREA DE TRABALHO", glyph: "midia" }, { name: "CALENDÁRIO", glyph: "dados" }, { name: "SISTEMA", glyph: "energia" }
     ]
 
     function toggle(t) {
@@ -39,6 +39,15 @@ PanelWindow {
     }
     function set(path, value) { Quickshell.execDetached([az, "set", path, JSON.stringify(value)]); refresh.restart() }
 
+    function diagnostics() {
+        return {
+            settingsLoaded: cfg !== null,
+            wifi: {available: wifiPanel.wifi !== null, networks: wifiPanel.nets.length,
+                   connected: wifiPanel.current !== null},
+            audio: {outputs: soundPanel.sinks.length, inputs: soundPanel.sources.length,
+                    streams: soundPanel.streams.length, defaultOutput: soundPanel.out !== null}
+        }
+    }
     property var cfg: null
     Process {
         id: settingsProc
@@ -555,8 +564,8 @@ PanelWindow {
             }
 
             // ═════════════ WI-FI e SOM ═════════════
-            WifiPanel { anchors.fill: parent; visible: cc.tab === 2; active: cc.open && cc.tab === 2 }
-            SoundPanel { anchors.fill: parent; visible: cc.tab === 3; active: cc.open && cc.tab === 3 }
+            WifiPanel { id:wifiPanel; anchors.fill: parent; visible: cc.tab === 2; active: cc.open && cc.tab === 2 }
+            SoundPanel { id:soundPanel; anchors.fill: parent; visible: cc.tab === 3; active: cc.open && cc.tab === 3 }
 
             DesktopPanel {
                 anchors.fill: parent
@@ -568,9 +577,15 @@ PanelWindow {
 
             CalendarPanel { anchors.fill: parent; visible: cc.tab === 5 }
 
+            SystemPanel {
+                anchors.fill:parent
+                visible:cc.tab===6
+                onOpenTasks:page=>{cc.open=false;Quickshell.execDetached([cc.az,"tasks","--tab",page])}
+            }
+
             // ═════════════ próximas abas ═════════════
             Column {
-                visible: cc.tab >= 6
+                visible: cc.tab >= 7
                 anchors.centerIn: parent
                 spacing: 12
                 Glyph { anchors.horizontalCenter: parent.horizontalCenter; width: 64; height: 64; name: cc.tabs[cc.tab].glyph; color: Qt.alpha(cc.primary, 0.5); stroke: 2.4 }

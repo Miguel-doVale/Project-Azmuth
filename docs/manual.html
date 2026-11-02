@@ -104,6 +104,7 @@ code { color: var(--dna); background: color-mix(in srgb, var(--dna) 8%, transpar
       </svg>
       <div><b>AZMUTH</b><span>manual de uso</span></div>
     </div>
+    <a href="INSTALACAO-E-CONFIGURACAO.md">INSTALAÇÃO E CONFIGURAÇÃO</a>
     <a href="#rapido">COMEÇO RÁPIDO</a>
     <a href="#atalhos">ATALHOS</a>
     <a href="#sistemas">SISTEMAS</a>
@@ -118,19 +119,22 @@ code { color: var(--dna); background: color-mix(in srgb, var(--dna) 8%, transpar
   <main style="min-width:0">
     <header>
       <h1>MANUAL DO <em>AZMUTH</em></h1>
-      <p>Tudo que existe na rice Omnitrix: atalhos, sistemas, comandos e onde cada coisa mora. O documento-mestre explica o porquê do projeto; aqui fica o como usar. Atualizado em 9 de outubro de 2026.</p>
+      <p>Tudo que existe na rice Omnitrix: atalhos, sistemas, comandos e onde cada coisa mora. O documento-mestre explica o porquê do projeto; aqui fica o como usar. Para instalar e configurar em outra máquina, consulte o <a href="INSTALACAO-E-CONFIGURACAO.md">guia de instalação e configuração</a>. Atualizado em 23 de outubro de 2026.</p>
     </header>
 
     <section id="rapido">
       <h2>COMEÇO RÁPIDO</h2>
       <div class="plate tbl"><table>
         <tr><th>QUERO…</th><th>FAÇA</th></tr>
+        <tr><td>Recuperar o Omnitrix · conferir a sessão</td><td><code>azmuth send</code> · <code>azmuth doctor</code></td></tr>
+        <tr><td>Som caiu em Dummy Output</td><td><code>azmuth audio</code></td></tr>
         <tr><td>Trocar de alien</td><td><kbd>Super</kbd><kbd>Space</kbd> · ←/→ · <kbd>Enter</kbd></td></tr>
         <tr><td>Trocar direto</td><td><kbd>Super</kbd><kbd>Numpad 1–0</kbd> ou <kbd>Super</kbd><kbd>Alt</kbd><kbd>1–0</kbd></td></tr>
         <tr><td>Voltar ao Neutral</td><td><kbd>Super</kbd><kbd>Esc</kbd></td></tr>
         <tr><td>Abrir um app</td><td><kbd>Super</kbd><kbd>D</kbd></td></tr>
         <tr><td>Alternar janelas</td><td><kbd>Alt</kbd><kbd>Tab</kbd> segurando o Alt</td></tr>
         <tr><td>Ver tudo que está aberto</td><td><kbd>Super</kbd><kbd>Tab</kbd></td></tr>
+        <tr><td>Gerenciador de tarefas</td><td><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Esc</kbd></td></tr>
         <tr><td>Configurar o Omnitrix</td><td><kbd>Super</kbd><kbd>Shift</kbd><kbd>O</kbd></td></tr>
         <tr><td>Relógio, música, calendário</td><td><kbd>Super</kbd><kbd>W</kbd></td></tr>
         <tr><td>Bloquear · Desligar</td><td><kbd>Super</kbd><kbd>M</kbd> · <kbd>Super</kbd><kbd>Shift</kbd><kbd>Q</kbd></td></tr>
@@ -172,6 +176,7 @@ code { color: var(--dna); background: color-mix(in srgb, var(--dna) 8%, transpar
         <tr><td><kbd>Super</kbd><kbd>scroll</kbd></td><td>Workspace anterior/próximo</td><td>Janelas</td></tr>
         <tr><td><kbd>Super</kbd><kbd>Z</kbd></td><td>Rascunho (scratchpad) · <kbd>Shift</kbd> manda a janela</td><td>Janelas</td></tr>
         <tr><td><kbd>Super</kbd><kbd>arrastar</kbd></td><td>Botão esquerdo move, direito redimensiona</td><td>Janelas</td></tr>
+        <tr><td><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Esc</kbd></td><td>Gerenciador de tarefas: processos, desempenho e inicialização</td><td>Sistema</td></tr>
         <tr><td><kbd>Super</kbd><kbd>Shift</kbd><kbd>V</kbd></td><td>Área de transferência: busca, filtros, Ctrl+P fixa, Del apaga</td><td>Sistema</td></tr>
         <tr><td><kbd>Super</kbd><kbd>Shift</kbd><kbd>S</kbd></td><td>Captura de área (direto na seleção)</td><td>Sistema</td></tr>
         <tr><td><kbd>Print</kbd></td><td>Captura da tela inteira</td><td>Sistema</td></tr>
@@ -198,13 +203,13 @@ code { color: var(--dna); background: color-mix(in srgb, var(--dna) 8%, transpar
           <li>Ajustes: Central → Omnitrix.</li></ul></div>
         <div class="plate"><h3>CORES DO CORE</h3><p><span class="chip warn">AMARELO · SCAN</span> download em andamento ou app novo instalado. <span class="chip neu">AZUL · RECALIBRANDO</span> o pacman está rodando; não transforma. Vermelho: recarga.</p></div>
         <div class="plate"><h3>LIFE-FORM LOCK E FAILSAFE</h3><p><kbd>Super</kbd><kbd>Shift</kbd><kbd>L</kbd> trava o DNA sem timeout; liberar por comando pede o código: <code>azmuth lifeform off 1010</code>. Failsafe: bateria ≤ 7% ou CPU ≥ 95 °C volta ao Neutral.</p></div>
-        <div class="plate"><h3>ASSISTENTE AZMUTH</h3><p><kbd>Super</kbd><kbd>A</kbd>: conversa com o Azmuth (Claude Code na sua conta). Ele vê DNA, energia, janelas e eventos e só age pelos comandos <code>azmuth</code>. Nada destrutivo. Cada pergunta gasta um pouco do limite de uso.</p></div>
+        <div class="plate"><h3>ASSISTENTE AZMUTH</h3><p><kbd>Super</kbd><kbd>A</kbd>: conversa com Qwen via Ollama local. A base inicial cobre Ben 10. Ele vê o estado do Omnitrix, eventos e títulos/classes de janelas; não lê documentos pessoais. Ações passam por comandos Azmuth validados; não há terminal genérico nem desligamento pelo assistente. A conversa fica disponível por 30 min. Instalação: <a href="INSTALACAO-E-CONFIGURACAO.md#assistente-local-ollama">guia do Ollama</a>.</p><p><code>azmuth ask --status</code> verifica serviço e modelo.</p></div>
         <div class="plate"><h3>CONTEXT ENGINE</h3><p>Com VS Code ou outra IDE em foco por 1,5 s, sugere o Massa Cinzenta numa notificação de 5 s. <kbd>Super</kbd><kbd>Y</kbd> aceita. Com Master Control ligado, troca sozinho.</p></div>
         <div class="plate"><h3>ÁREA DE TRABALHO VIVA</h3><p>O Omnitrix do centro é desenhado ao vivo: pulsos de energia nos circuitos (mais rápidos com a CPU alta), anel de energia, o Arch que muta em ampulheta ao transformar e a silhueta do alien. Clicar nele abre o HUD.</p></div>
         <div class="plate"><h3>BARRA</h3><p>Workspaces com os apps dentro, minimizados, janela ativa, bandeja, volume (scroll ajusta), rede, CPU/RAM, bateria. A cápsula central mostra o DNA, a energia e o tempo. Omnitrix da barra: clique abre o HUD, direito sorteia, meio liga o Master Control.</p></div>
         <div class="plate"><h3>LANÇADOR</h3><p>O Omnitrix com apps no lugar dos aliens. Playlists (nome, runa, cor, ordem e apps) são editadas em Central → Apps. Apps soltos aparecem em <span class="chip warn">SEM PLAYLIST</span>.</p></div>
         <div class="plate"><h3>CONSTELAÇÃO</h3><p>Workspaces como nós em 3D, janelas como miniaturas ao vivo. Exploração: WASD voa, Espaço/Ctrl sobem e descem, Shift acelera, a mira + <kbd>E</kbd> entra, <kbd>R</kbd> volta.</p></div>
-        <div class="plate"><h3>CENTRAL DE CONFIGURAÇÃO</h3><p><kbd>Super</kbd><kbd>Shift</kbd><kbd>O</kbd>. Abas: Omnitrix (preferências e energia), Apps (playlists), Wi-Fi (redes, senha, esquecer — o chip de rede da barra abre aqui), Som (saída, microfone, volume por app, visualizador real — o chip de volume abre aqui) e Área de trabalho.</p></div>
+        <div class="plate"><h3>CENTRAL DE CONFIGURAÇÃO</h3><p><kbd>Super</kbd><kbd>Shift</kbd><kbd>O</kbd>. Abas: Omnitrix (preferências e energia), Apps (playlists), Wi-Fi (redes, senha, esquecer — o chip de rede da barra abre aqui), Som (saídas, microfones, fones/headset detectados, rotas físicas, mixer por app, medidores e equalizador de 10 bandas — o chip de volume abre aqui), Área de trabalho, Calendário e Sistema (diagnóstico e gerenciador de tarefas).</p></div>
         <div class="plate"><h3>DESKTOP CANVAS</h3><p><kbd>Super</kbd><kbd>Alt</kbd><kbd>E</kbd>: arraste os widgets, scroll muda o tamanho, ✕ remove. Guias inteligentes alinham com as bordas e centros dos outros widgets, e réguas mostram os espaços entre eles. Imagens: Central → Área de trabalho → Imagem. Esc ou Concluir sai.</p></div>
         <div class="plate"><h3>CALENDÁRIO</h3><p>Central → Calendário: mês com marcas nos dias com evento; adicione com título, hora, cor e lembrete (na hora, 10/30 min, 1 h, 1 dia antes; dia inteiro avisa às 8h). Os widgets de calendário mostram as marcas e os próximos eventos; clicar num dia cria um evento rápido.</p></div>
         <div class="plate"><h3>NOTIFICAÇÕES</h3><p>Saem de baixo da cápsula da barra. Clique abre o app, × fecha, botões de ação quando o app oferece, mouse em cima pausa. Histórico no Dashboard; Não perturbe na Central.</p></div>
@@ -212,6 +217,7 @@ code { color: var(--dna); background: color-mix(in srgb, var(--dna) 8%, transpar
         <div class="plate"><h3>CAPTURAS</h3><p>Vão para a área de transferência, ficam em <code>~/Pictures/Screenshots</code> e notificam com miniatura. Gravações em <code>~/Videos/Recordings</code>.</p></div>
         <div class="plate"><h3>MENU DE ENERGIA</h3><p>Bloquear e Suspender são imediatos. Sair, Reiniciar e Desligar contam 3 s; <kbd>Esc</kbd> cancela. Atalhos: 1–5 ou B S E R D.</p></div>
         <div class="plate"><h3>EXPLORADOR · DOLPHIN</h3><p><kbd>Super</kbd><kbd>E</kbd>: cores do DNA, abas, caminho completo e atalhos para Projetos, Assets e Capturas. A barra oferece prévias, dois painéis, informação e terminal. Clique direito numa pasta → Azmuth · ferramentas: Kitty, VS Code ou Personalizar pasta: cor livre, runas/letras como marcadores, posição e camadas.</p><p>F3 divide; F4 abre terminal; F11 mostra informação. Ctrl+1/2/3 alterna ícones/compacto/detalhes. As cores chegam às novas instâncias; reabra para atualizar uma janela existente.</p></div>
+        <div class="plate"><h3>GERENCIADOR DE TAREFAS</h3><p><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Esc</kbd> ou Central → Sistema. Os chips de CPU/RAM da barra abrem Desempenho. Processos: busca, ordenação, detalhes, pausa, retomada e encerramento com confirmação. Componentes essenciais e processos de outros usuários ficam para consulta.</p><p>Desempenho: CPU por núcleo, RAM, swap, temperatura, disco e rede; histórico real de até 90 s. CPU por processo considera o total da máquina; RAM é RSS e pode incluir memória compartilhada.</p><p>Inicialização: apps do login e de cada DNA; adicionar e remover entradas sem desinstalar programas. O iniciador do Azmuth executa só as entradas adicionadas ou alteradas por ele. Mudanças valem no próximo login ou transformação. Ctrl+F busca; Ctrl+R pausa a leitura ou atualiza a inicialização. Fechar encerra a coleta. As runas do Protocolo de Scan registram as áreas exploradas nesta sessão.</p></div>
         <div class="plate"><h3>TERMINAL</h3><p>Cores do DNA ao vivo, prompt <code>⧗ DNA usuário pasta</code>, banner com o Omnitrix em ASCII, botão direito cola.</p></div>
         <div class="plate"><h3>LOGIN (SDDM)</h3><p>Instalar: <code>bash sddm/install.sh</code> (pede sudo). Remover: <code>bash sddm/install.sh --remove</code>.</p></div>
       </div>
@@ -225,7 +231,7 @@ code { color: var(--dna); background: color-mix(in srgb, var(--dna) 8%, transpar
         <li>Cada movimento aparece como uma runa Galvan sorteada, que não revela a seta.</li>
         <li><kbd>Tab</kbd> troca para a senha do Arch: o aro de slots aparece e cada caractere vira uma runa nele.</li>
         <li>3 sequências erradas: só a senha.</li>
-        <li>Gravar (num terminal seu, fora do Claude): <code>azmuth lockseq set L R R U L R</code> · L = ←, R = →, U = ↑, mínimo 6.</li>
+        <li>Gravar (num terminal seu, fora da interface do assistente): <code>azmuth lockseq set L R R U L R</code> · L = ←, R = →, U = ↑, mínimo 6.</li>
         <li>Testar sem travar: <code>azmuth lock --preview</code>. A prévia não confere a senha do Arch.</li>
         <li>Suspender e a inatividade (10 min) usam a mesma tela.</li>
       </ul></div>
@@ -241,11 +247,17 @@ code { color: var(--dna); background: color-mix(in srgb, var(--dna) 8%, transpar
       <h2>LINHA DE COMANDO</h2>
       <div class="plate tbl"><table>
         <tr><th>COMANDO</th><th>O QUE FAZ</th></tr>
+        <tr><td><code>azmuth send</code> · <code>azmuth start</code></td><td>Recupera a interface, serviços, notificações e DNA salvo; reaproveita componentes ativos</td></tr>
+        <tr><td><code>azmuth doctor [--json]</code></td><td>Confere a sessão</td></tr>
+        <tr><td><code>azmuth audio [restore|status]</code></td><td>Recupera o Dummy; identifica apps que ocupam ALSA e não altera o microfone</td></tr>
+        <tr><td><code>azmuth audio inventory</code>, <code>route</code>, <code>eq</code></td><td>Inspeciona rotas físicas e controla o EQ EasyEffects de 10 bandas</td></tr>
+        <tr><td><code>azmuth ask --status</code></td><td>Confere Ollama local e o modelo do assistente</td></tr>
         <tr><td><code>azmuth apply &lt;dna&gt;</code></td><td>Transforma no DNA (ex.: <code>massa_cinzenta</code>)</td></tr>
         <tr><td><code>azmuth slot 0–9</code> · <code>neutral</code> · <code>random</code></td><td>Master Control · Neutral · Randomizer</td></tr>
         <tr><td><code>azmuth accept</code> · <code>master on/off/toggle</code></td><td>Aceita sugestão · Master Control</td></tr>
         <tr><td><code>azmuth hud</code> · <code>power</code> · <code>lock [--preview]</code></td><td>HUD · menu de energia · bloqueio</td></tr>
         <tr><td><code>azmuth lockseq set … / clear / status</code></td><td>Sequência do bloqueio</td></tr>
+        <tr><td><code>azmuth tasks</code> · <code>tasks --tab startup</code></td><td>Gerenciador de tarefas · inicialização</td></tr>
         <tr><td><code>azmuth shot area/full/window/menu</code></td><td>Capturas</td></tr>
         <tr><td><code>azmuth set &lt;chave&gt; &lt;valor&gt;</code> · <code>settings</code></td><td>Preferências (ex.: <code>timer.minutes 15</code>)</td></tr>
         <tr><td><code>azmuth current [--json|--name]</code> · <code>roster</code></td><td>DNA ativo · catálogo do Omnitrix</td></tr>
@@ -261,6 +273,7 @@ code { color: var(--dna); background: color-mix(in srgb, var(--dna) 8%, transpar
         <tr><td><code>dna/*.yaml</code></td><td>Os DNAs · <code>omnitrix.yaml</code> = slots do numpad</td></tr>
         <tr><td><code>src/core.py</code> · <code>src/context_engine.py</code></td><td>Motor (CLI) · daemon de contexto e energia</td></tr>
         <tr><td><code>shell/</code></td><td>Tudo visual: barra, HUD, lançador, Central, bloqueio…</td></tr>
+        <tr><td><code>taskmanager/</code> · <code>src/task_manager.py</code></td><td>Diagnóstico: janela, processos, telemetria e inicialização</td></tr>
         <tr><td><code>hypr/azmuth.lua</code></td><td>Atalhos e autostart do Azmuth</td></tr>
         <tr><td><code>assets/</code> · <code>tools/</code></td><td>Sons, wallpapers, arte · geradores</td></tr>
         <tr><td><code>~/.local/state/azmuth/</code></td><td>Estado: DNA atual, preferências, playlists, logs</td></tr>
@@ -282,12 +295,13 @@ code { color: var(--dna); background: color-mix(in srgb, var(--dna) 8%, transpar
       <h2>PROBLEMAS</h2>
       <div class="plate tbl"><table>
         <tr><th>SINTOMA</th><th>SOLUÇÃO</th></tr>
-        <tr><td>Barra/HUD sumiram</td><td><code>pkill -x qs; qs -p ~/Documents/Coding/"Project Azmuth"/shell &amp;</code></td></tr>
+        <tr><td>Barra/HUD sumiram ou notificações ficaram antigas</td><td><code>azmuth send</code>; confira com <code>azmuth doctor</code></td></tr>
         <tr><td>Tela preta do nada</td><td>Mexa o mouse; senão <code>hyprctl dispatch 'hl.dsp.dpms({ action = "enable" })'</code></td></tr>
         <tr><td>Senha do Arch recusada várias vezes</td><td>O faillock trava após 3 erros por 10 min; espere</td></tr>
         <tr><td>Tela travada e a shell caiu</td><td><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>F3</kbd>, entre, reinicie a shell, volte com <kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>F1</kbd>/<kbd>F2</kbd> e desbloqueie</td></tr>
         <tr><td>Algo estranho depois de <code>hyprctl reload</code></td><td><code>azmuth restore</code></td></tr>
         <tr><td>Ver o que aconteceu</td><td><code>~/.local/state/azmuth/context.log</code> e <code>shell.log</code></td></tr>
+        <tr><td>Som caiu em Dummy Output</td><td><code>azmuth audio</code>; se apontar um app usando ALSA, feche-o ou configure-o para PipeWire e rode novamente</td></tr>
       </table></div>
     </section>
   </main>

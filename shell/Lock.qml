@@ -11,6 +11,9 @@ Scope {
 
     required property var theme
     property var screen: null
+    readonly property bool locked: sessionLock.locked
+    readonly property bool previewVisible: previewWin.visible
+    function dismissPreview() { previewWin.visible = false }
 
     function lock() { if (!sessionLock.locked) sessionLock.locked = true }
     function preview() { previewWin.visible = !previewWin.visible }

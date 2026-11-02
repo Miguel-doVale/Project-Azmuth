@@ -92,14 +92,13 @@ A palette é a fonte única de cor. O `core.py` gera a partir dela, a cada troca
    em Arch vs Diamante em Kali), são dois arquivos separados
    (`diamante.yaml` e `diamante_kali.yaml`, ou pasta separada por core —
    isso ainda será decidido quando chegarmos no segundo Core).
-3. **Todo campo marcado obrigatório deve existir**, mesmo que com valor
-   mínimo — o `core.py` não deve assumir default silencioso para esses
-   campos; a ausência de um obrigatório é erro de configuração e deve
-   falhar alto (ver seção "Validação" abaixo, a implementar).
+3. **Todo campo obrigatório deve existir.** O `core.py` valida a estrutura
+   completa antes de aplicar qualquer mudança; veja a seção "Validação".
 4. **`apps.autostart` e `daemons` vazios são válidos** — significa que o
    DNA não força nada além do que já está rodando (caso do Neutral).
-5. **`context_engine.triggers` vazio é o padrão** até o Context Engine
-   ser implementado — nenhum DNA deve depender dele para funcionar sozinho.
+5. **`context_engine.triggers` pode ficar vazio.** Nesse caso, o DNA não
+   cria regras para sugestões ou transformações automáticas. O Context Engine
+   já está implementado e lê gatilhos por classe e título de janela.
 
 ## Validação (implementada)
 

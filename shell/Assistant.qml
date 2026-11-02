@@ -1,5 +1,5 @@
-// Project Azmuth — o assistente Azmuth (Super + A). Conversa via `azmuth ask` (Claude Code em
-// modo não interativo). Ele só age pelos comandos `azmuth`. Enter envia · Esc fecha.
+// Project Azmuth — assistente Azmuth (Super + A), Ollama local e ações Azmuth validadas.
+// Enter envia · Esc fecha.
 
 import QtQuick
 import QtQuick.Shapes
@@ -30,7 +30,7 @@ PanelWindow {
         if (open) { input.forceActiveFocus(); if (!messages.length) greet() }
     }
     function greet() {
-        messages = [{ from: "azmuth", text: "Azmuth na escuta. Peça para transformar, abrir apps, marcar eventos ou pergunte qualquer coisa. Seja breve." }]
+        messages = [{ from: "azmuth", text: "O que deseja, Miguel?" }]
     }
     function send() {
         const t = input.text.trim()
@@ -128,7 +128,7 @@ PanelWindow {
                 anchors.left: orb.right; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter
                 Text { text: "AZMUTH"; font.family: "Orbitron"; font.weight: Font.Black; font.pixelSize: 22; font.letterSpacing: 4; color: ai.galvan }
                 Text {
-                    text: ai.thinking ? ai.quips[ai.quip] : "Primeiro Pensador · conectado ao Omnitrix"
+                    text: ai.thinking ? ai.quips[ai.quip] : "Núcleo local · ferramentas Azmuth controladas"
                     font.family: "Rajdhani"; font.weight: Font.DemiBold; font.pixelSize: 15; color: Qt.alpha(Colors.fg, 0.7)
                 }
             }
@@ -190,7 +190,7 @@ PanelWindow {
                 Keys.onReturnPressed: ai.send()
                 Keys.onEnterPressed: ai.send()
                 Keys.onEscapePressed: ai.open = false
-                Text { anchors.verticalCenter: parent.verticalCenter; visible: input.text === ""; text: ai.thinking ? "Azmuth está pensando…" : "Fale com o Azmuth… (ex.: me transforma no Massa Cinzenta)"; font: input.font; color: Qt.alpha(Colors.fg, 0.35) }
+                Text { anchors.verticalCenter: parent.verticalCenter; visible: input.text === ""; text: ai.thinking ? "Azmuth está pensando…" : "Fale com Azmuth…"; font: input.font; color: Qt.alpha(Colors.fg, 0.35) }
             }
             Rectangle {
                 anchors.right: parent.right; anchors.rightMargin: 7; anchors.verticalCenter: parent.verticalCenter
