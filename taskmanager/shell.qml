@@ -14,7 +14,14 @@ ShellRoot {
     readonly property string currentUser: Quickshell.env("USER") || Quickshell.env("LOGNAME")
     property int tab: 0
     property bool frozen: false
-    property bool mineOnly: true
+    property bool mineOnly: true          // true = esconde as threads do kernel
+    property var expanded: ({})           // grupo → aberto
+    readonly property var sections: [
+        {kind:"app",title:"APLICATIVOS",hint:"Programas com janela aberta"},
+        {kind:"azmuth",title:"PROJECT AZMUTH",hint:"A própria rice"},
+        {kind:"background",title:"SEGUNDO PLANO",hint:"Seus programas sem janela"},
+        {kind:"system",title:"SISTEMA",hint:"Serviços do Arch (outros usuários)"},
+        {kind:"kernel",title:"KERNEL",hint:"Threads internas do Linux"}]
     property bool loading: true
     property string query: ""
     property string startupQuery: ""
@@ -23,7 +30,9 @@ ShellRoot {
     property string selectedKey: ""
     property var packet: ({system:{cpu:0,memory:{percent:0,total:0,used:0},cores:[],disks:[],network:[],process_count:0,threads:0},processes:[]})
     readonly property var system: packet.system
-    readonly property var selected: packet.processes.find(p=>p.key===selectedKey) || null
+    readonly property var selectedGroup: selectedKey.indexOf("grp:")===0?(packet.groups||[]).find(g=>"grp:"+g.id===selectedKey)||null:null
+    readonly property var selected: selectedGroup?null:(packet.processes.find(p=>p.key===selectedKey) || null)
+    readonly property var groupMembers: selectedGroup?packet.processes.filter(p=>p.group===selectedGroup.id).sort((a,b)=>b.rss-a.rss):[]
     property var cpuHistory: []
     property var ramHistory: []
     property var diskHistory: []
@@ -89,29 +98,51 @@ ShellRoot {
     }
     function rebuild() {
         const q=query.trim().toLowerCase()
-        let rows=packet.processes.filter(p=>(!mineOnly||!currentUser||p.user===currentUser)
-                                           &&(!q||(p.name+" "+p.pid+" "+p.user+" "+p.command).toLowerCase().includes(q)))
-        rows.sort((a,b)=>{
-            let n=sortKey==="name"?a.name.localeCompare(b.name):(a[sortKey]-b[sortKey])
-            if(!n)n=a.pid-b.pid
+        const procs=packet.processes, groups=packet.groups||[]
+        const byGroup={}
+        for(const p of procs)(byGroup[p.group]=byGroup[p.group]||[]).push(p)
+        const cmp=(a,b)=>{
+            let n=sortKey==="name"?a.name.localeCompare(b.name):sortKey==="pid"?((a.count||1)-(b.count||1)):(a[sortKey]-b[sortKey])
             return descending?-n:n
-        })
-        for(let i=0;i<rows.length;i++) {
-            const p=rows[i]
-            const value={processKey:p.key,pid:p.pid,processName:p.name,cpu:p.cpu,rss:p.rss,status:p.status,processState:p.state,user:p.user,canSignal:p.can_signal}
-            if(i<processModel.count)processModel.set(i,value);else processModel.append(value)
         }
+        const rows=[]
+        for(const sec of sections) {
+            if(sec.kind==="kernel"&&mineOnly&&!q)continue
+            let list=groups.filter(g=>g.kind===sec.kind)
+            if(q)list=list.filter(g=>(g.name+" "+g.desc+" "+(byGroup[g.id]||[]).map(p=>p.name+" "+p.pid+" "+p.command).join(" ")).toLowerCase().includes(q))
+            if(!list.length)continue
+            list.sort(cmp)
+            rows.push({rowType:"header",rowKey:"sec:"+sec.kind,title:sec.title,subtitle:sec.hint,icon:"",cpu:app.sum(list,"cpu"),rss:app.sum(list,"rss"),count:app.sum(list,"count"),pid:0,canSignal:false,open:false,kind:sec.kind,processState:""})
+            for(const g of list) {
+                const open=expanded[g.id]===true||(q!==""&&g.count<=40)
+                rows.push({rowType:"group",rowKey:"grp:"+g.id,title:g.name,subtitle:g.desc||(g.count+" processo"+(g.count>1?"s":"")),icon:g.icon||"",cpu:g.cpu,rss:g.rss,count:g.count,pid:g.root_pid,canSignal:g.can_signal,open:open,kind:g.kind,processState:""})
+                if(open) {
+                    const kids=(byGroup[g.id]||[]).slice().sort(cmp)
+                    for(const p of kids)
+                        rows.push({rowType:"child",rowKey:p.key,title:p.name,subtitle:p.status+" · PID "+p.pid,icon:"",cpu:p.cpu,rss:p.rss,count:1,pid:p.pid,canSignal:p.can_signal,open:false,kind:g.kind,processState:p.state})
+                }
+            }
+        }
+        for(let i=0;i<rows.length;i++){ if(i<processModel.count)processModel.set(i,rows[i]);else processModel.append(rows[i]) }
         if(processModel.count>rows.length)processModel.remove(rows.length,processModel.count-rows.length)
     }
+    function toggleGroup(id) { const e=Object.assign({},expanded);e[id]=!e[id];expanded=e;rebuild() }
     function sort(key) {
         if(sortKey===key)descending=!descending;else {sortKey=key;descending=key!=="name"&&key!=="pid"}
         rebuild()
     }
     function choose(key) {
         selectedKey=key;pending=null
-        if(selected && !inspected.includes(selected.name))inspected=inspected.concat([selected.name])
+        const n=selectedGroup?selectedGroup.name:(selected?selected.name:"")
+        if(n && !inspected.includes(n))inspected=inspected.concat([n])
     }
     function askAction(action) {
+        if(selectedGroup) {
+            const g=selectedGroup
+            if(!g.can_signal||actionProc.running)return
+            pending={group:true,members:g.members,name:g.name,count:g.count,action:action,key:"grp:"+g.id}
+            return
+        }
         if(!selected||!selected.can_signal||actionProc.running)return
         const p=selected
         if(action==="cont"){invoke(["--signal",String(p.pid),String(p.start),action],false);return}
@@ -121,7 +152,8 @@ ShellRoot {
         if(!pending)return
         const target=pending
         pending=null
-        invoke(["--signal",String(target.pid),String(target.start),target.action],false)
+        if(target.group)invoke(["--signal-group",target.action,target.members.join(",")],false)
+        else invoke(["--signal",String(target.pid),String(target.start),target.action],false)
     }
     function invoke(args,refresh) {
         if(actionProc.running)return
@@ -337,11 +369,11 @@ ShellRoot {
                     Row {
                         y:68;width:parent.width;spacing:12
                         SearchField { id:processSearch;width:parent.width-202;placeholder:"Buscar nome, PID ou comando · Ctrl+F";onEdited:v=>app.query=v }
-                        TaskButton { width:190;height:38;text:app.mineOnly?"Meus processos":"Todos os usuários";glyph:"visao";onClicked:app.mineOnly=!app.mineOnly }
+                        TaskButton { width:190;height:38;text:app.mineOnly?"Mostrar kernel":"Esconder kernel";glyph:"nucleo";onClicked:app.mineOnly=!app.mineOnly }
                     }
                     Item {
                         id:table
-                        y:122;width:parent.width-(app.selected?Math.min(284,parent.width*.32)+18:0);height:parent.height-y
+                        y:122;width:parent.width-(app.selected||app.selectedGroup?Math.min(300,parent.width*.33)+18:0);height:parent.height-y
                         readonly property real nameWidth:width*.43
                         readonly property real pidWidth:width*.12
                         readonly property real cpuWidth:width*.17
@@ -349,8 +381,8 @@ ShellRoot {
                         Rectangle {
                             width:parent.width;height:34;radius:5;color:Qt.alpha(Colors.primary,.075)
                             Repeater {
-                                model:[{key:"name",text:"PROCESSO",x:12,w:table.nameWidth-12},
-                                       {key:"pid",text:"PID",x:table.nameWidth,w:table.pidWidth},
+                                model:[{key:"name",text:"NOME",x:12,w:table.nameWidth-12},
+                                       {key:"pid",text:"PROCESSOS",x:table.nameWidth,w:table.pidWidth},
                                        {key:"cpu",text:"CPU",x:table.nameWidth+table.pidWidth,w:table.cpuWidth},
                                        {key:"rss",text:"RAM · RSS",x:table.nameWidth+table.pidWidth+table.cpuWidth,w:table.ramWidth}]
                                 Item {
@@ -369,32 +401,70 @@ ShellRoot {
                             spacing:2
                             delegate:Rectangle {
                                 id:row
-                                required property string processKey
-                                required property string processName
-                                required property int pid
+                                required property string rowType
+                                required property string rowKey
+                                required property string title
+                                required property string subtitle
+                                required property string icon
                                 required property real cpu
                                 required property real rss
-                                required property string status
-                                required property string processState
-                                required property string user
+                                required property int count
+                                required property int pid
                                 required property bool canSignal
-                                width:processList.width;height:51;radius:5
-                                color:app.selectedKey===processKey?Qt.alpha(Colors.primary,.16):(rowMouse.containsMouse?Qt.alpha(Colors.fg,.045):"transparent")
-                                border.width:app.selectedKey===processKey?1:0;border.color:Qt.alpha(Colors.primary,.4)
-                                Glyph { x:10;anchors.verticalCenter:parent.verticalCenter;width:19;height:19;name:!row.canSignal?"chave":row.processState==="T"?"tempo":"codigo";color:!row.canSignal?Qt.alpha(Colors.fg,.4):Colors.primary;stroke:1.5 }
+                                required property bool open
+                                required property string kind
+                                required property string processState
+                                readonly property bool header: rowType==="header"
+                                readonly property bool child: rowType==="child"
+                                width:processList.width;height:header?40:(child?36:52);radius:5
+                                color:header?"transparent":(app.selectedKey===rowKey?Qt.alpha(Colors.primary,.16):(rowMouse.containsMouse?Qt.alpha(Colors.fg,.045):"transparent"))
+                                border.width:!header&&app.selectedKey===rowKey?1:0;border.color:Qt.alpha(Colors.primary,.4)
+
+                                // cabeçalho de seção
+                                Row {
+                                    visible:row.header;x:6;anchors.bottom:parent.bottom;anchors.bottomMargin:6;spacing:10
+                                    Label {text:row.title+" · "+row.count;color:Colors.primary;font.pixelSize:10;anchors.verticalCenter:parent.verticalCenter}
+                                    Body {text:row.subtitle;font.pixelSize:13;color:Qt.alpha(Colors.fg,.5);anchors.verticalCenter:parent.verticalCenter}
+                                }
+                                Rectangle {visible:row.header;anchors.bottom:parent.bottom;width:parent.width;height:1;color:Qt.alpha(Colors.primary,.18)}
+
+                                // grupo / processo
+                                Text {
+                                    visible:row.rowType==="group"&&row.count>1;x:6;anchors.verticalCenter:parent.verticalCenter
+                                    text:row.open?"▾":"▸";font.pixelSize:15;color:Qt.alpha(Colors.fg,.6)
+                                    MouseArea {anchors.fill:parent;anchors.margins:-8;cursorShape:Qt.PointingHandCursor;onClicked:app.toggleGroup(row.rowKey.slice(4))}
+                                }
+                                AppIcon {
+                                    visible:row.rowType==="group";x:24;anchors.verticalCenter:parent.verticalCenter;width:26;height:26
+                                    iconName:row.kind==="azmuth"||row.kind==="kernel"?"":row.icon
+                                    fallback:row.kind==="azmuth"?"tempo":row.kind==="kernel"?"nucleo":row.kind==="system"?"sistema":"portal"
+                                }
+                                Glyph {
+                                    visible:row.child;x:44;anchors.verticalCenter:parent.verticalCenter;width:14;height:14
+                                    name:!row.canSignal?"chave":row.processState==="T"?"tempo":"codigo";color:Qt.alpha(Colors.fg,.45);stroke:1.4
+                                }
                                 Column {
-                                    x:38;width:table.nameWidth-x-8;anchors.verticalCenter:parent.verticalCenter;spacing:1
-                                    Body { width:parent.width;text:row.processName;font.weight:Font.DemiBold;elide:Text.ElideRight;font.pixelSize:17 }
-                                    Body { width:parent.width;text:row.status+" · "+row.user;font.pixelSize:12;color:Qt.alpha(Colors.fg,.66);elide:Text.ElideRight }
+                                    visible:!row.header
+                                    x:row.child?66:60;width:table.nameWidth-x-8;anchors.verticalCenter:parent.verticalCenter;spacing:0
+                                    Body { width:parent.width;text:row.title;font.weight:row.child?Font.Normal:Font.DemiBold;elide:Text.ElideRight;font.pixelSize:row.child?15:17;color:row.child?Qt.alpha(Colors.fg,.85):Colors.fg }
+                                    Body { visible:!row.child||true;width:parent.width;text:row.subtitle;font.pixelSize:12;color:Qt.alpha(Colors.fg,.55);elide:Text.ElideRight }
                                 }
-                                Data { x:table.nameWidth;anchors.verticalCenter:parent.verticalCenter;text:row.pid;font.pixelSize:11;color:Qt.alpha(Colors.fg,.8) }
+                                Data { visible:!row.header;x:table.nameWidth;anchors.verticalCenter:parent.verticalCenter;text:row.child?"":String(row.count);font.pixelSize:11;color:Qt.alpha(Colors.fg,.8) }
                                 Item {
+                                    visible:!row.header
                                     x:table.nameWidth+table.pidWidth;width:table.cpuWidth-8;height:parent.height
-                                    Rectangle { x:0;y:14;width:Math.max(0,Math.min(parent.width,row.cpu/100*parent.width));height:24;radius:3;color:Qt.alpha(row.cpu>30?Colors.warn:Colors.primary,.12) }
-                                    Data { y:18;text:row.cpu.toFixed(1)+"%";font.pixelSize:11;color:row.cpu>30?Colors.warn:Colors.fg }
+                                    Rectangle { x:0;y:(parent.height-24)/2;width:Math.max(0,Math.min(parent.width,row.cpu/100*parent.width));height:24;radius:3;color:Qt.alpha(row.cpu>30?Colors.warn:Colors.primary,.12) }
+                                    Data { anchors.verticalCenter:parent.verticalCenter;text:row.cpu.toFixed(1)+"%";font.pixelSize:11;color:row.cpu>30?Colors.warn:Colors.fg }
                                 }
-                                Data { x:table.nameWidth+table.pidWidth+table.cpuWidth;anchors.verticalCenter:parent.verticalCenter;text:app.bytes(row.rss);font.pixelSize:11 }
-                                MouseArea { id:rowMouse;anchors.fill:parent;hoverEnabled:true;cursorShape:Qt.PointingHandCursor;onClicked:app.choose(row.processKey) }
+                                Data { visible:!row.header;x:table.nameWidth+table.pidWidth+table.cpuWidth;anchors.verticalCenter:parent.verticalCenter;text:app.bytes(row.rss);font.pixelSize:11 }
+                                Data { visible:row.header;x:table.nameWidth+table.pidWidth;anchors.bottom:parent.bottom;anchors.bottomMargin:9;text:row.cpu.toFixed(1)+"%";font.pixelSize:10;color:Qt.alpha(Colors.fg,.5) }
+                                Data { visible:row.header;x:table.nameWidth+table.pidWidth+table.cpuWidth;anchors.bottom:parent.bottom;anchors.bottomMargin:9;text:app.bytes(row.rss);font.pixelSize:10;color:Qt.alpha(Colors.fg,.5) }
+                                MouseArea {
+                                    id:rowMouse;anchors.fill:parent;anchors.leftMargin:row.rowType==="group"?22:0;enabled:!row.header
+                                    hoverEnabled:true;cursorShape:Qt.PointingHandCursor
+                                    onClicked:app.choose(row.rowKey)
+                                    onDoubleClicked:if(row.rowType==="group")app.toggleGroup(row.rowKey.slice(4))
+                                }
                             }
                         }
                         Column {
@@ -405,14 +475,53 @@ ShellRoot {
                     }
                     Rectangle {
                         id:details
-                        visible:app.selected!==null
-                        anchors.right:parent.right;y:122;width:Math.min(284,parent.width*.32);height:parent.height-y
+                        visible:app.selected!==null||app.selectedGroup!==null
+                        anchors.right:parent.right;y:122;width:Math.min(300,parent.width*.33);height:parent.height-y
                         radius:8;color:Qt.alpha(Colors.primary,.035);border.width:1;border.color:Qt.alpha(Colors.primary,.17)
                         Flickable {
                             id:detailsScroll
-                            anchors.fill:parent;anchors.margins:16;contentHeight:detailContent.implicitHeight;clip:true;boundsBehavior:Flickable.StopAtBounds
+                            anchors.fill:parent;anchors.margins:16;contentHeight:Math.max(detailContent.visible?detailContent.implicitHeight:0,groupContent.visible?groupContent.implicitHeight:0);clip:true;boundsBehavior:Flickable.StopAtBounds
+                            // ── grupo (como no Windows) ──
+                            Column {
+                                id:groupContent
+                                visible:app.selectedGroup!==null
+                                width:parent.width;spacing:12
+                                readonly property var g:app.selectedGroup
+                                Row { spacing:8
+                                    AppIcon {width:24;height:24;iconName:groupContent.g&&groupContent.g.kind!=="azmuth"?groupContent.g.icon:"";fallback:groupContent.g&&groupContent.g.kind==="azmuth"?"tempo":"portal"}
+                                    Label {anchors.verticalCenter:parent.verticalCenter;color:Colors.primary
+                                        text:groupContent.g?({app:"APLICATIVO",azmuth:"PROJECT AZMUTH",background:"SEGUNDO PLANO",system:"SISTEMA",kernel:"KERNEL"})[groupContent.g.kind]:""} }
+                                Body { width:parent.width;text:groupContent.g?groupContent.g.name:"";font.pixelSize:24;font.weight:Font.Bold;wrapMode:Text.Wrap }
+                                Body { width:parent.width;visible:text!=="";text:groupContent.g?groupContent.g.desc:"";font.pixelSize:15;wrapMode:Text.WordWrap;color:Qt.alpha(Colors.fg,.75) }
+                                Rule {width:parent.width}
+                                Repeater {
+                                    model:groupContent.g?[["Processos",String(groupContent.g.count)],["Janelas",String(groupContent.g.windows)],["CPU",groupContent.g.cpu.toFixed(1)+"%"],["Memória",app.bytes(groupContent.g.rss)],["Usuário",groupContent.g.user]]:[]
+                                    Row {required property var modelData;width:groupContent.width
+                                        Body {width:parent.width*.5;text:parent.modelData[0];font.pixelSize:14;color:Qt.alpha(Colors.fg,.72)}
+                                        Data {width:parent.width*.5;text:parent.modelData[1];font.pixelSize:11;elide:Text.ElideRight}
+                                    }
+                                }
+                                Label {text:"MAIS PESADOS DO GRUPO"}
+                                Repeater {
+                                    model:app.groupMembers.slice(0,6)
+                                    Item {required property var modelData;width:groupContent.width;height:22
+                                        Body {width:parent.width*.62;anchors.verticalCenter:parent.verticalCenter;text:parent.modelData.name+" · "+parent.modelData.pid;font.pixelSize:14;elide:Text.ElideRight;color:Qt.alpha(Colors.fg,.85)}
+                                        Data {anchors.right:parent.right;anchors.verticalCenter:parent.verticalCenter;text:app.bytes(parent.modelData.rss);font.pixelSize:11}
+                                        MouseArea {anchors.fill:parent;cursorShape:Qt.PointingHandCursor;onClicked:app.choose(parent.modelData.key)}
+                                    }
+                                }
+                                Body { visible:groupContent.g&&!groupContent.g.can_signal;width:parent.width;text:groupContent.g?groupContent.g.reason:"";font.pixelSize:14;wrapMode:Text.WordWrap;color:Colors.warn }
+                                Column {
+                                    width:parent.width;spacing:8
+                                    visible:groupContent.g&&groupContent.g.can_signal
+                                    enabled:!actionProc.running&&!app.pending
+                                    TaskButton {width:parent.width;text:"Encerrar tarefa";glyph:"fantasma";tint:Colors.danger;onClicked:app.askAction("term")}
+                                    TaskButton {width:parent.width;text:"Forçar encerramento";tint:Colors.danger;onClicked:app.askAction("kill")}
+                                }
+                            }
                             Column {
                                 id:detailContent
+                                visible:app.selected!==null
                                 width:parent.width;spacing:12
                                 Row { spacing:8;Glyph {width:22;height:22;name:"visao";color:Colors.primary}Label {text:"ASSINATURA";anchors.verticalCenter:parent.verticalCenter;color:Colors.primary} }
                                 Body { width:parent.width;text:app.selected?app.selected.name:"";font.pixelSize:25;font.weight:Font.Bold;wrapMode:Text.WrapAnywhere }
@@ -443,8 +552,8 @@ ShellRoot {
                             MouseArea {anchors.fill:parent}
                             Column {
                                 id:confirmation;x:12;y:12;width:parent.width-24;spacing:10
-                                Body { width:parent.width;text:app.pending?(app.pending.action==="stop"?"Pausar ":"Encerrar ")+app.pending.name+"?":"";font.weight:Font.Bold;wrapMode:Text.WordWrap }
-                                Body { width:parent.width;text:app.pending&&app.pending.action==="stop"?"Ele fica parado até você retomar.":"O aplicativo pode ter trabalho não salvo.";font.pixelSize:14;wrapMode:Text.WordWrap;color:Qt.alpha(Colors.fg,.78) }
+                                Body { width:parent.width;text:app.pending?(app.pending.action==="stop"?"Pausar ":app.pending.action==="kill"?"Forçar o fim de ":"Encerrar ")+app.pending.name+"?":"";font.weight:Font.Bold;wrapMode:Text.WordWrap }
+                                Body { width:parent.width;text:!app.pending?"":app.pending.action==="stop"?"Ele fica parado até você retomar.":app.pending.group?(app.pending.action==="kill"?"Os "+app.pending.count+" processos param na hora, sem salvar nada.":"O app recebe o pedido para fechar e pode salvar antes."):"O aplicativo pode ter trabalho não salvo.";font.pixelSize:14;wrapMode:Text.WordWrap;color:Qt.alpha(Colors.fg,.78) }
                                 TaskButton {width:parent.width;text:"Confirmar";filled:true;tint:Colors.danger;onClicked:app.confirmAction()}
                                 TaskButton {width:parent.width;text:"Cancelar";onClicked:app.pending=null}
                             }
@@ -584,7 +693,7 @@ ShellRoot {
                 Rule {anchors.bottom:parent.bottom;anchors.bottomMargin:30;width:parent.width}
                 Body {
                     anchors.bottom:parent.bottom;anchors.bottomMargin:3;width:parent.width
-                    text:app.notice||(app.tab===0?processModel.count+" processos visíveis · CPU sobre o total da máquina · RAM residente":(app.tab===1?"Métricas reais · atualização a cada 1,5 s":"Adicionar à inicialização não abre o aplicativo agora."))
+                    text:app.notice||(app.tab===0?(app.packet.groups||[]).filter(g=>g.kind!=="kernel").length+" grupos · "+app.system.process_count+" processos ("+((app.packet.groups||[]).find(g=>g.kind==="kernel")||{count:0}).count+" do kernel) · ▸ abre um grupo · CPU sobre a máquina toda":(app.tab===1?"Métricas reais · atualização a cada 1,5 s":"Adicionar à inicialização não abre o aplicativo agora."))
                     font.pixelSize:14;color:app.noticeError&&app.notice?Colors.danger:(app.notice?Colors.primary:Qt.alpha(Colors.fg,.72));elide:Text.ElideRight
                 }
             }
@@ -625,6 +734,7 @@ ShellRoot {
         function show(tab:string):void { window.visible=true;window.minimized=false;app.showTab(tab) }
         function tab(index:int):void { app.showTab(index) }
         function search(query:string):void { processSearch.text=query;app.query=query }
+        function group(name:string):void {const all=(app.packet.groups||[]).filter(g=>g.name.toLowerCase().includes(name.toLowerCase()));const g=all.find(g=>g.kind==="app")||all[0];if(g){app.showTab(0);app.choose("grp:"+g.id);app.toggleGroup(g.id)}}
         function select(pid:int):void {const p=app.packet.processes.find(p=>p.pid===pid);if(p){app.showTab(0);app.choose(p.key)}}
         function request(action:string):void { app.askAction(action) }
         function confirm():void { app.confirmAction() }

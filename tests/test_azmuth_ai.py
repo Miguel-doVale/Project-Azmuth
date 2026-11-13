@@ -8,6 +8,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import azmuth_ai as ai
 
 
+def setUpModule():
+    # nenhum teste pode chamar um provedor de IA de verdade (nem agir no sistema)
+    global _guard
+    _guard = patch.object(ai, "ask_claude", side_effect=AssertionError("teste chamou o Claude de verdade"))
+    _guard.start()
+
+
+def tearDownModule():
+    _guard.stop()
+
+
 class ActionAllowlistTests(unittest.TestCase):
     def test_lore_separates_azmuth_from_bens_grey_matter_form(self):
         lore = (Path(__file__).resolve().parents[1] / "data/ben10_knowledge.md").read_text(encoding="utf-8")
@@ -69,7 +80,7 @@ class ActionAllowlistTests(unittest.TestCase):
              patch.object(ai, "context", return_value="contexto"), \
              patch.object(ai, "_ollama_chat", side_effect=[tool_response, final_response]) as chat, \
              patch.object(ai, "_run_azmuth", return_value="[OK]") as run:
-            result = ai.ask("Me transforme no Massa Cinzenta")
+            result = ai.ask_ollama("Me transforme no Massa Cinzenta")
 
         self.assertTrue(result["ok"])
         self.assertEqual(result["reply"], "Transformação concluída.")
@@ -88,3 +99,25 @@ class ActionAllowlistTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClaudeProviderTests(unittest.TestCase):
+    def test_claude_only_gets_the_validated_action_command(self):
+        cmd = ai.claude_command("oi", None)
+        tools = cmd[cmd.index("--tools") + 1]
+        allowed = cmd[cmd.index("--allowed-tools") + 1:cmd.index("--strict-mcp-config")]
+        self.assertEqual(tools, "Bash")
+        self.assertTrue(allowed and all(rule.endswith(" ai-action:*)") for rule in allowed))
+        self.assertNotIn("--resume", cmd)
+        self.assertIn("--resume", ai.claude_command("oi", "0" * 36))
+
+    def test_ai_action_rejects_unlisted_commands(self):
+        with patch("builtins.print") as printed, self.assertRaises(SystemExit):
+            ai.action_cli(['{"command": "shell", "application": "rm -rf /"}'])
+        self.assertIn('"ok": false', printed.call_args.args[0])
+
+    def test_unknown_provider_falls_back_to_claude(self):
+        with patch.object(ai.core, "read_settings", return_value={"assistant": {"provider": "gpt"}}):
+            self.assertEqual(ai.provider(), "claude")
+        with patch.object(ai.core, "read_settings", return_value={"assistant": {"provider": "ollama"}}):
+            self.assertEqual(ai.provider(), "ollama")

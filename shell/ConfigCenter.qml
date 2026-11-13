@@ -26,7 +26,7 @@ PanelWindow {
 
     readonly property var tabs: [
         { name: "OMNITRIX", glyph: "tempo" }, { name: "APPS", glyph: "portal" }, { name: "WI-FI", glyph: "rede" },
-        { name: "SOM", glyph: "som" }, { name: "ÁREA DE TRABALHO", glyph: "midia" }, { name: "CALENDÁRIO", glyph: "dados" }, { name: "SISTEMA", glyph: "energia" }
+        { name: "BLUETOOTH", glyph: "social" }, { name: "TELAS", glyph: "midia" }, { name: "SOM", glyph: "som" }, { name: "ÁREA DE TRABALHO", glyph: "midia" }, { name: "CALENDÁRIO", glyph: "dados" }, { name: "SISTEMA", glyph: "energia" }
     ]
 
     function toggle(t) {
@@ -565,27 +565,29 @@ PanelWindow {
 
             // ═════════════ WI-FI e SOM ═════════════
             WifiPanel { id:wifiPanel; anchors.fill: parent; visible: cc.tab === 2; active: cc.open && cc.tab === 2 }
-            SoundPanel { id:soundPanel; anchors.fill: parent; visible: cc.tab === 3; active: cc.open && cc.tab === 3 }
+            BluetoothPanel { anchors.fill: parent; visible: cc.tab === 3; active: cc.open && cc.tab === 3 }
+            DisplayPanel { anchors.fill: parent; visible: cc.tab === 4; active: cc.open && cc.tab === 4 }
+            SoundPanel { id:soundPanel; anchors.fill: parent; visible: cc.tab === 5; active: cc.open && cc.tab === 5 }
 
             DesktopPanel {
                 anchors.fill: parent
-                visible: cc.tab === 4
+                visible: cc.tab === 6
                 settings: cc.cfg ? cc.cfg.settings : null
                 onSetPref: (path, value) => cc.set(path, value)
                 onEditOnScreen: { cc.open = false; DeskLayout.editing = true }
             }
 
-            CalendarPanel { anchors.fill: parent; visible: cc.tab === 5 }
+            CalendarPanel { anchors.fill: parent; visible: cc.tab === 7 }
 
             SystemPanel {
                 anchors.fill:parent
-                visible:cc.tab===6
+                visible:cc.tab===8
                 onOpenTasks:page=>{cc.open=false;Quickshell.execDetached([cc.az,"tasks","--tab",page])}
             }
 
             // ═════════════ próximas abas ═════════════
             Column {
-                visible: cc.tab >= 7
+                visible: cc.tab >= 9
                 anchors.centerIn: parent
                 spacing: 12
                 Glyph { anchors.horizontalCenter: parent.horizontalCenter; width: 64; height: 64; name: cc.tabs[cc.tab].glyph; color: Qt.alpha(cc.primary, 0.5); stroke: 2.4 }

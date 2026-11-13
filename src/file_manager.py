@@ -132,13 +132,91 @@ def current_dna():
     return core.load_dna(core.resolve(core.read_state().get("current") or core.load_roster()["neutral"]))
 
 
+ICON_THEME = DATA / "icons/Azmuth"
+# ícone do tema → runa Galvan gravada na pasta (None = pasta lisa)
+FOLDER_ICONS = {
+    "folder": None, "inode-directory": None, "folder-open": None, "folder-blue": None,
+    "user-home": "nucleo", "folder-home": "nucleo",
+    "user-desktop": "tempo", "folder-desktop": "tempo",
+    "folder-documents": "dados", "folder-document": "dados",
+    "folder-download": "portal", "folder-downloads": "portal",
+    "folder-pictures": "midia", "folder-images": "midia", "folder-image": "midia",
+    "folder-videos": "visao", "folder-video": "visao",
+    "folder-music": "som", "folder-sound": "som",
+    "folder-templates": "trabalho", "folder-publicshare": "social", "folder-public": "social",
+    "folder-development": "codigo", "folder-projects": "codigo", "folder-code": "codigo",
+    "folder-git": "codigo", "folder-github": "codigo",
+    "folder-games": "jogo", "folder-network": "rede", "folder-remote": "rede",
+    "folder-important": "estrela", "folder-favorites": "estrela", "folder-locked": "chave",
+}
+# cor fixa por função da pasta (None = cor do DNA). O friso de todas segue o DNA.
+FOLDER_COLORS = {
+    "dados": "#4a8cff", "portal": "#22c4d8", "midia": "#a46bff", "visao": "#ff5a6a", "som": "#ff9a3c",
+    "codigo": "#4ade80", "tempo": "#2dd4bf", "trabalho": "#8a96a8", "social": "#f5c84b",
+    "jogo": "#f05aba", "rede": "#5b9cf0", "estrela": "#ffc940", "chave": "#ff6b4a", "nucleo": None,
+}
+ICON_INDEX = """[Icon Theme]
+Name=Azmuth
+Comment=Project Azmuth — pastas na cor do DNA com runas Galvan (gerado; não edite)
+Inherits=Papirus-Dark,breeze-dark,hicolor
+Directories=places/scalable
+
+[places/scalable]
+Size=64
+MinSize=8
+MaxSize=512
+Type=Scalable
+Context=Places
+"""
+
+
+def icon_theme(data):
+    """Tema de ícones "Azmuth": pastas do DNA ativo; o resto herda do Papirus-Dark."""
+    import folder_style
+    dna = data["palette"]["primary"]
+    out = ICON_THEME / "places/scalable"
+    for name, rune in FOLDER_ICONS.items():
+        color = FOLDER_COLORS.get(rune) or dna
+        ink = blend(color, "#000000", .6)
+        markers = [] if not rune else [{"kind": "glyph", "value": rune, "color": ink,
+                                        "x": .5, "y": .64, "size": .34, "badge": False}]
+        atomic_write(out / (name + ".svg"), folder_style.render({"color": color, "markers": markers}, accent=dna))
+    atomic_write(ICON_THEME / "index.theme", ICON_INDEX)
+    os.utime(ICON_THEME)   # o cache de ícones do KDE compara a data da pasta do tema
+
+
+def qss_values(data):
+    p = data["palette"]
+    v = theme_values(data)
+    icons = STATE / "filemanager-icons"
+    close = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7m0-7l-7 7" stroke="{c}" stroke-width="1.8" stroke-linecap="round"/></svg>'
+    atomic_write(icons / "tab-close.svg", close.format(c=v["muted"]))
+    atomic_write(icons / "tab-close-hover.svg", close.format(c="#ff5a5a"))
+    v.update(frame=blend(p["background"], p["primary"], .26), input=blend(p["background"], "#000000", .28),
+             primary_dim=blend(p["background"], p["primary"], .55), danger_dim=blend(p["background"], "#ff5a5a", .22),
+             close_icon=str(icons / "tab-close.svg"), close_hover=str(icons / "tab-close-hover.svg"))
+    return v
+
+
+PREVIEW_PLUGINS = "imagethumbnail,jpegthumbnail,svgthumbnail,textthumbnail,comicbookthumbnail,opendocumentthumbnail,kraorathumbnail"
+VIEW_FONT = "Rajdhani,12,-1,5,600,0,0,0,0,0,0,0,0,0,0,1"
+
+
 def apply(data):
     """As cores atualizam nos arquivos; instâncias novas recebem o tema atual."""
     if not MANIFEST.exists():
         return False
     atomic_write(SCHEME, render_scheme(data))
-    atomic_write(STYLE, Template((ROOT / "filemanager/dolphin.qss.tmpl").read_text()).substitute(theme_values(data)))
-    merge_config(DOLPHIN_RC, {"UiSettings": {"ColorScheme": "AzmuthActive"}})
+    atomic_write(STYLE, Template((ROOT / "filemanager/dolphin.qss.tmpl").read_text()).substitute(qss_values(data)))
+    icon_theme(data)
+    merge_config(DOLPHIN_RC, {
+        "UiSettings": {"ColorScheme": "AzmuthActive"},
+        # sem directorythumbnail: pastas mostram o ícone do tema, não uma prévia gigante do conteúdo
+        "PreviewSettings": {"Plugins": PREVIEW_PLUGINS},
+        "IconsMode": {"ViewFont": VIEW_FONT}, "CompactMode": {"ViewFont": VIEW_FONT, "UseSystemFont": "false"},
+        "DetailsMode": {"ViewFont": VIEW_FONT},
+    })
+    merge_config(CONFIG / "kdeglobals", {"Icons": {"Theme": "Azmuth"}})
     sidebar_icons(data)
     return True
 
@@ -162,10 +240,11 @@ def sidebar_icons(data):
         if not rune or ident is None or not (ident.text or "").startswith("azmuth-"):
             continue
         primary = data["palette"]["primary"]
-        icon = STATE / "filemanager-icons" / (rune + "-" + primary.lstrip("#") + ".svg")
-        style = {"color": primary, "markers": [{"kind":"glyph", "value":rune, "color":data["palette"]["background"],
-                 "x":.5,"y":.6,"size":.33,"badge":False}]}
-        atomic_write(icon, folder_style.render(style))
+        color = FOLDER_COLORS.get(rune) or primary
+        icon = STATE / "filemanager-icons" / (rune + "-" + color.lstrip("#") + "-" + primary.lstrip("#") + ".svg")
+        style = {"color": color, "markers": [{"kind":"glyph", "value":rune, "color":blend(color, "#000000", .6),
+                 "x":.5,"y":.64,"size":.34,"badge":False}]}
+        atomic_write(icon, folder_style.render(style, accent=primary))
         meta = bookmark.find("info/metadata[@owner='http://freedesktop.org']")
         if meta is None:
             continue
@@ -263,7 +342,7 @@ def install(data=None):
         "DetailsMode": {"IconSize": "24", "PreviewSize": "32", "ExpandableFolders": "true", "HighlightEntireRow": "true", "UseSystemFont": "false", "ViewFont": "Sans Serif,11,-1,5,50,0,0,0,0,0"},
         "MainWindow": {"MenuBar": "Disabled", "ToolBarsMovable": "Disabled"},
         "MainWindow][Toolbar mainToolBar": {"IconSize": "22", "ToolButtonStyle": "IconOnly"},
-        "PreviewSettings": {"Plugins": "directorythumbnail,imagethumbnail,jpegthumbnail,svgthumbnail,textthumbnail,comicbookthumbnail,opendocumentthumbnail,kraorathumbnail"},
+        "PreviewSettings": {"Plugins": PREVIEW_PLUGINS},
     })
     merge_config(DATA / "dolphin/view_properties/global/.directory", {
         "Dolphin": {"Version": "4", "ViewMode": "1", "PreviewsShown": "true",

@@ -66,6 +66,11 @@ ShellRoot {
         Widgets { theme: root.theme; shell: root }
     }
 
+    SharePicker {
+        id: sharePicker
+        screen: root.targetScreen()
+    }
+
     Assistant {
         id: assistant
         screen: root.targetScreen()
@@ -232,6 +237,8 @@ ShellRoot {
         function power(): void { powerMenu.screen = root.targetScreen(); powerMenu.toggle() }
         function clipboard(): void { clipboard.screen = root.targetScreen(); clipboard.toggle() }
         function config(): void { configCenter.screen = root.targetScreen(); configCenter.toggle() }
+        function sharePicker(request: string): void { sharePicker.screen = root.targetScreen(); sharePicker.show(request) }
+        function sharePickerCancel(): void { if (sharePicker.open) sharePicker.cancel() }
         function assistant(): void { assistant.screen = root.targetScreen(); assistant.toggle() }
         function editDesktop(): void { DeskLayout.editing = !DeskLayout.editing }
         function configTab(tab: int): void { configCenter.screen = root.targetScreen(); configCenter.toggle(tab) }

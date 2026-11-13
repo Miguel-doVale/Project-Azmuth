@@ -221,7 +221,7 @@ PanelWindow {
                     onClicked: {
                         if (modelData.type !== "imagem") { DeskLayout.add(modelData.type); return }
                         DeskLayout.editing = false; DeskLayout.pickImage = true
-                        if (ed.shell) ed.shell.openConfig(4)
+                        if (ed.shell) ed.shell.openConfig(6)
                     }
                 }
             }

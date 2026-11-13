@@ -391,7 +391,8 @@ def _eq_start_app() -> None:
     if not shutil.which("easyeffects"):
         raise RuntimeError("EasyEffects não está instalado. No Arch, use sudo pacman -S --needed easyeffects.")
     if not _ee_socket().exists():
-        subprocess.Popen(["easyeffects"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        # serviço em segundo plano, sem janela (a janela só abre pelo botão AVANÇADO)
+        subprocess.Popen(["easyeffects", "--service-mode", "-w"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, start_new_session=True)
         deadline = time.monotonic() + 8.0
         while time.monotonic() < deadline:

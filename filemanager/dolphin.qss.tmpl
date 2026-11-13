@@ -1,30 +1,91 @@
-/* Project Azmuth — Dolphin. Gerado a partir da paleta do DNA.
-   Controles discretos; os nomes e conteúdos dos arquivos têm prioridade. */
-QMainWindow { background: ${surface}; color: ${foreground}; }
-QToolBar { background: ${surface}; border: none; border-bottom: 1px solid ${border_inactive}; spacing: 5px; padding: 7px 10px; }
-QToolButton { color: ${foreground}; padding: 7px; border: 1px solid transparent; border-radius: 6px; }
-QToolButton:hover { background: ${hover}; border-color: ${border_inactive}; }
+/* Project Azmuth — Dolphin. Gerado a partir da paleta do DNA (filemanager/dolphin.qss.tmpl).
+   A lista de arquivos usa as cores do esquema AzmuthActive; aqui ficam moldura, abas,
+   barra lateral, caminho, menus e controles. Os nomes dos arquivos têm prioridade. */
+
+* { font-family: "Rajdhani"; }
+QMainWindow, QWidget#centralWidget { background: ${background}; color: ${foreground}; }
+
+/* ── barra de ferramentas ── */
+QToolBar { background: ${surface}; border: none; border-bottom: 1px solid ${frame}; spacing: 6px; padding: 8px 12px; }
+QToolBar::separator { background: ${frame}; width: 1px; margin: 6px 6px; }
+QToolButton { color: ${foreground}; padding: 7px; border: 1px solid transparent; border-radius: 8px; }
+QToolButton:hover { background: ${hover}; border-color: ${frame}; }
+QToolButton:pressed { background: ${selection}; }
 QToolButton:checked { background: ${selection}; border-color: ${primary}; }
-QLineEdit { background: ${background}; color: ${foreground}; border: 1px solid ${border_inactive}; border-radius: 6px; padding: 7px; selection-background-color: ${selection}; selection-color: ${foreground}; }
+QToolButton:disabled { color: ${muted}; }
+QToolButton::menu-indicator { image: none; width: 0; }
+
+/* ── caminho (KUrlNavigator) como um campo ── */
+KUrlNavigator { background: ${input}; border: 1px solid ${frame}; border-radius: 9px; padding: 1px 4px; }
+KUrlNavigator:hover { border-color: ${primary_dim}; }
+KUrlNavigator QToolButton { padding: 3px 6px; border-radius: 6px; }
+QLineEdit { background: ${input}; color: ${foreground}; border: 1px solid ${frame}; border-radius: 8px; padding: 6px 9px;
+            selection-background-color: ${selection}; selection-color: ${foreground}; font-size: 11pt; }
 QLineEdit:focus { border-color: ${primary}; }
+
+/* ── abas ── */
 QTabWidget::pane { border: none; }
-QTabBar::tab { color: ${muted}; background: ${surface}; border: none; border-bottom: 2px solid transparent; padding: 10px 18px; min-width: 95px; }
-QTabBar::tab:selected { color: ${primary}; background: ${background}; border-bottom-color: ${primary}; }
+QTabBar { background: ${surface}; qproperty-drawBase: 0; }
+QTabBar::tab { color: ${muted}; background: transparent; border: 1px solid transparent; border-radius: 8px;
+               padding: 7px 14px; margin: 6px 3px 6px 0; min-width: 90px; font-size: 11pt; font-weight: 600; }
 QTabBar::tab:hover { background: ${hover}; color: ${foreground}; }
-QHeaderView::section { background: ${surface}; color: ${muted}; border: none; border-bottom: 1px solid ${border_inactive}; padding: 9px 8px; }
-QDockWidget { color: ${muted}; }
-QDockWidget#placesDock { min-width: 205px; }
-QDockWidget#infoDock { min-width: 240px; }
-QDockWidget::title { background: ${surface}; padding: 6px; }
-QStatusBar { background: ${surface}; color: ${muted}; border-top: 1px solid ${border_inactive}; }
+QTabBar::tab:selected { color: ${primary}; background: ${selection}; border-color: ${primary_dim};
+                        border-bottom: 2px solid ${primary}; }
+QTabBar::close-button { image: url(${close_icon}); subcontrol-position: right; margin: 2px; border-radius: 4px; }
+QTabBar::close-button:hover { image: url(${close_hover}); background: ${danger_dim}; }
+QTabBar QToolButton { background: ${surface}; border: none; }
+
+/* ── barra lateral (Locais) e painéis ── */
+QDockWidget { color: ${muted}; titlebar-close-icon: none; titlebar-normal-icon: none; }
+QDockWidget::title { background: ${surface}; padding: 8px 10px; text-align: left; }
+QDockWidget#placesDock { min-width: 215px; }
+QDockWidget#infoDock { min-width: 250px; }
+KFilePlacesView, QDockWidget > QWidget { background: ${surface}; border: none; }
+KFilePlacesView { border-right: 1px solid ${frame}; padding: 6px 4px; font-size: 11pt; font-weight: 600;
+                  selection-background-color: ${selection}; selection-color: ${primary}; }
+KFilePlacesView::item { padding: 4px 6px; border-radius: 7px; }
+KFilePlacesView::item:hover { background: ${hover}; }
+KFilePlacesView::item:selected { background: ${selection}; color: ${primary}; }
+
+/* ── cabeçalho da visão em detalhes ── */
+QHeaderView { background: ${surface}; border: none; }
+QHeaderView::section { background: ${surface}; color: ${muted}; border: none; border-bottom: 1px solid ${frame};
+                       border-right: 1px solid ${alternate}; padding: 8px 10px; font-weight: 700; font-size: 10pt; }
+QHeaderView::section:hover { color: ${primary}; }
+
+/* ── rodapé ── */
+QStatusBar { background: ${surface}; color: ${muted}; border-top: 1px solid ${frame}; padding: 2px 8px; font-size: 10pt; }
 QStatusBar::item { border: none; }
-QMenu { background: ${raised}; color: ${foreground}; border: 1px solid ${border_inactive}; padding: 6px; }
-QMenu::item { padding: 7px 22px; border-radius: 4px; }
-QMenu::item:selected { background: ${selection}; color: ${foreground}; }
-QMenu::separator { background: ${border_inactive}; height: 1px; margin: 5px 8px; }
-QSplitter::handle { background: ${surface}; width: 4px; }
-QScrollBar:vertical { background: transparent; width: 9px; margin: 0; }
-QScrollBar::handle:vertical { background: ${border_inactive}; border-radius: 4px; min-height: 32px; }
-QScrollBar::handle:vertical:hover { background: ${muted}; }
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }
+QStatusBar QLabel { color: ${muted}; }
+QSlider::groove:horizontal { height: 4px; background: ${raised}; border-radius: 2px; }
+QSlider::sub-page:horizontal { background: ${primary}; border-radius: 2px; }
+QSlider::handle:horizontal { width: 12px; height: 12px; margin: -5px 0; border-radius: 6px; background: ${background}; border: 2px solid ${primary}; }
+QProgressBar { background: ${raised}; border: none; border-radius: 4px; color: ${foreground}; text-align: center; max-height: 8px; }
+QProgressBar::chunk { background: ${primary}; border-radius: 4px; }
+
+/* ── menus e dicas ── */
+QMenu { background: ${raised}; color: ${foreground}; border: 1px solid ${frame}; border-radius: 10px; padding: 6px; }
+QMenu::item { padding: 7px 26px 7px 12px; border-radius: 6px; font-size: 11pt; }
+QMenu::item:selected { background: ${selection}; color: ${primary}; }
+QMenu::item:disabled { color: ${muted}; }
+QMenu::separator { background: ${frame}; height: 1px; margin: 5px 8px; }
+QMenu::icon { padding-left: 6px; }
+QToolTip { background: ${raised}; color: ${foreground}; border: 1px solid ${frame}; border-radius: 6px; padding: 6px 8px; }
+
+/* ── divisores e rolagem ── */
+QSplitter::handle { background: ${frame}; width: 1px; }
+QScrollBar:vertical { background: transparent; width: 10px; margin: 2px; }
+QScrollBar:horizontal { background: transparent; height: 10px; margin: 2px; }
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal { background: ${frame}; border-radius: 4px; min-height: 32px; min-width: 32px; }
+QScrollBar::handle:hover { background: ${primary_dim}; }
+QScrollBar::add-line, QScrollBar::sub-line { height: 0; width: 0; }
+QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
+
+/* ── diálogos do Dolphin (propriedades, renomear, copiar) ── */
+QDialog { background: ${background}; }
+QPushButton { background: ${raised}; color: ${foreground}; border: 1px solid ${frame}; border-radius: 8px; padding: 6px 16px; font-weight: 600; }
+QPushButton:hover { background: ${hover}; border-color: ${primary_dim}; }
+QPushButton:default { background: ${primary}; color: ${background}; border-color: ${primary}; }
+QCheckBox::indicator, QRadioButton::indicator { width: 16px; height: 16px; }
+QComboBox { background: ${input}; border: 1px solid ${frame}; border-radius: 8px; padding: 5px 9px; }
+QComboBox QAbstractItemView { background: ${raised}; border: 1px solid ${frame}; selection-background-color: ${selection}; }

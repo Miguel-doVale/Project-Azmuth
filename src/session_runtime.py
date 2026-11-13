@@ -127,6 +127,15 @@ def start(login=False):
         ensure_process("context", [sys.executable, "-u", str(core.ROOT / "src/context_engine.py")], rows,
                        suffix=str(core.ROOT / "src/context_engine.py"))
         ensure_process("hypridle", ["hypridle"], rows)
+        try:   # equalizador ligado no painel de Som: o EasyEffects precisa estar rodando
+            eq_on = json.loads((core.STATE_DIR / "audio.json").read_text()).get("enabled", False)
+        except (OSError, ValueError):
+            eq_on = False
+        if eq_on:
+            ensure_process("easyeffects", ["easyeffects", "--service-mode", "-w"], rows)
+        if Path("/usr/bin/bluetoothctl").exists():   # agente de pareamento (python-dbus do sistema)
+            ensure_process("bt-agent", ["/usr/bin/python3", "-u", str(core.ROOT / "src/bt_agent.py")], rows,
+                           suffix=str(core.ROOT / "src/bt_agent.py"))
         if not any("wl-paste" == Path(a[0]).name and "--watch" in a and "cliphist" in a for _, a in rows if a):
             ensure_process("wl-paste", ["wl-paste", "--watch", "cliphist", "store"], [])
         core.cmd_restore()
@@ -153,6 +162,11 @@ def diagnose():
     ]:
         count = sum(bool(match(a)) for _, a in rows)
         check(name, count == 1, str(count) + " processo(s)")
+    if Path("/usr/bin/bluetoothctl").exists():
+        active = command(["systemctl", "is-active", "bluetooth.service"]).stdout.strip() == "active"
+        agents = sum(str(core.ROOT / "src/bt_agent.py") in a for _, a in rows)
+        check("Bluetooth", active and agents == 1,
+              ("serviço ativo" if active else "serviço bluetooth.service parado") + " · " + str(agents) + " agente(s) de pareamento")
     result = command(["hyprctl", "configerrors"])
     check("Configuração do Hyprland", result.returncode == 0 and not result.stdout.strip(), result.stdout.strip() or "sem erros")
     missing = [name for name in ["qs", "hyprctl", "hypridle", "hyprpaper", "wpctl", "wl-copy", "wl-paste", "cliphist", "grim", "slurp", "wf-recorder", "dolphin", "kitty", "gio"] if not shutil.which(name)]
@@ -178,7 +192,7 @@ def diagnose():
         except (OSError, ValueError) as exc:
             check(rel, False, str(exc))
     return {"ok": all(n["ok"] for n in notes), "checks": notes,
-            "optional": [{"name": "Assistente de IA", "detail": "Interface disponível; provedor atual: Claude Code. Conta e consulta não verificadas."}]}
+            "optional": [{"name": "Assistente de IA", "detail": "Interface disponível; provedor atual: Claude Code (azmuth ask --status testa)."}]}
 
 
 def main(args):

@@ -1,4 +1,4 @@
-// Project Azmuth — assistente Azmuth (Super + A), Ollama local e ações Azmuth validadas.
+// Project Azmuth — assistente Azmuth (Super + A): Claude Code (ou Ollama) e ações Azmuth validadas.
 // Enter envia · Esc fecha.
 
 import QtQuick
@@ -128,7 +128,7 @@ PanelWindow {
                 anchors.left: orb.right; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter
                 Text { text: "AZMUTH"; font.family: "Orbitron"; font.weight: Font.Black; font.pixelSize: 22; font.letterSpacing: 4; color: ai.galvan }
                 Text {
-                    text: ai.thinking ? ai.quips[ai.quip] : "Núcleo local · ferramentas Azmuth controladas"
+                    text: ai.thinking ? ai.quips[ai.quip] : "Conectado ao Omnitrix · ações validadas"
                     font.family: "Rajdhani"; font.weight: Font.DemiBold; font.pixelSize: 15; color: Qt.alpha(Colors.fg, 0.7)
                 }
             }

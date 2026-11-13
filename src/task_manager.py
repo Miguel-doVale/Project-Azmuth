@@ -233,7 +233,227 @@ class Sampler:
                            "memory": memory(), "temperature": temp, "uptime": uptime,
                            "process_count": len(processes), "threads": sum(p["threads"] for p in processes),
                            "disks": disk_rates, "network": net_rates},
-                "processes": processes}
+                "processes": processes, "groups": group_processes(processes)}
+
+
+# ───────────── agrupamento (como no Gerenciador de Tarefas do Windows) ─────────────
+# Cada processo sobe pela árvore até a "raiz" da sessão (Hyprland, systemd); a raiz e seus
+# descendentes formam um grupo. Grupos com janela = Aplicativos.
+
+KNOWN = {   # nome do processo → (nome amigável, o que é)
+    "chrome": ("Google Chrome", "Navegador · cada aba e extensão roda num processo próprio"),
+    "chromium": ("Chromium", "Navegador · um processo por aba e extensão"),
+    "firefox": ("Firefox", "Navegador"),
+    "claude-desktop": ("Claude Desktop", "App do Claude (Electron: vários processos auxiliares)"),
+    "claude": ("Claude Code", "Assistente de programação no terminal"),
+    "codex": ("Codex", "Assistente de programação no terminal"),
+    "electron": ("App Electron", "App feito com Electron (vários processos auxiliares)"),
+    "code": ("Visual Studio Code", "Editor de código (Electron)"),
+    "obsidian": ("Obsidian", "Notas"),
+    "kitty": ("Kitty", "Terminal · inclui o que está rodando dentro dele"),
+    "dolphin": ("Dolphin", "Explorador de arquivos"),
+    "Docker Desktop": ("Docker Desktop", "Contêineres e máquina virtual do Docker"),
+    "com.docker.back": ("Docker Desktop · backend", "Serviço do Docker Desktop"),
+    "dockerd": ("Docker", "Serviço de contêineres"),
+    "containerd": ("containerd", "Execução de contêineres do Docker"),
+    "Hyprland": ("Hyprland", "Compositor: desenha as janelas e a tela"),
+    "Xwayland": ("Xwayland", "Compatibilidade com apps antigos (X11)"),
+    "pipewire": ("PipeWire", "Servidor de áudio e captura de tela"),
+    "pipewire-pulse": ("PipeWire · Pulse", "Compatibilidade de áudio com apps PulseAudio"),
+    "wireplumber": ("WirePlumber", "Escolhe saídas e entradas de áudio"),
+    "easyeffects": ("EasyEffects", "Equalizador do painel de Som"),
+    "xdg-desktop-portal": ("Portal do desktop", "Diálogos de arquivo, compartilhar tela, permissões"),
+    "xdg-desktop-por": ("Portal do desktop", "Diálogos de arquivo, compartilhar tela, permissões"),
+    "xdg-document-po": ("Portal de documentos", "Acesso a arquivos por apps isolados"),
+    "xdg-permission-": ("Portal de permissões", "Guarda as permissões dadas a apps"),
+    "dbus-broker": ("D-Bus", "Barramento de mensagens entre programas"),
+    "dbus-broker-lau": ("D-Bus", "Barramento de mensagens entre programas"),
+    "dbus-daemon": ("D-Bus", "Barramento de mensagens entre programas"),
+    "systemd": ("systemd", "Inicia e vigia os serviços do sistema"),
+    "systemd-journal": ("Registros do sistema", "Guarda os logs (journalctl)"),
+    "systemd-logind": ("Login e sessões", "Controla sessões, suspensão e botão de energia"),
+    "systemd-udevd": ("Dispositivos", "Detecta o que é conectado (USB, fones…)"),
+    "systemd-timesyn": ("Relógio", "Acerta a hora pela internet"),
+    "systemd-userwor": ("systemd · usuários", "Consulta de contas do sistema"),
+    "systemd-userdbd": ("systemd · usuários", "Consulta de contas do sistema"),
+    "systemd-resolve": ("DNS", "Traduz nomes de sites"),
+    "NetworkManager": ("NetworkManager", "Wi-Fi e rede"),
+    "wpa_supplicant": ("wpa_supplicant", "Autenticação Wi-Fi"),
+    "bluetoothd": ("Bluetooth", "Serviço Bluetooth (BlueZ)"),
+    "upowerd": ("UPower", "Bateria e energia"),
+    "udisksd": ("UDisks", "Discos e pendrives"),
+    "polkitd": ("polkit", "Decide pedidos de permissão de administrador"),
+    "hyprpolkitagent": ("Senha de administrador", "Mostra a janela de senha do polkit"),
+    "sddm": ("SDDM", "Tela de login"),
+    "sddm-helper": ("SDDM", "Sessão aberta pela tela de login"),
+    "Xorg": ("Xorg", "Servidor gráfico da tela de login"),
+    "hypridle": ("hypridle", "Bloqueio e tela desligada por inatividade"),
+    "hyprpaper": ("hyprpaper", "Papel de parede"),
+    "wl-paste": ("Área de transferência", "Guarda o histórico (cliphist)"),
+    "ollama": ("Ollama", "IA local (reserva do assistente)"),
+    "gnome-keyring-d": ("Chaveiro", "Guarda senhas de apps"),
+    "kwalletd6": ("KWallet", "Guarda senhas de apps KDE"),
+    "gvfsd": ("GVfs", "Lixeira, pendrives e arquivos remotos"),
+    "at-spi-bus-laun": ("Acessibilidade", "Leitores de tela e acessibilidade"),
+    "cupsd": ("CUPS", "Impressoras"),
+    "avahi-daemon": ("Avahi", "Descoberta de dispositivos na rede"),
+    "crond": ("cron", "Tarefas agendadas"),
+    "sshd": ("SSH", "Acesso remoto"),
+    "notify-send": ("Notificação", "Notificação esperando um clique"),
+    "chrome_crashpad": ("Chrome · relatório de falhas", "Envia relatórios quando o Chrome trava"),
+    "cowork-linux-he": ("Claude · auxiliar", "Processo auxiliar do Claude Desktop"),
+    "start-hyprland": ("Sessão Hyprland", "Mantém o Hyprland e toda a sua sessão de pé"),
+    "mariadbd": ("MariaDB", "Banco de dados (MySQL)"),
+    "postgres": ("PostgreSQL", "Banco de dados"),
+    "docker-proxy": ("Docker · rede", "Encaminha portas dos contêineres"),
+    "rtkit-daemon": ("RealtimeKit", "Prioridade para áudio sem cortes"),
+    "power-profiles-": ("Perfis de energia", "Economia, equilibrado ou desempenho"),
+}
+SESSION_ROOTS = {"Hyprland", "systemd", "sddm", "sddm-helper", "init"}
+SHELLS = {"sh", "bash", "zsh", "fish", "dash"}
+
+
+@lru_cache(maxsize=1)
+def desktop_index():
+    """classe da janela / nome do executável → (nome, ícone) a partir dos .desktop."""
+    out = {}
+    for d in application_dirs():
+        for f in d.glob("*.desktop") if d.exists() else []:
+            try:
+                e = read_desktop(f)
+            except (OSError, configparser.Error):
+                continue
+            name, icon = e.get("Name", ""), e.get("Icon", "")
+            if not name or e.get("NoDisplay", "").lower() == "true":
+                continue
+            keys = {f.stem.lower(), f.stem.split(".")[-1].lower()}
+            if e.get("StartupWMClass"):
+                keys.add(e["StartupWMClass"].lower())
+            cmd = (e.get("Exec", "").split() or [""])[0]
+            if cmd:
+                keys.add(Path(cmd).name.lower())
+            for k in keys:
+                out.setdefault(k, (name, icon))
+    return out
+
+
+def window_pids():
+    try:
+        clients = json.loads(subprocess.run(["hyprctl", "clients", "-j"], capture_output=True,
+                                            text=True, timeout=3).stdout or "[]")
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return {}
+    out = {}
+    for c in clients:
+        if c.get("pid", 0) > 0:
+            out.setdefault(c["pid"], []).append({"class": c.get("class", ""), "title": c.get("title", "")})
+    return out
+
+
+def is_component(p):
+    """Parte da rice: a shell (qs) do projeto ou um script Python de src/ e bin/."""
+    cmd = p["command"]
+    if p["name"] in ("qs", "quickshell"):
+        return str(ROOT) in cmd or "-p" not in cmd   # [qs] zumbi/sem argumentos também é da shell
+    return p["name"].startswith("python") and (str(ROOT / "src") + "/" in cmd or str(ROOT / "bin") + "/" in cmd)
+
+
+def group_processes(processes):
+    by_pid = {p["pid"]: p for p in processes}
+    wins = window_pids()
+
+    def root_of(p):
+        seen = set()
+        while True:
+            parent = by_pid.get(p["ppid"])
+            if (parent is None or parent["pid"] in seen or parent["pid"] <= 1
+                    or parent["name"] in SESSION_ROOTS or parent["uid"] != p["uid"]):
+                return p
+            seen.add(p["pid"])
+            p = parent
+
+    groups = {}
+    for p in processes:
+        if p["pid"] == 2 or p["ppid"] == 2:
+            gid = "kernel"
+        else:
+            # toda a rice num grupo só, onde quer que cada parte tenha sido iniciada (até de um terminal)
+            q, seen, azmuth = p, set(), False
+            while q and q["pid"] not in seen and q["pid"] > 1 and q["name"] not in SESSION_ROOTS:
+                if is_component(q):
+                    azmuth = True
+                    break
+                seen.add(q["pid"])
+                q = by_pid.get(q["ppid"])
+            gid = "azmuth" if azmuth else "g" + str(root_of(p)["pid"])
+        p["group"] = gid
+        groups.setdefault(gid, []).append(p)
+
+    index = desktop_index()
+    result = []
+    for gid, members in groups.items():
+        members.sort(key=lambda m: m["pid"])
+        root = by_pid.get(int(gid[1:])) if gid.startswith("g") else None
+        windows = [w for m in members for w in wins.get(m["pid"], [])]
+        # nome representativo: o dono da janela, senão o primeiro que não é shell
+        lead = next((m for m in members if m["pid"] in wins), None) or next(
+            (m for m in members if m["name"] not in SHELLS), members[0])
+        if gid == "kernel":
+            kind, name, desc, icon = "kernel", "Kernel do Linux", "Threads internas do kernel (não são programas)", ""
+        else:
+            cls = windows[0]["class"].lower() if windows else ""
+            entry = index.get(cls) or index.get(lead["name"].lower()) or index.get(Path(lead.get("exe", "")).name.lower())
+            known = KNOWN.get(lead["name"]) or KNOWN.get(Path(lead.get("exe", "")).name)
+            name = (entry[0] if entry else None) or (known[0] if known else None) or (windows[0]["class"] if windows else lead["name"])
+            desc = known[1] if known else (windows[0]["title"] if windows else "")
+            icon = entry[1] if entry else (cls or lead["name"].lower())
+            if gid == "azmuth":
+                kind, name, desc, icon = "azmuth", "Project Azmuth", "Barra, Omnitrix, widgets e serviços da rice", ""
+            elif windows:
+                kind = "app"
+            elif lead["uid"] != UID:
+                kind = "system"
+            else:
+                kind = "background"
+        lead_ref = root or lead
+        reasons = [m["reason"] for m in members if m["reason"]]
+        # um componente de sessão dentro do grupo protege o grupo todo (ex.: start-hyprland → Hyprland)
+        session = next((r for r in reasons if "sessão" in r), "")
+        result.append({
+            "id": gid, "kind": kind, "name": name, "desc": desc, "icon": icon,
+            "count": len(members), "windows": len(windows),
+            "cpu": round(sum(m["cpu"] for m in members), 2), "rss": sum(m["rss"] for m in members),
+            "user": lead_ref["user"], "root_pid": lead_ref["pid"], "root_start": lead_ref["start"],
+            "members": [m["key"] for m in members],
+            "can_signal": kind not in ("kernel", "system", "azmuth") and not lead_ref["reason"] and not session,
+            "reason": ("Threads do kernel não podem ser encerradas." if kind == "kernel"
+                       else "Componente da rice: use azmuth send para reiniciar." if kind == "azmuth"
+                       else session or lead_ref["reason"] or (reasons[0] if kind == "system" and reasons else "")),
+        })
+    return result
+
+
+def control_group(action: str, refs: list[str]):
+    """Sinal para um grupo inteiro: encerrar manda TERM à raiz; forçar manda KILL a todos."""
+    pairs = []
+    for ref in refs:
+        pid, _, start = ref.partition(":")
+        pairs.append((int(pid), int(start)))
+    if not pairs:
+        raise ValueError("Grupo vazio.")
+    targets = pairs if action in ("kill", "stop", "cont") else pairs[:1]
+    done, errors = 0, []
+    for pid, start in targets:
+        try:
+            control_process(pid, start, action)
+            done += 1
+        except (ValueError, ProcessLookupError, OSError) as exc:
+            errors.append(str(exc))
+    if not done:
+        raise ValueError(errors[0] if errors else "Nada foi encerrado.")
+    labels = {"term": "Pedido de encerramento enviado.", "kill": f"Encerramento forçado: {done} processo(s).",
+              "stop": f"{done} processo(s) pausado(s).", "cont": f"{done} processo(s) retomado(s)."}
+    return {"ok": True, "message": labels[action]}
 
 
 def control_process(pid: int, start: int, action: str):
@@ -549,6 +769,8 @@ def main(args):
             result = sampler.sample()
         elif args and args[0] == "--signal" and len(args) == 4:
             result = control_process(int(args[1]), int(args[2]), args[3])
+        elif args and args[0] == "--signal-group" and len(args) == 3:
+            result = control_group(args[1], args[2].split(","))
         elif args and args[0] == "--startup-list":
             result = startup_list()
         elif args and args[0] == "--catalog":

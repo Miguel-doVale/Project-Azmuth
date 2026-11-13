@@ -174,3 +174,43 @@ class StartupTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GroupingTests(unittest.TestCase):
+    def proc(self, pid, ppid, name, uid=None, command=None, reason=""):
+        import os
+        return {"pid": pid, "ppid": ppid, "name": name, "uid": os.getuid() if uid is None else uid,
+                "command": command or name, "exe": "", "cpu": 1.0, "rss": 100, "start": pid * 10,
+                "key": f"{pid}:{pid * 10}", "user": "eu", "reason": reason, "state": "S"}
+
+    def groups(self, procs, windows):
+        from unittest.mock import patch
+        with patch.object(tm, "window_pids", return_value=windows), patch.object(tm, "desktop_index", return_value={}):
+            return {g["name"]: g for g in tm.group_processes(procs)}
+
+    def test_app_tree_becomes_one_group_and_kernel_is_separate(self):
+        procs = [self.proc(1, 0, "systemd", uid=0), self.proc(2, 0, "kthreadd", uid=0),
+                 self.proc(3, 2, "kworker/0", uid=0), self.proc(100, 1, "Hyprland"),
+                 self.proc(200, 100, "chrome"), self.proc(201, 200, "chrome"), self.proc(202, 201, "chrome")]
+        g = self.groups(procs, {200: [{"class": "google-chrome", "title": "aba"}]})
+        self.assertEqual(g["Google Chrome"]["count"], 3)
+        self.assertEqual(g["Google Chrome"]["kind"], "app")
+        self.assertEqual(g["Kernel do Linux"]["kind"], "kernel")
+        self.assertFalse(g["Kernel do Linux"]["can_signal"])
+
+    def test_group_with_a_session_component_cannot_be_ended(self):
+        reason = "Componente que mantém sua sessão funcionando."
+        procs = [self.proc(1, 0, "systemd", uid=0), self.proc(50, 1, "start-hyprland"),
+                 self.proc(51, 50, "Hyprland", reason=reason)]
+        g = self.groups(procs, {})
+        self.assertFalse(g["Sessão Hyprland"]["can_signal"])
+
+    def test_azmuth_parts_join_one_group_even_when_started_from_a_terminal(self):
+        root = str(tm.ROOT)
+        procs = [self.proc(1, 0, "systemd", uid=0), self.proc(100, 1, "Hyprland"),
+                 self.proc(300, 100, "kitty"), self.proc(301, 300, "bash"),
+                 self.proc(302, 301, "python", command=f"python -u {root}/src/context_engine.py"),
+                 self.proc(400, 100, "qs", command=f"qs -n -d -p {root}/shell")]
+        g = self.groups(procs, {300: [{"class": "kitty", "title": "~"}]})
+        self.assertEqual(g["Project Azmuth"]["count"], 2)
+        self.assertEqual(g["Kitty"]["count"], 2)

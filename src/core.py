@@ -47,6 +47,7 @@ import random
 import re
 import shutil
 import subprocess
+import threading
 import sys
 import time
 from pathlib import Path
@@ -77,6 +78,9 @@ DEFAULT_SETTINGS = {
         "min_percent": 20,          # carga mínima para transformar
     },
     "dna": {},                      # por DNA: {"<id>": {"autostart_apps": bool}}
+    "assistant": {
+        "provider": "claude",       # "claude" (Claude Code na conta do usuário) ou "ollama" (local)
+    },
 }
 
 ROFI_THEME = HOME / ".config/rofi/azmuth.rasi"
@@ -106,7 +110,9 @@ def run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
 def spawn(cmd: list[str]) -> None:
     """Processo solto (som, IPC do HUD) — não segura o core.py."""
     if shutil.which(cmd[0]):
-        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        # recolhe o processo ao terminar: no Context Engine (que vive a sessão toda) sobravam zumbis
+        threading.Thread(target=proc.wait, daemon=True).start()
 
 
 def lua_str(s: str) -> str:
@@ -445,6 +451,16 @@ def apply_kitty(data: dict) -> None:
     run(["pkill", "-USR1", "-x", "kitty"])
 
 
+def apply_gtk(data: dict) -> None:
+    """Diálogos de arquivo (portal GTK) e janelas GTK seguem a paleta do DNA."""
+    try:
+        import gtk_theme
+        gtk_theme.apply(data)
+        log("[OK] GTK · tema do DNA")
+    except (OSError, KeyError, ValueError, subprocess.SubprocessError) as exc:
+        log(f"[AVISO] GTK: {exc}")
+
+
 def apply_file_manager(data: dict) -> None:
     """Mantém o tema do Dolphin sincronizado para novas instâncias."""
     import file_manager
@@ -596,6 +612,7 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
     apply_hyprlock(data)
     apply_kitty(data)
     apply_file_manager(data)
+    apply_gtk(data)
     daemons = apply_daemons(data, state)
     if apps:
         apply_apps(data)
@@ -1019,6 +1036,11 @@ def cmd_restore() -> None:
     if not available(ref):
         ref = load_roster()["neutral"]
     transform(ref, source="restore", quiet=True, apps=False)
+    try:   # modo das telas (espelhar/estender) sobrevive ao login e ao hyprctl reload
+        import display
+        display.apply(force=True)
+    except Exception as exc:  # telas nunca impedem o restore
+        log(f"[AVISO] Telas: {exc}")
 
 
 def cmd_wallpaper() -> None:
@@ -1038,7 +1060,30 @@ def link(target: Path, src: Path) -> None:
     log(f"[link] {target} → {src}")
 
 
+XDPH_CONF = HOME / ".config/hypr/xdph.conf"
+
+
+def install_share_picker() -> None:
+    """Seletor de transmissão de tela do Azmuth no portal do Hyprland (bin/azmuth-share-picker)."""
+    conf = ("# GERADO pelo Project Azmuth (azmuth install) — seletor de compartilhamento de tela.\n"
+            "screencopy {\n"
+            f"    custom_picker_binary = {ROOT / 'bin/azmuth-share-picker'}\n"
+            "    allow_token_by_default = false\n"
+            "}\n")
+    if XDPH_CONF.exists() and "Project Azmuth" not in XDPH_CONF.read_text():
+        backup = XDPH_CONF.with_name("xdph.conf.pre-azmuth")
+        if not backup.exists():
+            shutil.copy2(XDPH_CONF, backup)
+            log(f"[backup] {XDPH_CONF} → {backup.name}")
+    if not XDPH_CONF.exists() or XDPH_CONF.read_text() != conf:
+        XDPH_CONF.write_text(conf)
+        # o portal só lê o xdph.conf ao iniciar
+        run(["systemctl", "--user", "try-restart", "xdg-desktop-portal-hyprland.service"])
+        log("[OK] seletor de transmissão do Azmuth instalado (xdph.conf)")
+
+
 def cmd_install() -> None:
+    install_share_picker()
     link(HOME / ".local/bin/azmuth", ROOT / "bin/azmuth")
     link(HOME / ".config/hypr/azmuth.lua", ROOT / "hypr/azmuth.lua")
     link(HOME / ".config/hypr/hypridle.conf", ROOT / "hypr/hypridle.conf")
@@ -1086,6 +1131,8 @@ COMMANDS = {
     "audio": lambda a: __import__("audio_runtime").main(a),
     "session": lambda a: __import__("session_runtime").main(a),
     "ask": lambda a: __import__("azmuth_ai").main(a),
+    "ai-action": lambda a: __import__("azmuth_ai").action_cli(a),
+    "display": lambda a: __import__("display").main(a),
 }
 NEEDS_ARG = {"apply", "slot", "set"}
 

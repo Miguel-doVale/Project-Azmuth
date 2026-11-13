@@ -80,8 +80,11 @@ class Engine:
                 seq = self.focus_seq
             threading.Timer(DWELL, self.evaluate, args=(seq,)).start()
         elif name in ("monitoradded", "monitorremoved"):
-            threading.Timer(1.0, lambda: subprocess.run([str(core.ROOT / "bin/azmuth"), "wallpaper"],
-                                                          capture_output=True)).start()
+            # cabo plugado/solto: reaplica o modo das telas (espelhar/estender) e o wallpaper
+            def hotplug():
+                subprocess.run([str(core.ROOT / "bin/azmuth"), "display", "apply"], capture_output=True)
+                subprocess.run([str(core.ROOT / "bin/azmuth"), "wallpaper"], capture_output=True)
+            threading.Timer(1.0, hotplug).start()
         elif name == "configreloaded":
             self.load_triggers()
 

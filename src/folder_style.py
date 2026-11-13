@@ -73,7 +73,8 @@ def validate(value):
     return {"color": value["color"].lower(), "markers": result}
 
 
-def render(value):
+def render(value, accent=None):
+    """accent = cor do friso (o tema de ícones passa a cor do DNA); sem ela, um tom claro da própria pasta."""
     style = validate(value)
     known = glyphs()
     parts = []
@@ -96,9 +97,10 @@ def render(value):
             part += f'<text x="{size/2:.3f}" y="{size/2:.3f}" dy=".35em" text-anchor="middle" font-family="JetBrainsMono Nerd Font, sans-serif" font-weight="bold" font-size="{font:.3f}" fill="{color}">{label}</text>'
         parts.append(part + "</g>")
     p = style["color"]
+    accent = accent if accent and COLOR.fullmatch(accent) else fm.blend(p, "#ffffff", .5)
     return Template((fm.ROOT / "filemanager/folder.svg.tmpl").read_text()).substitute(
-        color=p, back=fm.blend(p, "#071016", .35), edge=fm.blend(p, "#ffffff", .28),
-        light=fm.blend(p, "#ffffff", .40), markers="".join(parts))
+        color=p, back=fm.blend(p, "#000000", .45), deep=fm.blend(p, "#000000", .22),
+        accent=accent, accent_light=fm.blend(accent, "#ffffff", .55), markers="".join(parts))
 
 
 def entry(text, name="Icon"):

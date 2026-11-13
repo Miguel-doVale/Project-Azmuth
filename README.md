@@ -105,16 +105,18 @@ foco e pode sugerir um DNA apropriado; com Master Control, pode aplicar a
 transformação automaticamente. As sugestões respeitam intervalos de espera
 para evitar trocas a cada alternância de janela.
 
-O **assistente Azmuth** usa o Ollama local, sem conta de IA ou chave de API.
-O modelo inicial é `qwen3.5:4b`; a primeira base de conhecimento cobre os
-personagens, continuidades e aliens clássicos de Ben 10. O guia de instalação
-explica como instalar o Ollama, baixar o modelo e verificar a conexão.
+O **assistente Azmuth** (`Super + A`) usa o **Claude Code** em modo não
+interativo, na conta Claude do próprio usuário, com a persona do personagem e
+uma base de referência de Ben 10. Como alternativa local e sem conta, o
+**Ollama** (`qwen3.5:4b`) pode ser escolhido com
+`azmuth set assistant.provider ollama` — bem mais lento em CPU.
 
-A conversa e o contexto do Omnitrix são enviados somente ao serviço local em
-`127.0.0.1:11434`. O contexto inclui DNA, energia, eventos e títulos/classes de
-janelas; o assistente não indexa nem lê documentos pessoais. Ele age por uma
-lista validada de comandos `azmuth`, sem terminal genérico ou comandos de
-energia que desliguem o computador. A conversa é mantida por 30 minutos sem uso; o histórico fica armazenado localmente.
+O contexto enviado ao provedor inclui DNA, energia, eventos e títulos/classes de
+janelas; o assistente não lê documentos pessoais. Ele só age por
+`azmuth ai-action`, que valida cada pedido contra uma lista fechada de ações
+(transformar, Neutral, Master Control, apps, eventos, preferências, bloqueio),
+sem terminal genérico nem comandos que desliguem o computador. A conversa
+continua por 30 minutos sem uso.
 
 ## Atalhos para começar
 
@@ -168,8 +170,9 @@ adaptados ao ambiente.
 - As fontes Orbitron, Rajdhani, JetBrainsMono Nerd Font e
   Font Awesome 7 Free usadas pela interface.
 
-SDDM e Ollama são opcionais. Ollama é necessário apenas para usar o assistente;
-o restante da rice não depende de um provedor de IA.
+SDDM é opcional. O assistente precisa do Claude Code logado (ou do Ollama,
+como alternativa local); o restante da rice não depende de um provedor de IA.
+Bluetooth usa `bluez` e `bluez-utils` (`systemctl enable --now bluetooth`).
 Pillow e NumPy são dependências das ferramentas de geração de arte e som.
 
 ### Preparar o motor

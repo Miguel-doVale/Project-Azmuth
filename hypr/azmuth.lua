@@ -25,7 +25,7 @@ hl.layer_rule({
 })
 hl.layer_rule({
     name   = "azmuth-hud-blur",
-    match  = { namespace = "^azmuth-(hud|dashboard|clipboard|overview|power|launcher|config|assistant|quickevent)$" },
+    match  = { namespace = "^azmuth-(hud|dashboard|clipboard|overview|power|launcher|config|assistant|quickevent|sharepicker)$" },
     blur   = true,
     ignore_alpha = 0.1,
 })
@@ -108,7 +108,7 @@ hl.bind(mainMod .. " + D", function() hud("launcher") end)
 -- Gerenciador de tarefas: processos, desempenho e inicialização
 hl.bind("CTRL + SHIFT + Escape", hl.dsp.exec_cmd(AZ .. " tasks"))
 
--- Assistente Azmuth (Claude Code em modo não interativo, só age por comandos azmuth)
+-- Assistente Azmuth (Claude Code ou Ollama; só age por azmuth ai-action, com validação)
 hl.bind(mainMod .. " + A", function() hud("assistant") end)
 
 -- Modo edição da área de trabalho (desktop canvas)

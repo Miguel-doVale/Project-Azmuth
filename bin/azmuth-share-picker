@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+"""Project Azmuth — seletor de compartilhamento de tela (custom_picker_binary do xdph).
+
+O xdg-desktop-portal-hyprland roda este programa quando um app pede para transmitir a tela
+(Discord, Meet, OBS...). Ele pede à shell do Azmuth para mostrar o seletor no estilo Omnitrix e
+devolve a escolha no formato que o portal lê (src/shared/ScreencopyShared.cpp do xdph):
+
+    [SELECTION]<flags>/screen:<saída>
+    [SELECTION]<flags>/window:<id do XDPH_WINDOW_SHARING_LIST>
+    [SELECTION]<flags>/region:<saída>@<x>,<y>,<largura>,<altura>     (coordenadas locais à saída)
+
+flags: "r" = permitir que o app lembre a escolha (token de restauração). Sem [SELECTION] = cancelado.
+Sem a shell do Azmuth no ar, cai no hyprland-share-picker original.
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+import uuid
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+STATE = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "azmuth" / "share-picker"
+TIMEOUT = 180
+
+
+def windows_from_env() -> list[dict]:
+    raw = os.environ.get("XDPH_WINDOW_SHARING_LIST", "")
+    out = []
+    while "[HA>]" in raw:
+        entry, raw = raw.split("[HA>]", 1)
+        try:
+            ident, rest = entry.split("[HC>]", 1)
+            klass, rest = rest.split("[HT>]", 1)
+            title, address = rest.split("[HE>]", 1)
+            out.append({"id": int(ident), "class": klass, "title": title,
+                        "address": hex(int(address)) if address.strip().isdigit() and int(address) else ""})
+        except ValueError:
+            continue
+    return out
+
+
+def fallback(args: list[str]) -> int:
+    if shutil.which("hyprland-share-picker"):
+        return subprocess.call(["hyprland-share-picker", *args])
+    return 1
+
+
+def shell_ipc(*call: str) -> bool:
+    if not shutil.which("qs"):
+        return False
+    r = subprocess.run(["qs", "-p", str(ROOT / "shell"), "ipc", "call", "hud", *call],
+                       capture_output=True, text=True, timeout=10)
+    return r.returncode == 0 and "No running instances" not in (r.stdout + r.stderr)
+
+
+def region(output_hint: str) -> str | None:
+    """Seleção de área com o slurp; converte para coordenadas locais da saída."""
+    if not shutil.which("slurp"):
+        return None
+    r = subprocess.run(["slurp", "-f", "%o %x %y %w %h"], capture_output=True, text=True)
+    if r.returncode or not r.stdout.strip():
+        return None
+    name, x, y, w, h = r.stdout.split()
+    try:
+        mons = json.loads(subprocess.run(["hyprctl", "monitors", "-j"], capture_output=True, text=True).stdout)
+        mon = next(m for m in mons if m["name"] == name)
+        x, y = int(x) - int(mon["x"]), int(y) - int(mon["y"])
+    except (StopIteration, ValueError, KeyError, json.JSONDecodeError):
+        x, y = int(x), int(y)
+    return f"region:{name}@{x},{y},{w},{h}"
+
+
+def main(args: list[str]) -> int:
+    allow_token = "--allow-token" in args
+    STATE.mkdir(parents=True, exist_ok=True)
+    for old in [*STATE.glob("*.json"), *STATE.glob("*.png")]:   # sobras de pedidos interrompidos
+        try:
+            if time.time() - old.stat().st_mtime > 600 or old.name.endswith(".result.json") and not old.with_name(old.name.replace(".result.json", ".request.json")).exists():
+                old.unlink()
+        except OSError:
+            pass
+    rid = uuid.uuid4().hex
+    request, result = STATE / f"{rid}.request.json", STATE / f"{rid}.result.json"
+    # foto de cada monitor ANTES de abrir o seletor: a prévia ao vivo filmaria o próprio seletor
+    shots = {}
+    if shutil.which("grim"):
+        try:
+            mons = json.loads(subprocess.run(["hyprctl", "monitors", "-j"], capture_output=True, text=True).stdout)
+        except json.JSONDecodeError:
+            mons = []
+        for m in mons:
+            out = STATE / f"{rid}.{m['name']}.png"
+            if subprocess.run(["grim", "-s", "0.5", "-o", m["name"], str(out)], capture_output=True).returncode == 0:
+                shots[m["name"]] = str(out)
+    request.write_text(json.dumps({"id": rid, "windows": windows_from_env(), "allowToken": allow_token, "shots": shots}))
+    try:
+        if not shell_ipc("sharePicker", str(request)):
+            return fallback(args)
+        deadline = time.monotonic() + TIMEOUT
+        while time.monotonic() < deadline:
+            if result.exists():
+                try:
+                    choice = json.loads(result.read_text())
+                    break
+                except json.JSONDecodeError:
+                    pass   # ainda sendo escrito
+            time.sleep(0.05)
+        else:
+            shell_ipc("sharePickerCancel")
+            return 1
+        kind = choice.get("kind")
+        flags = "r" if choice.get("remember") else ""
+        if kind == "screen" and choice.get("output"):
+            sel = "screen:" + choice["output"]
+        elif kind == "window" and isinstance(choice.get("id"), int):
+            sel = "window:" + str(choice["id"])
+        elif kind == "region":
+            sel = region(choice.get("output", ""))
+            if not sel:
+                return 1
+        else:
+            return 1   # cancelado
+        print(f"[SELECTION]{flags}/{sel}", flush=True)
+        return 0
+    finally:
+        request.unlink(missing_ok=True)
+        result.unlink(missing_ok=True)
+        for shot in STATE.glob(f"{rid}.*.png"):
+            shot.unlink(missing_ok=True)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

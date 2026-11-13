@@ -101,8 +101,8 @@ Uma recuperação manual não abre esses aplicativos novamente.
 **`azmuth doctor`** confere instâncias, notificações, processos, configuração do
 Hyprland, ferramentas, DNAs e dados JSON. `azmuth doctor --json` oferece o
 mesmo diagnóstico para scripts. A conta do provedor de IA não é consultada.
-O diagnóstico da sessão não verifica o serviço local de IA; use `azmuth ask --status`
-para conferir o Ollama e o modelo. Para conferir menus sem tomar ações, use as
+O diagnóstico também confere o Bluetooth (serviço e agente de pareamento). Para
+o assistente, use `azmuth ask --status` (login do Claude Code ou Ollama). Para conferir menus sem tomar ações, use as
 prévias; `azmuth lock --preview` não chama o bloqueio antigo quando a shell está ausente.
 
 ### DNAs
@@ -133,16 +133,18 @@ foco em código). Os outros 9 aliens aparecem bloqueados até ganharem um DNA.
   ou recarregando), com notificação crítica.
 
 ### Assistente Azmuth (`Super + A`)
-Conversa com um modelo Qwen executado localmente pelo Ollama. A base inicial cobre
-Ben 10; o assistente também recebe DNA, energia, eventos, títulos/classes de janelas
-e hora, sempre pelo endpoint local. Ele não lê seus documentos pessoais e só age
-por comandos Azmuth permitidos: transformar, voltar ao Neutral, Randomizer, Master
+Conversa com o Azmuth pelo Claude Code, na sua conta (respostas em ~10 s). A persona
+vem do estudo do personagem e há uma base de referência de Ben 10; ele também recebe
+DNA, energia, eventos, títulos/classes de janelas e hora. Ele não lê seus documentos
+pessoais e só age por `azmuth ai-action`, que valida cada pedido. Ações permitidas: transformar, voltar ao Neutral, Randomizer, Master
 Control, abrir aplicativos, calendários, preferências e bloqueio. Capturas usam os
 atalhos próprios do sistema. O menu
 de energia pode ser aberto, mas o assistente nunca escolhe desligar, reiniciar,
-suspender ou sair. A conversa dura 30 min; “Nova conversa” recomeça.
+suspender ou sair. Comentar sobre um DNA não é pedido de transformação: na dúvida,
+ele pergunta. A conversa dura 30 min; “Nova conversa” recomeça.
 
-Instalação e configuração: [guia do Ollama](INSTALACAO-E-CONFIGURACAO.md#assistente-local-ollama).
+Provedor: `azmuth set assistant.provider claude` (padrão) ou `ollama` (local, sem conta,
+lento em CPU — ver [guia do Ollama](INSTALACAO-E-CONFIGURACAO.md#assistente-local-ollama)).
 Pelo terminal: `azmuth ask "pergunta"`; diagnóstico: `azmuth ask --status`.
 
 ### Context Engine
@@ -196,6 +198,7 @@ rodar `python3 tools/gen_galvan.py`.
 - **Omnitrix**: Master Control, sugestões, área viva, sons, Não perturbe, energia, apps por DNA, bloqueio.
 - **Apps**: playlists do lançador (nome, runa, cor, ordem, apps; apps soltos em SEM PLAYLIST).
 - **Wi-Fi**: liga/desliga, rede atual, lista com sinal, conectar com senha (via D-Bus), esquecer.
+- **Bluetooth**: ver a seção Bluetooth abaixo.
   O chip de rede da barra abre esta aba.
 - **Som**: alterna saídas e microfones, controla volume/mudo por dispositivo e aplicativo, mostra níveis reais de reprodução/captura e seleciona rotas físicas do fone, alto-falante e headset conforme o hardware detecta conexão. A aba Equalizador oferece curvas iniciais e 10 bandas de −12 a +12 dB pelo EasyEffects. O chip de volume da barra abre esta aba (clique direito = mudo).
 - **Área de trabalho**: área viva, widgets na tela (tamanho, remover), catálogo, imagens e **Editar na tela**.
@@ -209,9 +212,17 @@ Abre uma janela normal, com as cores do DNA atual. Também está na Central →
 **Sistema**, no lançador como **Gerenciador de tarefas · Azmuth** e nos
 indicadores de CPU/RAM da barra.
 
-- **Processos**: busca por nome, PID, usuário ou comando; filtro de seus processos
-  ou de todos os usuários; clique nos títulos para ordenar por nome, PID, CPU ou RAM.
-  Selecionar uma linha revela estado, comando, prioridade, tempo de execução e consumo.
+- **Processos**, agrupados como no Windows: **Aplicativos** (tudo que tem janela,
+  com os processos-filhos juntos — o Chrome vira uma linha só), **Project Azmuth**
+  (a rice), **Segundo plano** (seus programas sem janela), **Sistema** (outros
+  usuários) e **Kernel** (escondido; *Mostrar kernel*). Cada grupo diz o que é, soma
+  CPU e RAM e conta os processos; **▸** abre o grupo. Busca por nome, PID ou comando;
+  clique nos títulos para ordenar. Por que tantos processos? Cerca de metade são
+  threads do kernel, e navegadores/apps Electron rodam um processo por aba ou parte.
+- **Grupo selecionado**: o que é, janelas, os processos mais pesados e **Encerrar
+  tarefa** (pede para o app fechar) ou **Forçar encerramento** (para todos os
+  processos do grupo). Grupos com componentes da sessão (ex.: Sessão Hyprland) ficam
+  protegidos.
 - **Ações**: encerrar normalmente, pausar, retomar e forçar encerramento. Pausar e
   encerrar pedem confirmação no painel. Componentes essenciais da sessão e processos
   de outros usuários aparecem para consulta, com os controles desabilitados.
@@ -265,7 +276,12 @@ Bloquear e Suspender são imediatos; Sair, Reiniciar e Desligar têm contagem
 de 3 s cancelável com Esc. Atalhos: 1–5 ou B S E R D.
 
 ### Explorador de arquivos (Dolphin)
-`Super+E` abre o Dolphin com controles escuros e detalhes na paleta do DNA.
+`Super+E` abre o Dolphin no visual do Azmuth: tema de ícones **Azmuth**
+(`~/.local/share/icons/Azmuth`, gerado a cada transformação) com pastas na cor do DNA,
+emblema do Omnitrix e runas por tipo — Documentos (Dados), Downloads (Portal),
+Imagens (Mídia), Vídeos (Visão), Música (Som), Início (Núcleo), projetos (Código);
+o restante herda do Papirus-Dark. Abas em pílula, caminho em campo, fonte Rajdhani.
+Pastas mostram o ícone, não uma prévia do conteúdo.
 Abas ficam visíveis, o caminho completo aparece e pastas lembram o modo de exibição.
 A barra oferece prévias, divisão em dois painéis e busca; os Lugares incluem Azmuth,
 Projetos, Assets e Capturas. Clique direito numa pasta → **Azmuth · ferramentas**:
@@ -283,6 +299,24 @@ O tema é preparado em cada transformação e aplicado nas instâncias novas.
 Janelas já abertas mantêm a paleta até serem reabertas. Configuração com backup;
 `azmuth files --restore` restaura os arquivos de configuração do Dolphin.
 Detalhes em [filemanager/README.md](../filemanager/README.md).
+
+### Diálogos do sistema (anexar arquivo, compartilhar tela)
+- **Abrir/salvar e "anexar arquivo"** no navegador usam o seletor GTK do portal: ele segue
+  o DNA (`gtk/gtk.css.tmpl` → `~/.config/gtk-{3,4}.0/gtk.css`, modo escuro e ícones Azmuth).
+  O portal é reiniciado a cada troca de paleta; o próximo diálogo já abre no tema novo.
+- **Compartilhar tela** (Discord, Meet, OBS): seletor **TRANSMITIR** do Azmuth em vez do
+  padrão do Hyprland. Abas **Telas**, **Janelas** (prévias ao vivo) e **Área** (arraste com o
+  slurp); **Lembrar esta escolha** deixa o app repetir sem perguntar. Enter transmite, Esc
+  cancela, 1/2/3 trocam a aba. Instalado por `azmuth install` em `~/.config/hypr/xdph.conf`
+  (`bin/azmuth-share-picker`); sem a shell no ar, cai no seletor original.
+
+### Bluetooth (Central → Bluetooth)
+Liga/desliga, **Visível** (para o celular encontrar o notebook), **Meus dispositivos**
+(conectar, desconectar, esquecer, bateria) e **Por perto** (a busca liga com a aba aberta;
+**Parear** pareia, confia e conecta). Pedidos de código chegam como notificação com
+**Parear / Recusar** (agente `src/bt_agent.py`, iniciado pelo `azmuth start`); nada é aceito
+sozinho. Fone conectado vira uma saída na aba Som. O chip da barra mostra o que está conectado
+e abre a aba. Requer `bluez`, `bluez-utils` e `systemctl enable --now bluetooth`.
 
 ### Terminal
 Cores do DNA (mudam ao vivo), prompt `⧗ DNA usuário pasta`, banner com o

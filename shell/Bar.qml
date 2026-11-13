@@ -13,6 +13,7 @@ import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
 import Quickshell.Services.SystemTray
 import Quickshell.Networking
+import Quickshell.Bluetooth
 
 PanelWindow {
     id: bar
@@ -50,9 +51,18 @@ PanelWindow {
         Region { item: podHit }
     }
 
+    // app_id que não bate com o .desktop (Godot no Wayland usa org.godotengine.Editor/ProjectManager)
+    readonly property var iconAliases: ({ "godot": "godot", "org.godotengine.editor": "godot",
+                                          "org.godotengine.projectmanager": "godot", "spotify": "spotify-client" })
     function iconFor(appId) {
-        const entry = DesktopEntries.heuristicLookup(appId)
-        return Quickshell.iconPath(entry ? entry.icon : appId, true)
+        const id = String(appId || "")
+        const low = id.toLowerCase()
+        const alias = iconAliases[low] || (low.startsWith("org.godotengine.") ? "godot" : "")
+        const entry = alias ? null : (DesktopEntries.heuristicLookup(id) || DesktopEntries.heuristicLookup(low))
+        const icon = alias || (entry && entry.icon) || id
+        if (icon.startsWith("/")) return "file://" + icon   // Icon=/caminho/absoluto.png no .desktop
+        return Quickshell.iconPath(icon, true)
+            || Quickshell.iconPath(low, true)
             || Quickshell.iconPath("application-x-executable", true)
             || Quickshell.iconPath("utilities-terminal", true)
     }
@@ -379,6 +389,7 @@ PanelWindow {
     component Chip: Item {
         id: chip
         property string icon: ""
+        property string iconFont: "Font Awesome 7 Free"
         property string label: ""
         property color tint: bar.fg
         signal clicked(var mouse)
@@ -407,7 +418,7 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 text: chip.icon
                 visible: chip.icon !== ""
-                font.family: "Font Awesome 7 Free"; font.styleName: "Solid"; font.pixelSize: 13
+                font.family: chip.iconFont; font.styleName: chip.iconFont === "Font Awesome 7 Free" ? "Solid" : "Regular"; font.pixelSize: 13
                 color: bar.primary
             }
             Text {
@@ -476,7 +487,7 @@ PanelWindow {
             tint: audio && audio.muted ? Qt.alpha(bar.fg, 0.45) : bar.fg
             onClicked: mouse => {
                 if (mouse.button === Qt.RightButton) { if (audio) audio.muted = !audio.muted }
-                else bar.shell.openConfig(3)   // Central → Som
+                else bar.shell.openConfig(5)   // Central → Som
             }
             onWheel: wheel => {
                 if (!audio) return
@@ -491,6 +502,19 @@ PanelWindow {
             label: !dev ? "Sem rede" : (net ? net.name : dev.name)
             tint: dev ? bar.fg : bar.danger
             onClicked: bar.shell.openConfig(2)   // Central → Wi-Fi
+        }
+
+        Chip {   // bluetooth: só aparece com o adaptador ligado; mostra o que está conectado
+            readonly property var adapter: Bluetooth.defaultAdapter
+            readonly property var conn: Bluetooth.devices.values.filter(d => d.connected)
+            readonly property var first: conn.length ? conn[0] : null
+            visible: adapter !== null && adapter.enabled
+            iconFont: "Font Awesome 7 Brands"
+            icon: "\uf294"
+            label: !first ? "" : (first.name || first.deviceName) + (conn.length > 1 ? " +" + (conn.length - 1) : "")
+                   + (first.batteryAvailable ? " · " + Math.round(first.battery * 100) + "%" : "")
+            tint: first ? bar.primary : Qt.alpha(bar.fg, 0.6)
+            onClicked: bar.shell.openConfig(3)   // Central → Bluetooth
         }
 
         Chip {

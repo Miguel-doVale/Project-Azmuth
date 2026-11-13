@@ -12,7 +12,7 @@ O projeto é mantido para Arch Linux, Wayland e Hyprland. A configuração de at
 
 O ambiente de referência desta revisão usa Hyprland 0.56.2, Quickshell 0.3.2 e Python 3.14.8. O repositório não fixa versões mínimas para todas as dependências; atualizações do Arch ou do Quickshell podem exigir ajustes. Consulte os [utilitários Lua do Hyprland](https://wiki.hypr.land/configuring/core/advanced-configuration/lua-utilities/) e a [documentação do Quickshell](https://quickshell.org/docs/).
 
-Hoje, Neutral e Massa Cinzenta têm arquivos de DNA aplicáveis. Os outros aliens do catálogo ainda aparecem bloqueados. A gramática Galvan segue em desenvolvimento. O assistente usa Ollama local, com base inicial de Ben 10 e ações limitadas a comandos validados do Azmuth; não requer API, assinatura ou acesso aos documentos pessoais.
+Hoje, Neutral e Massa Cinzenta têm arquivos de DNA aplicáveis. Os outros aliens do catálogo ainda aparecem bloqueados. A gramática Galvan segue em desenvolvimento. O assistente usa o Claude Code na conta do usuário (padrão) ou o Ollama local, com base de Ben 10 e ações limitadas a comandos validados do Azmuth (`azmuth ai-action`); não lê documentos pessoais.
 
 ## Como as peças se conectam
 
@@ -57,7 +57,7 @@ O DNA YAML é a fonte de identidade, cores e comportamento. O motor Python valid
 | Terminal e prompt | <code>terminal/kitty.conf</code>, <code>terminal/kitty-colors.tmpl</code>, <code>terminal/azmuth.bash</code>, <code>terminal/fastfetch.jsonc</code> | <code>azmuth install</code> liga arquivos do projeto à configuração do usuário; a transformação gera a paleta Kitty. |
 | Login SDDM | <code>sddm/</code> | Tema opcional instalado separadamente com privilégios administrativos; não é a tela de bloqueio. |
 | Context Engine | <code>src/context_engine.py</code> e <code>context_engine</code> nos DNAs | Observa classe/título da janela em foco. Sugere transformações; Master Control permite aplicação automática. |
-| Assistente local | <code>src/azmuth_ai.py</code>, <code>shell/Assistant.qml</code>, <code>data/ben10_knowledge.md</code> | Usa a API HTTP local do Ollama. Inclui uma base de Ben 10, histórico temporário e ferramentas validadas para comandos Azmuth; não lê documentos pessoais. |
+| Assistente | <code>src/azmuth_ai.py</code>, <code>shell/Assistant.qml</code>, <code>data/ben10_knowledge.md</code> | Claude Code (<code>claude -p</code>, só com permissão para <code>azmuth ai-action</code>) ou a API HTTP local do Ollama. Inclui uma base de Ben 10, histórico temporário e ferramentas validadas para comandos Azmuth; não lê documentos pessoais. |
 | Runas | <code>shell/Galvan.js</code>, <code>shell/Glyph.qml</code>, <code>tools/gen_galvan.py</code> | O conjunto visual de 24 runas é compartilhado pela interface. A linguagem e o tradutor estão em desenvolvimento. |
 | Recuperação | <code>src/session_runtime.py</code> | <code>azmuth send</code>/<code>azmuth start</code> recuperam componentes ausentes; <code>azmuth doctor</code> mostra o diagnóstico. |
 
@@ -93,7 +93,11 @@ O gerenciador de tarefas precisa de Linux/Python com suporte a pidfd para contro
 | Kitty e Fastfetch | Terminal, prompt, cores e banner. |
 | Orbitron, Rajdhani, JetBrainsMono Nerd Font e Font Awesome 7 Free | Tipografia e ícones. JetBrainsMono Nerd Font e Font Awesome estão nos pacotes <code>ttf-jetbrains-mono-nerd</code> e <code>otf-font-awesome</code>; Orbitron e Rajdhani podem ser instaladas em <code>~/.local/share/fonts</code>. |
 | EasyEffects 8.2.8 ou mais recente | Equalizador integrado na Central; instalação opcional. O servidor local precisa estar ativo. |
-| Ollama e um modelo local | Somente o assistente Azmuth; instalação opcional. |
+| Claude Code logado (<code>claude auth login</code>) | Assistente Azmuth (provedor padrão). |
+| Ollama e um modelo local | Alternativa local do assistente; opcional. |
+| <code>bluez</code>, <code>bluez-utils</code>, <code>python-dbus</code>, <code>python-gobject</code> | Bluetooth: serviço, aba da Central e agente de pareamento (<code>src/bt_agent.py</code>). |
+| <code>xdg-desktop-portal-gtk</code>, <code>papirus-icon-theme</code> | Seletor de arquivos no tema do DNA (<code>src/gtk_theme.py</code>) e base do tema de ícones Azmuth (<code>~/.local/share/icons/Azmuth</code>). |
+| <code>xdg-desktop-portal-hyprland</code>, <code>slurp</code>, <code>grim</code> | Seletor de compartilhamento de tela do Azmuth (<code>bin/azmuth-share-picker</code>, <code>~/.config/hypr/xdph.conf</code>). |
 | SDDM | Somente o tema opcional de login. |
 | Pillow e NumPy | Somente os geradores de arte/som em <code>tools/</code>. |
 
@@ -123,7 +127,13 @@ A aba Wi-Fi precisa do NetworkManager. Se ele for seu único gerenciador de rede
 
 O som precisa de PipeWire e WirePlumber ativos na sessão do usuário. Em uma instalação que já usa PipeWire, não crie serviços ou autostarts duplicados.
 
+### Assistente (Claude Code)
+
+Padrão: <code>assistant.provider = "claude"</code>. Requer o Claude Code instalado e logado (<code>claude auth status</code>). Cada pergunta roda <code>claude -p</code> em <code>~/.local/state/azmuth/ai</code> com <code>--tools Bash</code> e permissão apenas para <code>azmuth ai-action '&lt;json&gt;'</code>; esse comando valida o pedido em <code>action_argv</code> e recusa qualquer outro. A sessão fica em <code>ai/claude-session.json</code> por 30 minutos. Cada pergunta consome um pouco do limite de uso da conta Claude.
+
 ### Assistente local (Ollama)
+
+Alternativa sem conta: <code>azmuth set assistant.provider ollama</code>.
 
 O assistente é opcional e roda inferência na própria máquina. No Arch, instale o pacote oficial, inicie o serviço e baixe o modelo padrão:
 
@@ -342,7 +352,7 @@ Ao transformar, <code>src/core.py</code> valida antes de alterar. Aplica proprie
 | Dolphin | <code>filemanager/dolphin.qss.tmpl</code>, <code>filemanager/dolphinui.rc</code> | Rode setup e abra nova janela. |
 | Login | <code>sddm/azmuth/</code> | Instalação manual pelo script SDDM. |
 | Regras contextuais | <code>src/context_engine.py</code> e campos dos DNAs | Reinicie o Context Engine após mudar seu código. |
-| Provedor, modelo, contexto e allowlist do assistente | <code>src/azmuth_ai.py</code> | Ollama em <code>127.0.0.1:11434</code>; altere <code>DEFAULT_MODEL</code> para escolher o modelo. A função <code>action_argv</code> valida cada ação permitida. |
+| Provedor, modelo, contexto e allowlist do assistente | <code>src/azmuth_ai.py</code> e <code>settings.json</code> (<code>assistant.provider</code>) | Claude Code (padrão) ou Ollama em <code>127.0.0.1:11434</code> (<code>DEFAULT_MODEL</code>). A função <code>action_argv</code> valida cada ação permitida. |
 | Conhecimento inicial de Ben 10 | <code>data/ben10_knowledge.md</code> | Resumo estático incluído no prompt local; pode ser expandido sem varrer arquivos pessoais. |
 
 <code>theme.json</code>, <code>kitty-colors.conf</code>, <code>~/.config/rofi/azmuth.rasi</code>, <code>~/.config/dunst/dunstrc</code> e <code>~/.config/hypr/hyprlock.conf</code> são saídas geradas. Edite a fonte do projeto, pois uma transformação pode sobrescrevê-las.
@@ -412,7 +422,8 @@ Veja também [filemanager/README.md](../filemanager/README.md).
 | <code>azmuth files --setup</code> | Instala a integração Dolphin com backup. |
 | <code>azmuth files --restore</code> | Restaura a integração Dolphin. |
 | <code>azmuth tasks --tab processes/performance/startup</code> | Abre uma aba do gerenciador. |
-| <code>azmuth ask --status</code> | Verifica se Ollama responde e se o modelo escolhido está instalado. |
+| <code>azmuth ask --status</code> | Verifica o login do Claude Code ou, com Ollama, o serviço e o modelo. |
+| <code>azmuth ai-action '&lt;json&gt;'</code> | Porta única de ações do assistente, com validação. |
 | <code>azmuth ask "pergunta"</code> | Conversa com o assistente pelo modelo local. |
 
 <code>azmuth audio</code> só age quando a saída padrão está ausente ou é Dummy. Primeiro procura processos que abriram diretamente um PCM ALSA; se encontrar algum, informa o aplicativo para você fechá-lo ou configurá-lo para PipeWire. Sem bloqueadores, reinicia os serviços PipeWire/WirePlumber da sessão, aguarda uma saída física, define essa saída como padrão e redireciona fluxos ativos. Se o áudio já estiver normal, não reinicia nada. O microfone não é alterado. <code>azmuth audio status</code> consulta o estado atual. A Central lista as portas que PipeWire publica; rotas indisponíveis ficam visíveis, mas sem ação. Para equalização, instale <code>easyeffects</code> (Arch: <code>sudo pacman -S --needed easyeffects</code>) e mantenha a saída física como destino padrão. O painel usa o servidor local do EasyEffects 8.2.8 ou mais recente. As curvas plana, graves, voz e brilho, sliders por banda e controles avançados ficam na aba Equalizador. Se a integração não conectar, habilite o servidor local nas preferências do EasyEffects.
@@ -449,7 +460,8 @@ O instalador principal não tem desinstalador automático. Para voltar uma confi
 | Sem notificações | Rode <code>azmuth send</code> e confira o dono D-Bus de <code>org.freedesktop.Notifications</code>. |
 | Wallpaper não muda | Confira Hyprpaper e o caminho definido no DNA. |
 | Calendário não avisa | Confira se Context Engine está ativo e valide data/hora/lembrete. |
-| Assistente não responde | Rode <code>azmuth ask --status</code>; confira <code>systemctl status ollama</code> e instale o modelo com <code>ollama pull qwen3.5:4b</code>. O comando <code>azmuth doctor</code> não verifica o serviço de IA. |
+| Assistente não responde | Rode <code>azmuth ask --status</code>. Com Claude: <code>claude auth login</code>. Com Ollama: <code>systemctl status ollama</code> e <code>ollama pull qwen3.5:4b</code>. |
+| Bluetooth não aparece | <code>systemctl status bluetooth</code>, <code>rfkill list</code> e <code>azmuth doctor</code> (confere o agente de pareamento). |
 
 Comandos úteis:
 
