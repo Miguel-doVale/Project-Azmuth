@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Azmuth · Ilha e Dock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Protótipo v3 — a "tela" é 1920×1080 de verdade, reduzida para caber: tamanhos e proporções reais. */
+:root{--p:#38bdf8;--bg:#0b0f19;--bg2:#0f1b2d;--fg:#e2e8f5;--card:#131c2e;--amb:#fbbf24;--line:#38bdf82e;--ease:cubic-bezier(.22,1,.36,1)}
+*{box-sizing:border-box;margin:0}
+body{background:#05070c;color:var(--fg);font-family:Rajdhani,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:16px;padding:16px 16px 40px}
+h1{font-family:Orbitron;font-size:18px;letter-spacing:3px;color:var(--p)}
+.controls{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.ctl{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid #38bdf833;border-radius:14px;padding:9px 14px;cursor:pointer;user-select:none;font-weight:600;font-size:15px}
+.ctl .sw{width:38px;height:20px;border-radius:10px;background:#38bdf826;position:relative;transition:.25s}
+.ctl .sw::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#cdd6f4;transition:.25s var(--ease)}
+.ctl.on .sw{background:var(--p)} .ctl.on .sw::after{left:21px;background:var(--bg)}
+.hint{font-size:14px;opacity:.55;text-align:center;max-width:960px}
+
+.stage{width:min(1500px,100%);aspect-ratio:16/9;position:relative;overflow:hidden;border-radius:14px;box-shadow:0 0 0 1px #38bdf822,0 30px 80px #000a}
+.screen{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;
+  background:radial-gradient(1300px 900px at 10% 90%,#38bdf81c,transparent 60%),radial-gradient(1000px 700px at 90% 0%,#89b4fa14,transparent 60%),linear-gradient(#0b0f19,#0d1a2b)}
+
+/* janelas */
+.win{position:absolute;border-radius:12px;background:#111827;border:2px solid #38bdf855;transition:all .45s var(--ease);overflow:hidden}
+.win .tb{height:40px;background:#1f2937;display:flex;gap:6px;align-items:center;padding:0 10px}
+.tab{height:30px;flex:0 0 150px;border-radius:8px;background:#2a2b2e;font-size:15px;padding:6px 12px;opacity:.85;cursor:pointer}
+.tab:hover{background:#3a3d44} .tab.sel{background:#35363a}
+.win .body{position:absolute;inset:40px 0 0;display:grid;place-items:center;opacity:.3;font-size:24px}
+#w1{left:12px;top:44px;width:1100px;height:1012px} #w2{left:1124px;top:44px;width:784px;height:1012px}
+.max #w1{left:0;top:0;width:1920px;height:1080px;border-radius:0;border-color:transparent} .max #w2{opacity:0;transform:scale(.96)}
+
+/* ── ilha ── */
+.island{position:absolute;left:50%;transform:translateX(-50%);z-index:5;overflow:hidden;cursor:pointer;
+  background:linear-gradient(var(--bg),var(--bg2));box-shadow:0 10px 36px #38bdf838;
+  transition:width .55s var(--ease),height .55s var(--ease),top .55s var(--ease),border-radius .55s var(--ease),box-shadow .4s,background .4s}
+.island::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;padding:1px;opacity:0;transition:opacity .4s;
+  background:linear-gradient(90deg,transparent,#38bdf899,transparent);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.detached .island::before{opacity:1}
+.island.peek::before,.island.line::before{opacity:0!important}
+.island.peek{overflow:visible;width:64px;height:18px;top:0;background:transparent;box-shadow:none}
+.island.hover{width:420px;height:64px;top:0;border-radius:0 0 32px 32px}
+.detached .island.hover{top:10px;border-radius:32px}
+.island.open{width:728px;height:458px;top:0;border-radius:0 0 30px 30px;cursor:default}
+.detached .island.open{top:10px;border-radius:30px}
+.island.line{width:140px;height:3px;top:0;border-radius:0 0 3px 3px;background:var(--p);box-shadow:0 0 12px var(--p)}
+
+.omni{position:absolute;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:50%;background:var(--bg);
+  border:3px solid var(--p);box-shadow:0 0 16px #38bdf8aa;transition:all .55s var(--ease);display:grid;place-items:center}
+.omni::before{content:"";position:absolute;inset:5px;border-radius:50%;border:1.5px solid #38bdf870}
+.omni i{width:16px;height:18px;background:var(--p);clip-path:polygon(0 0,100% 0,50% 50%,100% 100%,0 100%,50% 50%)}
+.peek .omni{top:-28px;width:44px;height:44px}
+.hover .omni{top:12px}
+.open .omni{top:14px;width:46px;height:46px}
+.line .omni{top:-60px;opacity:0}
+.ring{position:absolute;left:50%;top:6px;width:52px;height:52px;transform:translateX(-50%) rotate(-90deg);opacity:0;transition:opacity .3s}
+.hover .ring{opacity:1;transition-delay:.2s} .ring circle{fill:none;stroke-width:3}
+
+.bar{position:absolute;inset:0;display:flex;justify-content:space-between;align-items:center;padding:0 36px;opacity:0;transition:opacity .25s;pointer-events:none}
+.hover .bar{opacity:1;transition:opacity .3s .25s}
+.bar .dna{font-family:Orbitron;font-weight:500;font-size:13px;letter-spacing:2.5px} .bar .en{font-family:Orbitron;font-size:10px;color:var(--p);letter-spacing:1px;margin-top:4px}
+.bar .r{text-align:right} .bar .clk{font-family:Orbitron;font-weight:500;font-size:16px;letter-spacing:1px} .bar .sub{font-family:Orbitron;font-size:9px;letter-spacing:1.5px;opacity:.45;margin-top:5px}
+
+/* ── painel compacto ── */
+.panel{position:absolute;inset:0;padding:18px 20px 16px;display:flex;flex-direction:column;gap:10px;opacity:0;pointer-events:none;transition:opacity .2s}
+.open .panel{opacity:1;pointer-events:auto;transition:opacity .35s .3s}
+.head{display:flex;justify-content:space-between;align-items:flex-start;height:52px}
+.who{display:flex;gap:10px;align-items:center}
+.alien{width:48px;height:48px;border-radius:14px;flex:0 0 48px;position:relative;overflow:hidden;cursor:pointer;
+  background:radial-gradient(circle at 50% 35%,#38bdf855,#0b0f19 70%);border:1px solid #38bdf866;display:grid;place-items:center}
+.alien .omni{position:relative;left:0;top:0;transform:none;width:30px;height:30px;border-width:2px;box-shadow:none} .alien .omni i{width:11px;height:12px}
+.who .dna{font-family:Orbitron;font-weight:700;font-size:14px;letter-spacing:2px;color:var(--p)}
+.who small{display:block;font-size:13px;opacity:.6;font-weight:500}
+.eb{width:150px;height:3px;border-radius:2px;background:#38bdf826;margin-top:4px} .eb i{display:block;height:100%;width:92%;border-radius:2px;background:var(--p)}
+.time{text-align:right} .time .clk{font-family:Orbitron;font-weight:700;font-size:22px} .time small{display:block;font-size:12px;opacity:.55;font-weight:500}
+
+.row{display:flex;gap:8px}
+.tile{flex:1;display:flex;align-items:center;gap:9px;border-radius:14px;padding:8px 11px;background:var(--card);border:1px solid var(--line);cursor:pointer;transition:.2s;min-width:0}
+.tile em{font-style:normal;color:var(--p);font-size:16px;width:18px;text-align:center}
+.tile b{display:block;font-size:14px;line-height:1.1} .tile span{font-size:11px;opacity:.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.tile.on{background:var(--p);color:var(--bg)} .tile.on em{color:var(--bg)} .tile.on span{opacity:.75}
+.slider{flex:1;display:flex;align-items:center;gap:10px;border-radius:14px;padding:6px 12px;background:var(--card);border:1px solid var(--line);font-weight:600;font-size:13px;min-width:0}
+.slider em{font-style:normal;color:var(--p)} input[type=range]{flex:1;min-width:0;accent-color:var(--p)}
+.out{font:600 12px Rajdhani;color:var(--fg);background:#38bdf81a;border:1px solid #38bdf840;border-radius:9px;padding:2px 8px;cursor:pointer;white-space:nowrap}
+.out:hover{border-color:var(--p)}
+.drop{position:absolute;left:90px;top:186px;width:360px;z-index:3;border-radius:12px;padding:7px;display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#0e1626;border:1px solid #38bdf866;
+  box-shadow:0 14px 30px #000a;opacity:0;transform:translateY(-6px);pointer-events:none;transition:.22s var(--ease)}
+.drop.show{opacity:1;transform:none;pointer-events:auto}
+.drop h5{font:700 9px Orbitron;letter-spacing:1.5px;color:var(--p);margin:4px 8px}
+.drop .dc div{padding:5px 8px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center}
+.drop .dc div:hover{background:#38bdf81f} .drop .dc div span{opacity:.5;font-size:11px;margin-left:auto;margin-right:6px} .drop .dc div.sel::after{content:"✓";color:var(--p)}
+
+.mid{display:flex;gap:10px;height:196px}
+.card{border-radius:16px;padding:10px 12px;background:var(--card);border:1px solid var(--line);min-width:0}
+.card h4{font-family:Orbitron;font-size:10px;letter-spacing:1.5px;color:var(--p);margin-bottom:5px;display:flex;justify-content:space-between}
+.card h4 a{font-family:Rajdhani;font-size:12px;letter-spacing:0;opacity:.7;cursor:pointer;color:var(--fg)}
+/* música */
+.music{width:196px;flex:0 0 196px;border-radius:16px;position:relative;overflow:hidden;padding:10px 11px;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;
+  background:linear-gradient(160deg,#1db954,#0e7490 55%,#0b0f19);border:1px solid var(--line)}
+.music::before{content:"";position:absolute;inset:0;background:linear-gradient(transparent 25%,#0b0f19ee 80%)} .music>*{position:relative}
+.music .src{position:absolute;top:9px;left:11px;font:700 9px Orbitron;letter-spacing:1.5px;opacity:.85}
+.music b{font-size:14px;line-height:1.05} .music span{font-size:12px;opacity:.7}
+.prog{display:flex;align-items:center;gap:6px;font-size:10px;opacity:.85}
+.prog .tr{flex:1;height:3px;border-radius:2px;background:#ffffff30;position:relative;cursor:pointer;transition:height .15s} .prog .tr:hover{height:6px}
+.prog .tr::before{content:"";position:absolute;inset:-8px 0} .prog .tr i{display:block;height:100%;width:35%;background:#fff;border-radius:2px}
+.mctl{display:flex;justify-content:center;align-items:center;gap:16px;font-weight:700}
+.mctl .pp{width:32px;height:32px;border-radius:50%;background:#fff;color:#0b0f19;display:grid;place-items:center;cursor:pointer;font-size:12px}
+.mctl span{opacity:.85;cursor:pointer;font-size:13px}
+/* calendário compacto */
+.cal{width:240px;flex:0 0 240px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-weight:600;font-size:12px;row-gap:1px}
+.grid .wd{opacity:.45;font-size:10px} .grid .d{position:relative;padding:3px 0;line-height:18px}
+.grid .d.today{background:var(--p);color:var(--bg);border-radius:8px}
+.grid .d.m-ev::after,.grid .d.m-fx::after{content:"";position:absolute;left:50%;bottom:-1px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--p)}
+.grid .d.m-fx::after{background:var(--amb)}
+/* notificações */
+.notif{flex:1;display:flex;flex-direction:column}
+.nlist{display:flex;flex-direction:column;gap:5px;overflow:auto;flex:1;scrollbar-width:none}
+.n{display:flex;gap:8px;align-items:flex-start;padding:5px 6px;border-radius:9px;transition:.2s}
+.n:hover{background:#38bdf812} .n i{flex:0 0 22px;height:22px;border-radius:7px;display:grid;place-items:center;font-style:normal;font-size:11px;color:#fff;font-weight:700}
+.n div{flex:1;min-width:0} .n b{display:block;font-size:13px;line-height:1.1} .n span{display:block;font-size:11px;opacity:.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n small{font-size:10px;opacity:.45} .n .x{opacity:0;cursor:pointer;font-size:12px} .n:hover .x{opacity:.7}
+.empty{opacity:.4;font-size:13px;text-align:center;margin-top:30px}
+/* rodapé */
+.foot{display:flex;gap:8px;align-items:center;height:40px}
+.central{flex:0 0 auto;display:flex;align-items:center;gap:8px;height:40px;padding:0 14px 0 8px;border-radius:13px;cursor:pointer;
+  background:linear-gradient(120deg,#38bdf83a,#131c2e);border:1px solid #38bdf888;font:700 12px Orbitron;letter-spacing:1.5px}
+.central:hover{box-shadow:0 0 16px #38bdf850}
+.central .omni{position:relative;left:0;top:0;transform:none;width:26px;height:26px;border-width:2px;box-shadow:none} .central .omni i{width:10px;height:11px}
+.tray{display:flex;gap:6px;align-items:center;padding:0 10px;height:40px;border-radius:13px;background:var(--card);border:1px solid var(--line)}
+.tray small{font-size:10px;opacity:.5;margin-right:2px;white-space:nowrap}
+.tray i{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-style:normal;font-size:11px;color:#fff;cursor:pointer;position:relative}
+.tray i:hover{outline:1px solid var(--p)}
+.menu{position:absolute;bottom:30px;left:-4px;background:#0e1626;border:1px solid #38bdf866;border-radius:10px;padding:5px;display:none;z-index:4;font:600 12px Rajdhani;color:var(--fg);white-space:nowrap}
+.menu div{padding:4px 10px;border-radius:6px} .menu div:hover{background:#38bdf81f} .tray i.m .menu{display:block}
+.acts{margin-left:auto;display:flex;gap:6px}
+.acts button{width:40px;height:40px;font:600 15px Rajdhani;color:var(--p);background:var(--card);border:1px solid var(--line);border-radius:13px;cursor:pointer}
+.acts button:hover{border-color:var(--p)}
+.sysline{font-size:11px;opacity:.5;margin-top:2px}
+
+.zone{position:absolute;top:0;left:50%;width:240px;height:3px;transform:translateX(-50%);z-index:6;opacity:0}
+.debug .zone{opacity:.9;background:var(--amb)}
+
+/* ── dock ── */
+.dockwrap{position:absolute;left:50%;bottom:0;transform:translateX(-50%);z-index:4;padding:0 0 14px;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:10px;width:max-content}
+.dockwrap .dock,.dockwrap .wsbar{pointer-events:auto}
+.dock{position:relative;display:flex;align-items:center;gap:11px;padding:10px 13px 13px;border-radius:24px;background:#0b0f19d6;backdrop-filter:blur(20px);border:1px solid #38bdf859;box-shadow:0 12px 34px #0008;transition:transform .5s var(--ease),opacity .4s}
+.handle{position:absolute;left:50%;bottom:0;height:16px;transform:translateX(-50%);display:flex;gap:5px;align-items:flex-end;padding:0 4px 7px;pointer-events:auto;cursor:pointer;transition:opacity .3s}
+.handle b{width:24px;height:3px;border-radius:2px;background:var(--p);opacity:.4;transition:.3s} .handle b.cur{opacity:1;box-shadow:0 0 8px var(--p);height:4px}
+.debug .handle{background:#fbbf2455}
+.dockwrap:not(.show) .dock,.dockwrap:not(.show) .wsbar{transform:translateY(160%);opacity:0;pointer-events:none}
+.dockwrap.show .handle{opacity:0}
+.app{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer}
+.app .ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;font:700 19px "JetBrains Mono",monospace;color:#fff;transition:transform .2s var(--ease)}
+.app:hover .ic{transform:translateY(-6px) scale(1.08)}
+.app .dot{height:4px;width:5px;border-radius:2px;background:var(--p);opacity:0} .app.open .dot{opacity:1} .app.focus .dot{width:16px}
+.app.focus .ic{box-shadow:0 0 0 2px var(--p),0 0 14px #38bdf880}
+.sep{width:1px;height:32px;background:#38bdf84d}
+.launch{position:relative;width:48px;height:48px} .launch .omni{top:0;width:48px;height:48px}
+.wsbar{display:flex;gap:6px;padding:6px;border-radius:15px;background:#0b0f19d0;backdrop-filter:blur(16px);border:1px solid #38bdf833;transition:transform .45s var(--ease),opacity .3s}
+.wsp{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:4px 9px 4px 8px;border-radius:10px;cursor:pointer;transition:background .2s}
+.wsp:hover{background:#38bdf81f} .wsp.cur{background:#38bdf82e;box-shadow:inset 0 0 0 1px #38bdf888}
+.wsp em{font:700 11px Orbitron;font-style:normal;opacity:.75;min-width:10px} .wsp.cur em{color:var(--p);opacity:1}
+.wsp i{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;font:700 9px "JetBrains Mono",monospace;color:#fff;font-style:normal}
+</style>
+</head>
+<body>
+<h1>AZMUTH · ILHA + DOCK · PROTÓTIPO v3</h1>
+<div class="controls">
+  <div class="ctl on" data-t="detached"><span class="sw"></span>Ilha solta</div>
+  <div class="ctl" data-t="max"><span class="sw"></span>App maximizado</div>
+  <div class="ctl" data-t="debug"><span class="sw"></span>Mostrar zonas de ativação</div>
+</div>
+<p class="hint">Agora em tamanho real: a tela abaixo é 1920×1080 reduzida, então a ilha e a dock aparecem na proporção que vão ter no teu monitor.
+Mouse no Omnitrix → desce · clique → painel · fora/Esc → fecha · risquinho embaixo → dock.</p>
+
+<div class="stage" id="stage"><div class="screen detached" id="screen">
+  <div class="win" id="w1"><div class="tb" id="tabs"></div><div class="body">Navegador</div></div>
+  <div class="win" id="w2"><div class="tb"></div><div class="body">Terminal</div></div>
+
+  <div class="zone" id="zone"></div>
+  <div class="island peek" id="island">
+    <svg class="ring" viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" stroke="#38bdf82e"/><circle cx="26" cy="26" r="24" stroke="#38bdf8" stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="12"/></svg>
+    <div class="omni"><i></i></div>
+    <div class="bar">
+      <div><div class="dna">NEUTRAL</div><div class="en">92%</div></div>
+      <div class="r"><div class="clk js-clock">--:--</div><div class="sub js-sub">--</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        <div class="who">
+          <div class="alien" title="DNA ativo (aqui entra a arte do alien)"><div class="omni"><i></i></div></div>
+          <div><div class="dna">NEUTRAL</div><small>troca em 9 min</small><div class="eb"><i></i></div></div>
+        </div>
+        <div class="time"><div class="clk js-clock">--:--</div><small class="js-date">--</small><div class="sysline">98% · CPU 10% · RAM 46% · 52°</div></div>
+      </div>
+      <div class="row">
+        <div class="tile on"><em>◠</em><div><b>Wi-Fi</b><span>SANTANA NET 5.G</span></div></div>
+        <div class="tile"><em>✱</em><div><b>Bluetooth</b><span>Desligado</span></div></div>
+        <div class="tile"><em>☾</em><div><b>Não perturbe</b><span>Desligado</span></div></div>
+        <div class="tile"><em>◈</em><div><b>Life-Form</b><span>DNA livre</span></div></div>
+      </div>
+      <div class="row">
+        <div class="slider"><em>♪</em><input type="range" value="72"><span class="v">72%</span><button class="out" id="outBtn">Fone USB ▾</button></div>
+        <div class="slider"><em>◐</em><input type="range" value="55"><span class="v">55%</span></div>
+      </div>
+      <div class="mid">
+        <div class="music"><div class="src">♪ SPOTIFY</div><b>Nome da música</b><span>Artista</span>
+          <div class="prog"><span id="tNow">1:18</span><div class="tr" id="track"><i id="bar"></i></div><span>3:42</span></div>
+          <div class="mctl"><span>⏮</span><div class="pp" id="pp">❚❚</div><span>⏭</span></div></div>
+        <div class="card cal"><h4>NOVEMBRO 2026</h4><div class="grid" id="grid"></div></div>
+        <div class="card notif"><h4>NOTIFICAÇÕES <a id="clear">limpar</a></h4><div class="nlist" id="nlist"></div></div>
+      </div>
+      <div class="foot">
+        <div class="central"><div class="omni"><i></i></div>CENTRAL</div>
+        <div class="tray"><small>2º plano</small>
+          <i style="background:#d97757">✳<span class="menu"><div>Abrir Claude</div><div>Sair</div></span></i>
+          <i style="background:#2496ed">⬡<span class="menu"><div>Abrir Docker</div><div>Sair</div></span></i>
+        </div>
+        <div class="acts"><button title="Captura (Super+Alt+S)">⌖</button><button title="Atalhos (Super+/)">▦</button><button title="Bloquear">◈</button><button title="Energia">⏻</button></div>
+      </div>
+      <div class="drop" id="drop">
+        <div class="dc" data-out="1"><h5>SAÍDA</h5><div class="sel">Fone USB <span>AB13X</span></div><div>Alto-falantes <span>notebook</span></div><div>JBL Flip <span>Bluetooth</span></div></div>
+        <div class="dc"><h5>ENTRADA</h5><div class="sel">Microfone <span>notebook</span></div><div>Mic do fone <span>USB</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dockwrap" id="dockwrap">
+    <div class="handle" id="handle" title="workspaces"></div>
+    <div class="wsbar" id="wsbar"></div>
+    <div class="dock">
+      <div class="launch" title="Roda de apps (Super+D)"><div class="omni"><i></i></div></div>
+      <div class="sep"></div>
+      <div id="apps" style="display:flex;gap:11px"></div>
+    </div>
+  </div>
+</div></div>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const stage = $('#stage'), screenEl = $('#screen'), isl = $('#island'), zone = $('#zone');
+// escala real: 1920×1080 cabem na largura disponível
+const fit = () => screenEl.style.transform = `scale(${stage.clientWidth / 1920})`;
+addEventListener('resize', fit); fit();
+
+let phase = 'peek', leaveT = null, dwellT = null;
+const rest = () => screenEl.classList.contains('max') ? 'line' : 'peek';
+const set = p => { phase = p; isl.className = 'island ' + p; };
+
+const tabs = $('#tabs');
+for (let i = 1; i <= 16; i++) { const t = document.createElement('div'); t.className = 'tab' + (i === 8 ? ' sel' : ''); t.textContent = 'Aba ' + i;
+  t.onclick = () => { $$('.tab').forEach(x => x.classList.remove('sel')); t.classList.add('sel'); }; tabs.appendChild(t); }
+
+$$('.ctl').forEach(c => c.onclick = () => { c.classList.toggle('on'); screenEl.classList.toggle(c.dataset.t, c.classList.contains('on')); if (phase !== 'open') set(rest()); });
+
+isl.addEventListener('mouseenter', () => { clearTimeout(leaveT); if (phase === 'peek') set('hover'); });
+zone.addEventListener('mouseenter', () => { clearTimeout(leaveT); dwellT = setTimeout(() => { if (phase === 'line') set('hover'); }, 300); });
+zone.addEventListener('mouseleave', () => clearTimeout(dwellT));
+isl.addEventListener('mouseleave', () => { if (phase === 'hover') leaveT = setTimeout(() => set(rest()), 350); });
+isl.addEventListener('click', e => { if (phase === 'hover') { set('open'); e.stopPropagation(); } });
+$('.panel').addEventListener('click', e => { e.stopPropagation(); drop.classList.remove('show'); $$('.tray i').forEach(i => i.classList.remove('m')); });
+document.addEventListener('click', () => { if (phase === 'open') set(rest()); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && phase === 'open') set(rest()); });
+
+$$('.tile').forEach(t => t.onclick = () => t.classList.toggle('on'));
+$$('.slider input').forEach(r => r.oninput = () => r.nextElementSibling.textContent = r.value + '%');
+$$('.slider').forEach(sl => sl.addEventListener('wheel', e => { e.preventDefault(); const r = sl.querySelector('input');
+  r.value = +r.value + (e.deltaY < 0 ? 5 : -5); r.dispatchEvent(new Event('input')); }, {passive:false}));
+
+const drop = $('#drop');
+$('#outBtn').addEventListener('click', e => { e.stopPropagation(); drop.classList.toggle('show'); });
+$$('.drop .dc div').forEach(d => d.onclick = e => { e.stopPropagation();
+  d.parentElement.querySelectorAll('div').forEach(x => x.classList.remove('sel')); d.classList.add('sel');
+  if (d.parentElement.dataset.out) $('#outBtn').textContent = d.firstChild.textContent.trim() + ' ▾';
+  setTimeout(() => drop.classList.remove('show'), 180); });
+
+// segundo plano: clique abre o menu (Abrir / Sair)
+$$('.tray i').forEach(i => i.addEventListener('click', e => { e.stopPropagation(); const was = i.classList.contains('m');
+  $$('.tray i').forEach(x => x.classList.remove('m')); if (!was) i.classList.add('m'); }));
+
+// música
+let playing = true, pos = 78; const fmt = t => Math.floor(t/60) + ':' + String(t%60).padStart(2,'0');
+const track = $('#track'); let dragging = false;
+const seek = e => { const r = track.getBoundingClientRect(); pos = Math.round(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * 222); paint(); };
+const paint = () => { $('#tNow').textContent = fmt(pos); $('#bar').style.width = (pos/222*100) + '%'; };
+track.addEventListener('mousedown', e => { dragging = true; seek(e); e.stopPropagation(); });
+addEventListener('mousemove', e => { if (dragging) seek(e); }); addEventListener('mouseup', () => dragging = false);
+$('#pp').onclick = e => { playing = !playing; e.currentTarget.textContent = playing ? '❚❚' : '▶'; };
+setInterval(() => { if (playing) { pos = (pos + 1) % 222; paint(); } }, 1000); paint();
+
+// notificações
+let notes = [['#d97757','✳','Claude','Resposta pronta: plano da ilha','agora'],['#25d366','W','WhatsApp','Yasmin: bora amanhã?','3 min'],
+  ['#38bdf8','Ω','Azmuth','Captura salva em Screenshots','12 min'],['#2496ed','⬡','Docker','Container db parado com segurança','1 h']];
+function drawNotes(){ $('#nlist').innerHTML = notes.length ? notes.map(([c,g,a,t,w],k) =>
+  `<div class="n"><i style="background:${c}">${g}</i><div><b>${a} <small>· ${w}</small></b><span>${t}</span></div><span class="x" data-k="${k}">✕</span></div>`).join('')
+  : '<div class="empty">Nada por aqui.</div>';
+  $$('.n .x').forEach(x => x.onclick = () => { notes.splice(+x.dataset.k, 1); drawNotes(); }); }
+$('#clear').onclick = () => { notes = []; drawNotes(); }; drawNotes();
+
+// calendário de novembro/2026 (começa num domingo)
+const grid = $('#grid');
+'DSTQQSS'.split('').forEach(d => grid.insertAdjacentHTML('beforeend', `<div class="wd">${d}</div>`));
+const marks = {5:'m-ev', 12:'m-fx', 20:'m-ev', 26:'m-fx'};
+const now = new Date(), today = now.getMonth() === 10 && now.getFullYear() === 2026 ? now.getDate() : 14;
+for (let d = 1; d <= 30; d++) grid.insertAdjacentHTML('beforeend', `<div class="d ${marks[d] || ''} ${d === today ? 'today' : ''}">${d}</div>`);
+
+// dock + workspaces
+const APPS = {chrome:['#4285f4','◉','Chrome'], files:['#3b82f6','▤','Dolphin'], spot:['#1db954','♪','Spotify'], docker:['#2496ed','⬡','Docker'],
+  claude:['#d97757','✳','Claude'], code:['#2b7cd3','&lt;/','VS Code'], obs:['#7c3aed','◆','Obsidian'], term:['#1e293b','&gt;_','Terminal'], godot:['#478cbf','G','Godot']};
+const PINNED = ['chrome','files','spot','docker','claude','code','obs'];
+const WS = [[1,['chrome']],[2,['claude','term']],[3,['code','term']],[4,['chrome','files']],[5,['spot']],[6,['obs']],[8,['godot','term']]];
+let curWs = 3, focus = 'code';
+function drawDock(){
+  const open = new Set(WS.flatMap(w => w[1]));
+  const list = [...PINNED, ...[...open].filter(k => !PINNED.includes(k))];   // abertos não fixos entram junto, no fim
+  $('#apps').innerHTML = list.map(k => `<div class="app ${open.has(k)?'open':''} ${k===focus?'focus':''}" data-k="${k}" title="${APPS[k][2]}"><div class="ic" style="background:${APPS[k][0]}">${APPS[k][1]}</div><div class="dot"></div></div>`).join('');
+  $$('.app').forEach(a => a.onclick = () => { focus = a.dataset.k; drawDock(); });
+  $('#wsbar').innerHTML = WS.map(([n,a]) => `<div class="wsp ${n===curWs?'cur':''}" data-n="${n}"><em>${n}</em>${a.map(k=>`<i style="background:${APPS[k][0]}">${APPS[k][1]}</i>`).join('')}</div>`).join('');
+  $('#handle').innerHTML = WS.map(([n]) => `<b class="${n===curWs?'cur':''}"></b>`).join('');
+  $$('.wsp').forEach(w => w.onclick = () => { curWs = +w.dataset.n; drawDock(); });
+}
+drawDock();
+const dw = $('#dockwrap'); let dockT = null;
+$('#handle').addEventListener('mouseenter', () => { clearTimeout(dockT); dw.classList.add('show'); });
+['.dock','#wsbar'].forEach(q => { const el = dw.querySelector(q);
+  el.addEventListener('mouseenter', () => clearTimeout(dockT));
+  el.addEventListener('mouseleave', () => { dockT = setTimeout(() => dw.classList.remove('show'), 450); }); });
+
+// relógio
+const dias = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+function tick(){ const n = new Date(), hm = n.toTimeString().slice(0,5);
+  $$('.js-clock').forEach(e => e.textContent = hm);
+  $$('.js-sub').forEach(e => e.textContent = dias[n.getDay()].slice(0,3).toUpperCase() + ' ' + n.getDate() + ' · 98%');
+  $$('.js-date').forEach(e => e.textContent = dias[n.getDay()] + ', ' + n.getDate() + ' de novembro'); }
+tick(); setInterval(tick, 10000);
+
+// para conferência: ?fase=hover|open|line&solta=0&dock=1&drop=1
+const q = new URLSearchParams(location.search);
+if (q.get('solta') === '0') $('[data-t=detached]').click();
+if (q.get('fase') === 'line') $('[data-t=max]').click();
+if (q.get('fase') && q.get('fase') !== 'line') set(q.get('fase'));
+if (q.get('dock')) dw.classList.add('show');
+if (q.get('raw')) { document.body.style.cssText = 'padding:0;gap:0;background:#000'; $$('h1,.controls,.hint').forEach(e => e.remove()); stage.style.cssText = 'width:1920px;border-radius:0;box-shadow:none'; fit(); }
+if (q.get('drop')) drop.classList.add('show');
+</script>
+</body>
+</html>

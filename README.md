@@ -59,7 +59,8 @@ na Central. O ambiente deve acompanhar a tarefa que você escolheu.
 | **Central** | Configurações do Omnitrix, playlists, widgets, calendário, Wi-Fi, som e diagnóstico do sistema. |
 | **Gerenciador de tarefas** | Processos com busca, ordenação, pausa e encerramento; gráficos reais de CPU, memória, disco e rede; controle dos aplicativos de inicialização e de cada DNA. |
 | **Dolphin** | Paleta do DNA, navegação compacta e editor de pastas com cores livres, runas, texto e camadas de marcadores. |
-| **Notificações** | Servidor próprio, ações, histórico no Dashboard, limite de itens visíveis e modo Não perturbe. |
+| **Ilha do Omnitrix e dock** | No lugar da barra: ilha retrátil no topo (painel com Wi-Fi, som, música, calendário e notificações; vira um fio com app maximizado) e dock central recolhida com faixa de workspaces. |
+| **Notificações** | Servidor próprio, ações, histórico no painel da ilha, limite de itens visíveis e modo Não perturbe. |
 | **Capturas e gravação** | Seleção de área direta, capturas de tela/janela e gravação, com arquivos salvos e integração com a área de transferência. |
 | **Login SDDM** | Tema opcional do Omnitrix para a entrada na sessão. |
 | **Terminal** | Kitty, prompt e banner do Omnitrix, cores do DNA e botão direito para colar. |
@@ -127,7 +128,8 @@ continua por 30 minutos sem uso.
 | `Super + D` | Abrir o lançador de aplicativos. |
 | `Alt + Tab` | Alternar janelas pela Constelação. |
 | `Super + Tab` | Explorar a Constelação com WASD. |
-| `Super + W` | Abrir o Dashboard. |
+| `Super + W` | Abrir o painel da ilha. |
+| `Super + F1` | Folha de atalhos. |
 | `Super + Shift + O` | Abrir a Central de Configuração. |
 | `Ctrl + Shift + Esc` | Abrir o gerenciador de tarefas do Azmuth. |
 | `Super + Alt + E` | Editar os widgets na área de trabalho. |

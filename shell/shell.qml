@@ -1,4 +1,6 @@
-// Project Azmuth — shell (Quickshell / QML): barra, Omnitrix HUD e widgets.
+//@ pragma UseQApplication
+// (menus da bandeja — QsMenuAnchor — só abrem com QApplication)
+// Project Azmuth — shell (Quickshell / QML): ilha, Omnitrix HUD e widgets.
 //
 // Camada visual apenas: a lógica dos DNAs continua no core.py.
 //   qs -p shell/                       sobe a shell (barra + HUD residente)
@@ -48,13 +50,23 @@ ShellRoot {
         }
     }
 
-    Variants {
-        model: Quickshell.screens
-        Bar {
-            theme: root.theme
-            shell: root
-        }
+    // ilha do Omnitrix no monitor em foco (a barra antiga, Bar.qml, saiu de cena)
+    Island {
+        id: island
+        theme: root.theme
+        shell: root
+        notifications: notifs
+        screen: root.targetScreen()
     }
+    Dock {
+        id: dock
+        theme: root.theme
+        shell: root
+        screen: root.targetScreen()
+    }
+    AudioAutoSwitch { enabled: root.theme.audio_auto_switch !== false }
+    ShortcutSheet { id: shortcutSheet; theme: root.theme; screen: root.targetScreen() }
+    function openLauncher() { launcher.screen = targetScreen(); launcher.toggle() }
 
     Variants {
         model: Quickshell.screens
@@ -130,14 +142,7 @@ ShellRoot {
         screen: root.targetScreen()
     }
 
-    Dashboard {
-        id: dashboard
-        theme: root.theme
-        notifications: notifs
-        onQuickEvent: d => root.quickEvent(d)
-        onOpenCentral: { configCenter.screen = root.targetScreen(); configCenter.toggle(0) }
-        screen: root.targetScreen()
-    }
+    // o Dashboard (Super+W) saiu: tudo dele está no painel da ilha (Dashboard.qml fica no repo)
 
     property color flashColor: "#38bdf8"
     property int flashTick: 0
@@ -210,14 +215,14 @@ ShellRoot {
                 clipboard: {entries: clipboard.entries.length, images: clipboard.entries.filter(e=>e.kind==="image").length, pins: clipboard.pins.length},
                 notifications: {history: notifs.server.trackedNotifications.values.length, popups: notifs.popups.length},
                 lock: {locked: lockScreen.locked, preview: lockScreen.previewVisible},
-                panels: {hud: root.open, dashboard: dashboard.open, launcher: launcher.open, power: powerMenu.open,
+                panels: {hud: root.open, dashboard: island.phase === "open", launcher: launcher.open, power: powerMenu.open,
                          clipboard: clipboard.open, central: configCenter.open, centralTab: configCenter.tab,
                          overview: constellation.open, assistant: assistant.open, quickEvent: quickEventWin.open},
                 central: configCenter.diagnostics()
             })
         }
         function dismiss(): void {
-            root.open=false;dashboard.open=false;launcher.open=false;powerMenu.close();clipboard.open=false
+            root.open=false;island.close();launcher.open=false;powerMenu.close();clipboard.open=false
             configCenter.open=false;constellation.open=false;assistant.open=false;quickEventWin.open=false
             lockScreen.dismissPreview();DeskLayout.editing=false
         }
@@ -226,7 +231,16 @@ ShellRoot {
         function prev(): void { root.rotate(-1) }
         function confirm(): void { root.confirm() }
         function theme(): void { themeFile.reload() }
-        function dashboard(): void { dashboard.screen = root.targetScreen(); dashboard.toggle(0) }
+        function island(action: string): void {
+            if (action === "open") island.openPanel()
+            else if (action === "close") island.close()
+            else if (action === "hover") island.phase = "hover"
+            else island.toggle()
+        }
+        function dashboard(): void { island.toggle() }   // Super+W
+        function dockShow(action: string): void { dock.hold = action !== "hide"; dock.shown = dock.hold }
+        function atalhos(): void { shortcutSheet.toggle() }
+        function trayMenu(index: int): void { island.openPanel(); island.panel.tray.openMenu(index) }
         function altTab(): void { if (!constellation.open) constellation.screen = root.targetScreen(); constellation.altTab(1) }
         function altTabPrev(): void { if (!constellation.open) constellation.screen = root.targetScreen(); constellation.altTab(-1) }
         function altRelease(): void { constellation.altRelease() }

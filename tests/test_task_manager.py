@@ -214,3 +214,39 @@ class GroupingTests(unittest.TestCase):
         g = self.groups(procs, {300: [{"class": "kitty", "title": "~"}]})
         self.assertEqual(g["Project Azmuth"]["count"], 2)
         self.assertEqual(g["Kitty"]["count"], 2)
+
+
+class UserServiceStartupTests(unittest.TestCase):
+    UNITS = ("docker-desktop.service disabled enabled\n"
+             "pipewire.service enabled enabled\n"
+             "hypridle.service disabled enabled\n"
+             "fumon.service disabled enabled\n"
+             "jack@.service disabled enabled\n")
+    CAT = {"docker-desktop.service": "[Unit]\nDescription=Docker Desktop\n[Install]\nWantedBy=graphical-session.target\n",
+           "fumon.service": "[Unit]\nDescription=Fumon\n[Install]\nWantedBy=multi-user.target\n"}
+
+    def fake_run(self, argv, **kw):
+        if argv[:3] == ["systemctl", "--user", "list-unit-files"]:
+            return subprocess.CompletedProcess(argv, 0, self.UNITS, "")
+        if argv[:3] == ["systemctl", "--user", "cat"]:
+            return subprocess.CompletedProcess(argv, 0, self.CAT.get(argv[3], ""), "")
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    def test_user_services_lists_docker(self):
+        with patch.object(tm.subprocess, "run", side_effect=self.fake_run):
+            rows = tm.user_services()
+        self.assertEqual([r["id"] for r in rows], ["service:docker-desktop.service"])
+        self.assertEqual(rows[0]["name"], "Docker Desktop")
+        self.assertIs(rows[0]["enabled"], False)
+        self.assertEqual(rows[0]["kind"], "service")
+
+    def test_toggle_service_calls_systemctl(self):
+        with patch.object(tm.subprocess, "run", side_effect=self.fake_run) as run:
+            result = tm.startup_toggle("service:docker-desktop.service", True)
+        self.assertTrue(result["ok"])
+        self.assertIn(["systemctl", "--user", "enable", "docker-desktop.service"], [c.args[0] for c in run.call_args_list])
+
+    def test_toggle_rejects_unknown_service(self):
+        with patch.object(tm.subprocess, "run", side_effect=self.fake_run):
+            with self.assertRaises(ValueError):
+                tm.startup_toggle("service:pipewire.service", False)

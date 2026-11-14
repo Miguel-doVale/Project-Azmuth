@@ -39,6 +39,12 @@ Item {
                 checked: dp.settings ? dp.settings.live_desktop : true
                 onToggled: v => dp.setPref("live_desktop", v)
             }
+            UiToggle {
+                label: "Ilha solta"
+                hint: "A ilha do Omnitrix flutua a alguns pixels do topo (desligado = colada no teto da tela)"
+                checked: dp.settings && dp.settings.island ? dp.settings.island.detached : true
+                onToggled: v => dp.setPref("island.detached", v)
+            }
 
             // editar na tela
             Rectangle {

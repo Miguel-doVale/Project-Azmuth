@@ -17,6 +17,13 @@ hl.on("hyprland.start", function()
     hl.exec_cmd(AZ .. " start --login")
 end)
 
+-- seleção do slurp (capturas) some na hora: com animação, o grim pegava o véu azul na print
+hl.layer_rule({
+    name   = "azmuth-slurp",
+    match  = { namespace = "^selection$" },
+    no_anim = true,
+})
+
 -- HUD e flash de transformação desenham a própria animação
 hl.layer_rule({
     name   = "azmuth-layers",
@@ -77,7 +84,7 @@ for n = 0, 9 do
     hl.bind(mainMod .. " + ALT + " .. n, cmd)
 end
 
--- Dashboard (relógio, DNA, música, calendário) e painel de Configuração do Omnitrix
+-- Painel da ilha do Omnitrix (Super+W) e Central de Configuração
 hl.bind(mainMod .. " + W", function() hud("dashboard") end)
 hl.bind(mainMod .. " + SHIFT + O", function() hud("config") end)
 
@@ -107,6 +114,14 @@ hl.bind(mainMod .. " + D", function() hud("launcher") end)
 
 -- Gerenciador de tarefas: processos, desempenho e inicialização
 hl.bind("CTRL + SHIFT + Escape", hl.dsp.exec_cmd(AZ .. " tasks"))
+-- abre como janela flutuante, centralizada (não entra no lado a lado)
+hl.window_rule({
+    name   = "azmuth-tasks-float",
+    match  = { class = "^org\\.quickshell$", title = "^Azmuth · Gerenciador de tarefas$" },
+    float  = true,
+    size   = "1180 760",
+    center = true,
+})
 
 -- Assistente Azmuth (Claude Code ou Ollama; só age por azmuth ai-action, com validação)
 hl.bind(mainMod .. " + A", function() hud("assistant") end)
@@ -169,6 +184,8 @@ end)
 
 -- se a shell cair com a tela travada, deixa outra instância retomar a trava
 hl.config({ misc = { allow_session_lock_restore = true } })
+-- o cursor fica onde está ao abrir/focar/restaurar uma janela (sem pular para o centro dela)
+hl.config({ cursor = { no_warps = true } })
 
 -- Super + M bloqueia (antes fazia logout). Sair/reiniciar/desligar: Super + Shift + Q.
 hl.bind(mainMod .. " + M", hl.dsp.exec_cmd(AZ .. " lock"))
@@ -208,3 +225,8 @@ hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd(AZ .. " shot area"))
 hl.bind("Print",                   hl.dsp.exec_cmd(AZ .. " shot full"))
 hl.bind(mainMod .. " + Print",     hl.dsp.exec_cmd(AZ .. " shot window"))
 hl.bind(mainMod .. " + ALT + S",   hl.dsp.exec_cmd(AZ .. " shot menu"))
+
+-- Super + F1 mostra a folha de atalhos (também: Super + / do teclado numérico, azmuth atalhos).
+-- No ABNT2 de notebook o "/" sai com AltGr+Q, por isso o F1.
+hl.bind(mainMod .. " + F1",        hl.dsp.exec_cmd(AZ .. " atalhos menu"))
+hl.bind(mainMod .. " + KP_Divide", hl.dsp.exec_cmd(AZ .. " atalhos menu"))

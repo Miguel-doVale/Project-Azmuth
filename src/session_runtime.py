@@ -169,7 +169,7 @@ def diagnose():
               ("serviço ativo" if active else "serviço bluetooth.service parado") + " · " + str(agents) + " agente(s) de pareamento")
     result = command(["hyprctl", "configerrors"])
     check("Configuração do Hyprland", result.returncode == 0 and not result.stdout.strip(), result.stdout.strip() or "sem erros")
-    missing = [name for name in ["qs", "hyprctl", "hypridle", "hyprpaper", "wpctl", "wl-copy", "wl-paste", "cliphist", "grim", "slurp", "wf-recorder", "dolphin", "kitty", "gio"] if not shutil.which(name)]
+    missing = [name for name in ["qs", "hyprctl", "hypridle", "hyprpaper", "wpctl", "wl-copy", "wl-paste", "cliphist", "grim", "slurp", "wf-recorder", "brightnessctl", "playerctl", "dolphin", "kitty", "gio"] if not shutil.which(name)]
     check("Ferramentas da rice", not missing, ", ".join(missing) if missing else "todas encontradas")
     try:
         count = 0

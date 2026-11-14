@@ -29,7 +29,8 @@ Uso:
   azmuth power                           menu de energia (Super + Shift + Q)
   azmuth shot [area|full|window|menu]    capturas (Super+Shift+S, Print, Super+Print, Super+Alt+S)
   azmuth event add AAAA-MM-DD [HH:MM] t  marca evento no calendário · azmuth event list
-  azmuth lifeform on | off 1010          Life-Form Lock: trava o DNA atual sem timeout (Super+Shift+L)
+  azmuth lifeform on | off <código>      Life-Form Lock: trava o DNA atual sem timeout (Super+Shift+L)
+  azmuth <código> · lifeform code        libera com o Command Code · troca o código
   azmuth app "<nome>"                    abre um app pelo nome
   azmuth files [pasta|--split|--setup|--restore]  Dolphin nas cores do DNA
   azmuth tasks [--tab startup]           processos, desempenho e inicialização
@@ -81,7 +82,36 @@ DEFAULT_SETTINGS = {
     "assistant": {
         "provider": "claude",       # "claude" (Claude Code na conta do usuário) ou "ollama" (local)
     },
+    "island": {"detached": True},   # ilha do Omnitrix solta do topo (false = colada no teto)
+    "dock": {"pinned": ["google-chrome", "org.kde.dolphin", "spotify", "docker-desktop",
+                        "com.anthropic.Claude", "com.microsoft.VSCode", "obsidian"]},   # ids de .desktop
+    "windows": {"maximize": ["google-chrome"]},   # classes que abrem maximizadas
+    "audio_auto_switch": True,      # aparelho conectado vira a saída/entrada padrão
 }
+
+LIST_SETTINGS = {"dock.pinned", "windows.maximize"}
+BOOL_SETTINGS = {"island.detached", "audio_auto_switch"}
+
+
+def validate_setting(path: str, value):
+    """Valida e normaliza as preferências da ilha/dock/janelas/som; outros caminhos passam direto."""
+    if path in BOOL_SETTINGS:
+        if not isinstance(value, bool):
+            raise ValueError(f"'{path}' deve ser true ou false")
+        return value
+    if path in LIST_SETTINGS:
+        if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+            raise ValueError(f"'{path}' deve ser uma lista de textos, ex.: [\"google-chrome\"]")
+        items = []
+        for v in (v.strip() for v in value):
+            if not v:
+                raise ValueError(f"'{path}' não aceita item vazio")
+            if v not in items:
+                items.append(v)
+        if len(items) > 20:
+            raise ValueError(f"'{path}' aceita no máximo 20 itens")
+        return items
+    return value
 
 ROFI_THEME = HOME / ".config/rofi/azmuth.rasi"
 DUNST_RC = HOME / ".config/dunst/dunstrc"
@@ -397,6 +427,9 @@ def write_theme(data: dict | None = None) -> None:
         "wallpaper": str(ROOT / data["wallpaper"]["path"]),
         "timer": timer_info(state, settings, load_roster()["neutral"]),
         "art": str(ROOT / data["hud"]["art"]) if (data.get("hud") or {}).get("art") else "",
+        "island": settings["island"],
+        "dock": settings["dock"],
+        "audio_auto_switch": settings["audio_auto_switch"],
         **data["palette"],
     }
     STATE_DIR.mkdir(parents=True, exist_ok=True)
@@ -640,7 +673,7 @@ AZMUTH_SAYS = {
     "recharge": ["Paciência, garoto. O Omnitrix não é um brinquedo.", "Recarregando. Até eu preciso de um minuto.",
                  "Insistir não acelera a recarga. Física básica."],
     "recalibrate": ["Recalibrando. Mexer agora seria… uma péssima ideia.", "Atualização em curso. Não toque em nada."],
-    "lifeform": ["Life-Form Lock ativo. Você mesmo pediu isso.", "Travado no DNA atual. Command Code 1010 para liberar."],
+    "lifeform": ["Life-Form Lock ativo. Você mesmo pediu isso.", "Travado no DNA atual. Só o Command Code libera."],
     "error": ["Pathetic workmanship!", "Algo deu errado. Não foi culpa minha, obviamente."],
 }
 
@@ -835,10 +868,18 @@ def cmd_set(path: str, raw: str) -> None:
         value = json.loads(raw)          # true/false/números/listas
     except json.JSONDecodeError:
         value = raw                      # texto puro
+    try:
+        value = validate_setting(path, value)
+    except ValueError as exc:
+        raise SystemExit(f"[ERRO] {exc}")
     if path.startswith("timer"):
         settle_energy()                  # fecha a conta com a taxa antiga
     set_setting(path, value)
     write_theme()                        # barra/timer refletem na hora
+    if path.startswith("windows"):
+        log(json.dumps(__import__("window_rules").apply(), ensure_ascii=False))
+    if path == "audio_auto_switch":
+        __import__("audio_runtime").switch_on_connect(value)
     log(f"[OK] {path} = {json.dumps(value)}")
 
 
@@ -893,6 +934,7 @@ def cmd_shot(mode: str) -> None:
         if r.returncode != 0 or not r.stdout.strip():
             return                                          # Esc no slurp
         geom = r.stdout.strip()
+        time.sleep(0.15)   # a seleção do slurp precisa sumir da tela antes do grim (senão a print sai azulada)
     elif mode == "window":
         w = json.loads(run(["hyprctl", "activewindow", "-j"]).stdout or "{}")
         if not w.get("at"):
@@ -982,12 +1024,53 @@ def cmd_app(name: str) -> None:
     log(f"[OK] abrindo {best[2]}")
 
 
+LIFEFORM_CODE_FILE = STATE_DIR / "lifeform-code.json"
+LIFEFORM_DEFAULT = "1010"   # o Command Code da série; troque com `azmuth lifeform code`
+
+
+def _code_hash(code: str, salt: str) -> str:
+    import hashlib
+    return hashlib.sha256(f"{salt}:{code}".encode()).hexdigest()
+
+
+def lifeform_code_ok(code: str) -> bool:
+    import hmac
+    try:
+        rec = json.loads(LIFEFORM_CODE_FILE.read_text())
+        return hmac.compare_digest(_code_hash(code, rec["salt"]), rec["hash"])
+    except (FileNotFoundError, KeyError, json.JSONDecodeError):
+        return hmac.compare_digest(code, LIFEFORM_DEFAULT)
+
+
+def cmd_lifeform_code() -> None:
+    """Troca o Command Code. Pede tudo escondido (nada fica no histórico do terminal)."""
+    import getpass
+    if not lifeform_code_ok(getpass.getpass("Command Code atual: ").strip()):
+        raise SystemExit("[ERRO] Command Code incorreto.")
+    new = getpass.getpass("Novo Command Code (4+ dígitos): ").strip()
+    if not (new.isdigit() and len(new) >= 4):
+        raise SystemExit("[ERRO] use 4 ou mais dígitos.")
+    if getpass.getpass("Repita: ").strip() != new:
+        raise SystemExit("[ERRO] os dois não batem.")
+    salt = os.urandom(8).hex()
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    LIFEFORM_CODE_FILE.write_text(json.dumps({"salt": salt, "hash": _code_hash(new, salt)}))
+    LIFEFORM_CODE_FILE.chmod(0o600)
+    log("[OK] Command Code trocado.")
+
+
 def cmd_lifeform(args: list[str]) -> None:
     """Life-Form Lock (Omniverse): trava o DNA atual, sem timeout.
-    azmuth lifeform on · azmuth lifeform off 1010 (Command Code 1010 libera) · azmuth lifeform toggle"""
+    azmuth lifeform on · azmuth lifeform off <código> (ou só: azmuth <código>)
+    azmuth lifeform toggle (Super+Shift+L: quem está no teclado não precisa do código)
+    azmuth lifeform code   troca o Command Code"""
     state = read_state()
     on = state.get("lifeform_lock", False)
     action = args[0] if args else "toggle"
+    if action == "code":
+        cmd_lifeform_code()
+        return
+    keyboard = action == "toggle"
     if action == "toggle":
         action = "off" if on else "on"
     if action == "on":
@@ -997,14 +1080,17 @@ def cmd_lifeform(args: list[str]) -> None:
         settle_energy()
         update_state(lifeform_lock=True)
         play(sound("hud_open"))
-        notify("Life-Form Lock ativado", "DNA travado, sem timeout. Command Code 1010 para liberar.", "normal")
+        notify("Life-Form Lock ativado", "DNA travado, sem timeout. Libere com o Command Code.", "normal")
     elif action == "off":
-        if "1010" not in args and "toggle" not in (args[:1] or ["toggle"]):
-            raise SystemExit("[ERRO] informe o Command Code: azmuth lifeform off 1010")
+        if not keyboard and not lifeform_code_ok(args[1] if len(args) > 1 else ""):
+            play(sound("error"))
+            raise SystemExit("[ERRO] Command Code incorreto. Uso: azmuth lifeform off <código>")
         settle_energy()
         update_state(lifeform_lock=False)
         play(sound("recharge"))
-        notify("Life-Form Lock desativado", "Command Code 1010 aceito. Tennyson Benjamin… digo, Miguel, liberado.")
+        notify("Life-Form Lock desativado", "Command Code aceito. Tennyson Benjamin… digo, Miguel, liberado.")
+    else:
+        raise SystemExit("[ERRO] uso: azmuth lifeform on | off <código> | toggle | code")
     write_theme()
     log(f"Life-Form Lock: {read_state().get('lifeform_lock', False)}")
 
@@ -1041,6 +1127,10 @@ def cmd_restore() -> None:
         display.apply(force=True)
     except Exception as exc:  # telas nunca impedem o restore
         log(f"[AVISO] Telas: {exc}")
+    try:   # apps que abrem maximizados (regras de runtime somem no reload)
+        __import__("window_rules").apply()
+    except Exception as exc:
+        log(f"[AVISO] Janelas: {exc}")
 
 
 def cmd_wallpaper() -> None:
@@ -1091,6 +1181,10 @@ def cmd_install() -> None:
     link(HOME / ".config/fastfetch/config.jsonc", ROOT / "terminal/fastfetch.jsonc")
     link(HOME / ".config/fastfetch/omnitrix.txt", ROOT / "terminal/omnitrix.txt")
     __import__("task_manager").install_entry()
+    for msg in __import__("app_compat").install():   # apps XWayland → Wayland nativo (nítidos)
+        log(msg)
+    if __import__("audio_runtime").switch_on_connect(read_settings()["audio_auto_switch"]):
+        log("[som] troca automática de saída ao conectar: " + ("ligada" if read_settings()["audio_auto_switch"] else "desligada"))
     bashrc = HOME / ".bashrc"
     if BASHRC_LINE not in bashrc.read_text():
         with open(bashrc, "a") as f:
@@ -1133,6 +1227,9 @@ COMMANDS = {
     "ask": lambda a: __import__("azmuth_ai").main(a),
     "ai-action": lambda a: __import__("azmuth_ai").action_cli(a),
     "display": lambda a: __import__("display").main(a),
+    "windows": lambda a: __import__("window_rules").main(a),
+    "atalhos": lambda a: __import__("shortcuts").main(a),
+    "shortcuts": lambda a: __import__("shortcuts").main(a),
 }
 NEEDS_ARG = {"apply", "slot", "set"}
 
@@ -1142,6 +1239,9 @@ def main() -> None:
     if not args or args[0] in ("-h", "--help"):
         print(__doc__)
         sys.exit(0 if args else 1)
+    if args[0].isdigit() and len(args[0]) >= 4:   # azmuth 1010 → Command Code do Life-Form Lock
+        cmd_lifeform(["off", args[0]])
+        return
     if args[0].endswith(".yaml"):  # uso original: core.py dna/<nome>.yaml
         args = ["apply", args[0]]
     cmd, rest = args[0], args[1:]

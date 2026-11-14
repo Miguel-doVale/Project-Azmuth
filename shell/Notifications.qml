@@ -68,8 +68,9 @@ Scope {
         id: win
         screen: ns.screen
         visible: ns.popups.length > 0
-        anchors { top: true }
-        margins.top: 78                            // logo abaixo da cápsula da barra
+        anchors { top: true; right: true }
+        margins.top: 14                            // canto superior direito (a ilha ocupa o centro do topo)
+        margins.right: 14
         implicitWidth: 440
         implicitHeight: Math.max(1, col.implicitHeight + 8)
         exclusionMode: ExclusionMode.Ignore

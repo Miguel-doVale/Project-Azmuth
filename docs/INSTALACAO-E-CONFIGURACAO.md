@@ -39,7 +39,7 @@ O DNA YAML é a fonte de identidade, cores e comportamento. O motor Python valid
 | --- | --- | --- |
 | Omnitrix e seleção de DNA | <code>shell/OmnitrixDial.qml</code>, <code>shell/shell.qml</code>, <code>src/core.py</code> | <code>Super + Space</code> chama a shell por IPC. O catálogo fica em <code>dna/omnitrix.yaml</code>; a transformação chama <code>azmuth apply</code>. |
 | Perfis e transformação | <code>dna/*.yaml</code>, <code>src/core.py</code> | O motor valida o YAML e aplica Hyprland, wallpaper, Rofi, Dunst, Hyprlock, Kitty e Dolphin. DNA ativo e energia ficam no estado Azmuth. |
-| Barra e bandeja | <code>shell/Bar.qml</code>, <code>shell/SysStats.qml</code> | Quickshell cria uma barra por monitor; lê tema ativo, workspaces, janelas, rede, PipeWire, bateria e bandeja. |
+| Ilha e dock | <code>shell/Island.qml</code>, <code>shell/IslandPanel.qml</code>, <code>shell/Dock.qml</code>, <code>shell/SysStats.qml</code> | Ilha do Omnitrix no topo (repouso, mouse, painel, fio com app maximizado) e dock central recolhida, no monitor em foco; leem tema ativo, workspaces, janelas, rede, PipeWire, MPRIS, bateria e bandeja. Não reservam espaço da tela. A barra antiga (<code>Bar.qml</code>) e o <code>Dashboard.qml</code> ficam no repositório, sem uso. |
 | Desktop animado e widgets | <code>shell/LiveDesktop.qml</code>, <code>shell/Widgets.qml</code>, <code>shell/DeskWidget.qml</code>, <code>shell/DeskLayout.qml</code> | O desktop animado lê DNA e métricas. Posição, escala e catálogo ficam em <code>desktop.json</code>. |
 | Lançador e playlists | <code>shell/Launcher.qml</code>, <code>shell/Playlists.qml</code> | Catálogo vem dos arquivos <code>.desktop</code>. Playlists, runas, cores, ordem e aplicativos ficam em <code>playlists.json</code>. |
 | Constelação | <code>shell/Constellation.qml</code>, <code>hypr/azmuth.lua</code> | Usa janelas e workspaces do Hyprland; <code>Alt + Tab</code> alterna e <code>Super + Tab</code> abre navegação. |
@@ -81,9 +81,10 @@ O gerenciador de tarefas precisa de Linux/Python com suporte a pidfd para contro
 
 | Componente | Necessário para |
 | --- | --- |
-| Quickshell com Core/QML, Io, Widgets, Hyprland, Wayland, Networking, PipeWire, System Tray, UPower, MPRIS, Notifications e PAM | Shell, barra, rede, som, mídia, bandeja, bateria, notificações e bloqueio. |
+| Quickshell com Core/QML, Io, Widgets, Hyprland, Wayland, Networking, PipeWire, System Tray, UPower, MPRIS, Notifications e PAM | Shell, ilha, dock, rede, som, mídia, bandeja, bateria, notificações e bloqueio. A shell roda em modo QApplication (<code>//@ pragma UseQApplication</code>) para os menus da bandeja abrirem. |
 | NetworkManager e <code>nmcli</code> | Lista e conexão de redes. O serviço do sistema precisa estar ativo; algumas configurações também exigem um agente Polkit na sessão. |
 | PipeWire, WirePlumber e <code>wpctl</code> | Áudio, dispositivos e volume. |
+| <code>brightnessctl</code> e <code>playerctl</code> | Teclas de brilho (Fn+F3/F4) e de mídia. |
 | <code>wl-clipboard</code> e <code>cliphist</code> | Histórico, fixados e integração da área de transferência. |
 | <code>grim</code>, <code>slurp</code>, <code>wf-recorder</code> | Capturas e gravações. |
 | <code>gio</code>, <code>systemctl</code>, <code>busctl</code>, <code>notify-send</code>, <code>pw-play</code> | Inicialização, sessão, notificações e sons. <code>gio</code> vem de GLib e <code>notify-send</code> de libnotify. |

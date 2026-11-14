@@ -87,6 +87,11 @@ class Engine:
             threading.Timer(1.0, hotplug).start()
         elif name == "configreloaded":
             self.load_triggers()
+            # o reload do Hyprland apaga as regras de runtime: telas e apps maximizados voltam
+            def reapply():
+                subprocess.run([str(core.ROOT / "bin/azmuth"), "display", "apply", "--force"], capture_output=True)
+                subprocess.run([str(core.ROOT / "bin/azmuth"), "windows", "apply"], capture_output=True)
+            threading.Timer(0.5, reapply).start()
 
     def evaluate(self, seq: int) -> None:
         with self.lock:
@@ -189,6 +194,7 @@ class CoreWatch:
         self.last_apps = 0.0
         self.hot_since = 0.0
         self.failsafe_done = False
+        self.docker = __import__("docker_guard").DockerGuard(core.notify, core.log)
 
     @staticmethod
     def list_apps() -> dict:
@@ -233,6 +239,7 @@ class CoreWatch:
             elif mode == "recalibrate":
                 core.play(core.sound("beep"))
                 core.log("[core] recalibrando (pacman)")
+        self.docker.tick()            # containers param com segurança antes da bateria acabar
         self.check_failsafe(state, now)
 
     def check_failsafe(self, state: dict, now: float) -> None:

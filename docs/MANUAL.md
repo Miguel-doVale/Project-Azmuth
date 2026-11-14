@@ -25,7 +25,7 @@ o Azmuth em outro Arch, mapear dependências e configurar cada recurso, use o
 | Ver tudo que está aberto | `Super + Tab` |
 | Configurar o Omnitrix | `Super + Shift + O` |
 | Processos, desempenho e inicialização | `Ctrl + Shift + Esc` |
-| Relógio, música, calendário | `Super + W` |
+| Painel da ilha (Wi-Fi, som, música, calendário, notificações) | `Super + W` |
 | Bloquear | `Super + M` |
 | Desligar / reiniciar | `Super + Shift + Q` |
 | Captura de área | `Super + Shift + S` |
@@ -43,10 +43,11 @@ o Azmuth em outro Arch, mapear dependências e configurar cada recurso, use o
 | `Super + Shift + R` | Randomizer (sorteia um DNA) |
 | `Super + Y` | Aceita a sugestão do Context Engine |
 | `Super + Shift + M` | Liga/desliga Master Control (troca automática, energia congelada) |
-| `Super + Shift + L` | Life-Form Lock: trava o DNA atual sem timeout (comando: `azmuth lifeform off 1010`) |
+| `Super + Shift + L` | Life-Form Lock: trava o DNA atual sem timeout (por comando: `azmuth <código>`; troque o código com `azmuth lifeform code`) |
 | `Super + A` | Assistente Azmuth (conversa e age pelos comandos `azmuth`) |
 | `Super + Shift + O` | Central de Configuração |
-| `Super + W` | Dashboard (relógio, DNA, música, calendário, notificações) |
+| `Super + W` | Painel da ilha do Omnitrix (Wi-Fi, som, música, calendário, notificações) |
+| `Super + F1` | Folha de atalhos (também `/` do teclado numérico e `azmuth atalhos`) |
 | `Super + Alt + E` | Modo edição da área de trabalho (desktop canvas) |
 
 ### Apps e janelas
@@ -85,7 +86,7 @@ o Azmuth em outro Arch, mapear dependências e configurar cada recurso, use o
 ## 3. Os sistemas
 
 ### Recuperar o Omnitrix: `azmuth send`
-Se a barra, os menus ou as notificações voltarem ao comportamento antigo,
+Se a ilha, a dock, os menus ou as notificações voltarem ao comportamento antigo,
 execute **`azmuth send`** no terminal. O nome remete a pedir que Azmuth envie
 o Omnitrix de volta.
 
@@ -107,7 +108,7 @@ prévias; `azmuth lock --preview` não chama o bloqueio antigo quando a shell es
 
 ### DNAs
 Um **DNA** é um estado completo do sistema: cores, gaps, layout, wallpaper,
-tema do terminal, da barra, das notificações e da tela de bloqueio, apps e som.
+tema do terminal, da ilha, das notificações e da tela de bloqueio, apps e som.
 Hoje existem **Neutral** (azul, Arch no core) e **Massa Cinzenta** (verde,
 foco em código). Os outros 9 aliens aparecem bloqueados até ganharem um DNA.
 
@@ -117,7 +118,7 @@ foco em código). Os outros 9 aliens aparecem bloqueados até ganharem um DNA.
 - Abaixo do mínimo (padrão 20%) não dá para transformar.
 - Em 0% destransforma sozinho, com bipes no último minuto.
 - Master Control congela a carga. Tudo ajustável na Central → Omnitrix.
-- Onde ver: cápsula da barra, Dashboard, anel OMNITRIX na área de trabalho.
+- Onde ver: anel em volta do Omnitrix da ilha (mouse em cima), painel da ilha, anel OMNITRIX na área de trabalho.
 
 ### Cores do core (cânone)
 - **Amarelo · SCAN DE DNA:** download em andamento, ou app novo instalado (avisa "Novo DNA
@@ -128,7 +129,7 @@ foco em código). Os outros 9 aliens aparecem bloqueados até ganharem um DNA.
 
 ### Life-Form Lock e Failsafe
 - **Life-Form Lock** (`Super + Shift + L`): trava o DNA atual sem timeout; nada transforma até liberar.
-  Liberar por comando exige o código: `azmuth lifeform off 1010`. A runa Chave aparece no Omnitrix da barra.
+  Liberar por comando exige o Command Code (padrão 1010): `azmuth <código>` ou `azmuth lifeform off <código>`. Para trocar: `azmuth lifeform code` (pede tudo escondido). A runa Chave aparece no Omnitrix da ilha.
 - **Failsafe:** bateria ≤ 7% descarregando ou CPU ≥ 95 °C por 10 s → volta ao Neutral (mesmo travado
   ou recarregando), com notificação crítica.
 
@@ -159,12 +160,43 @@ para a ampulheta ao transformar, e a silhueta do alien no centro. Clicar nele
 abre o HUD. Em volta: relógio e anéis de CPU, RAM, temperatura e energia.
 Desligável na Central.
 
-### Barra (HUD galvânico)
-Workspaces com os ícones dos apps, minimizados, janela ativa, bandeja,
-volume (scroll ajusta), rede, CPU/RAM, bateria, energia. A cápsula central
-mostra o DNA, o anel de energia e o tempo/carga. Clique no Omnitrix da barra:
-HUD · direito: Randomizer · meio: Master Control. Os indicadores de CPU/RAM
-abrem o gerenciador de tarefas em Desempenho.
+### Ilha do Omnitrix (topo) — substitui a barra
+Não ocupa espaço da tela. Três fases:
+- **Repouso:** só a pontinha do Omnitrix aparece embaixo da câmera.
+- **Mouse em cima:** a ilha desce e abre para os lados — DNA, energia (anel em volta do Omnitrix), hora,
+  dia e bateria. Saiu com o mouse, ela recolhe.
+- **Clique (ou `Super + W`):** abre o **painel** — retrato do DNA ativo (arte do alien), hora e sistema;
+  Wi-Fi, Bluetooth, Não perturbe e Life-Form (clique liga/desliga; clique direito abre a aba da Central);
+  som e brilho (**rolar o mouse** em cima ajusta; o botão da saída abre a lista de saídas e entradas;
+  com o equalizador ligado ele mostra `EQ · <aparelho>`); música (capa, tempo arrastável, controles);
+  calendário (clique num dia cria evento); clique no quadrado da música abre o player (Spotify, ou o
+  Chrome se for um vídeo do YouTube); notificações; **CENTRAL**; **2º plano** (ícones da bandeja:
+  clique abre o menu do app, com "Sair"); captura, atalhos, bloquear e energia (com o mouse parado em
+  cima aparece o nome de cada um). Fecha com Esc ou clique fora.
+- **App maximizado ou em tela cheia:** a ilha vira um **fio de luz** e só desce se o mouse encostar no
+  topo e ficar parado ~0,3 s (as abas do navegador continuam clicáveis).
+
+Clique direito no Omnitrix da ilha: Randomizer · meio: Master Control. **Ilha solta** (flutua a alguns
+pixels do topo) ou colada no teto: Central → Área de trabalho (`azmuth set island.detached true|false`).
+
+### Dock (embaixo)
+Sempre recolhida: sobra um **risquinho** com um segmento por workspace ocupado (o atual aceso).
+Encoste nele e sobem a **faixa de workspaces** (número + ícones do que está aberto em cada um; clique
+troca) e a **dock**: Omnitrix (roda de apps do `Super + D`) e os apps fixos — Chrome, Dolphin, Spotify,
+Docker, Claude, VS Code, Obsidian (`azmuth set dock.pinned '["google-chrome", …]'`, ids de `.desktop`).
+Apps abertos que não são fixos entram no fim. Ponto embaixo = aberto; traço comprido = em foco.
+Clique como no Windows: fechado abre, aberto vai até ele, em foco minimiza. **Clique direito** num app:
+fixar/desafixar. **Arraste** um app fixo para mudar a ordem (fica salva).
+
+### Apps que abrem maximizados
+`windows.maximize` (padrão: `["google-chrome"]`) — esses apps abrem ocupando a tela toda, com a ilha
+e a dock por cima. `azmuth set windows.maximize '["google-chrome", "obsidian"]'` aplica na hora;
+`azmuth windows apply` reaplica.
+
+### Som automático ao conectar
+Fone com fio, USB ou Bluetooth conectado vira a saída padrão na hora — a shell só troca para
+aparelhos de verdade. Com o equalizador ligado, o EasyEffects segue a saída padrão e leva o EQ junto
+(o `azmuth install` configura isso). Desligar: `azmuth set audio_auto_switch false`.
 
 ### Lançador (`Super + D`)
 O Omnitrix com apps no lugar dos aliens. As **playlists** (nome, runa, cor,
@@ -199,8 +231,9 @@ rodar `python3 tools/gen_galvan.py`.
 - **Apps**: playlists do lançador (nome, runa, cor, ordem, apps; apps soltos em SEM PLAYLIST).
 - **Wi-Fi**: liga/desliga, rede atual, lista com sinal, conectar com senha (via D-Bus), esquecer.
 - **Bluetooth**: ver a seção Bluetooth abaixo.
-  O chip de rede da barra abre esta aba.
-- **Som**: alterna saídas e microfones, controla volume/mudo por dispositivo e aplicativo, mostra níveis reais de reprodução/captura e seleciona rotas físicas do fone, alto-falante e headset conforme o hardware detecta conexão. A aba Equalizador oferece curvas iniciais e 10 bandas de −12 a +12 dB pelo EasyEffects. O chip de volume da barra abre esta aba (clique direito = mudo).
+  Clique direito no botão Wi-Fi do painel da ilha abre esta aba.
+- **Telas**: projetor e segundo monitor — espelhar, estender (com posição), só a tela externa ou só o notebook; resolução e escala; **Forçar detecção** para cabo/projetor com sinal instável. O modo escolhido volta sozinho ao conectar o cabo (`azmuth display …`).
+- **Som**: alterna saídas e microfones, controla volume/mudo por dispositivo e aplicativo, mostra níveis reais de reprodução/captura e seleciona rotas físicas do fone, alto-falante e headset conforme o hardware detecta conexão. A aba Equalizador oferece curvas iniciais e 10 bandas de −12 a +12 dB pelo EasyEffects. O botão de saída do painel da ilha troca o aparelho direto.
 - **Área de trabalho**: área viva, widgets na tela (tamanho, remover), catálogo, imagens e **Editar na tela**.
 - **Sistema**: CPU, memória, temperatura e acesso ao gerenciador e à inicialização.
 - **Calendário** (também clicando num dia de qualquer widget de calendário → evento rápido): mês com marcas nos dias com evento, eventos do dia, adicionar/editar/apagar com
@@ -208,9 +241,9 @@ rodar `python3 tools/gen_galvan.py`.
   widgets de calendário mostram as marcas e os próximos eventos.
 
 ### Gerenciador de tarefas (`Ctrl + Shift + Esc`)
-Abre uma janela normal, com as cores do DNA atual. Também está na Central →
-**Sistema**, no lançador como **Gerenciador de tarefas · Azmuth** e nos
-indicadores de CPU/RAM da barra.
+Abre como janela flutuante centralizada, com as cores do DNA atual. Também está na Central →
+**Sistema** e no lançador como **Gerenciador de tarefas · Azmuth**. A aba **Inicialização** mostra
+também os **serviços do usuário** que sobem no login (ex.: Docker Desktop), com o mesmo liga/desliga.
 
 - **Processos**, agrupados como no Windows: **Aplicativos** (tudo que tem janela,
   com os processos-filhos juntos — o Chrome vira uma linha só), **Project Azmuth**
@@ -258,9 +291,9 @@ trabalho → Imagem, escolha na grade. Esc ou Concluir sai.
 Salvo em `~/.local/state/azmuth/desktop.json`.
 
 ### Notificações
-Saem de baixo da cápsula da barra. Clique abre o app; × fecha; botões de ação
-quando o app oferece; o mouse em cima pausa. Histórico no Dashboard (4 + ver
-mais). Não perturbe na Central.
+Aparecem no canto superior direito. Clique abre o app; × fecha; botões de ação
+quando o app oferece; o mouse em cima pausa. Histórico no painel da ilha (✕ dispensa uma,
+"limpar" todas). Não perturbe no painel ou na Central.
 
 ### Área de transferência (`Super + Shift + V`)
 Busca, prévia completa, filtros (Tudo, Texto, Links, Cores, Imagens,
@@ -315,7 +348,7 @@ Liga/desliga, **Visível** (para o celular encontrar o notebook), **Meus disposi
 (conectar, desconectar, esquecer, bateria) e **Por perto** (a busca liga com a aba aberta;
 **Parear** pareia, confia e conecta). Pedidos de código chegam como notificação com
 **Parear / Recusar** (agente `src/bt_agent.py`, iniciado pelo `azmuth start`); nada é aceito
-sozinho. Fone conectado vira uma saída na aba Som. O chip da barra mostra o que está conectado
+sozinho. Fone conectado vira uma saída na aba Som. O botão Bluetooth do painel da ilha mostra o que está conectado
 e abre a aba. Requer `bluez`, `bluez-utils` e `systemctl enable --now bluetooth`.
 
 ### Terminal
@@ -341,7 +374,7 @@ remover: `bash sddm/install.sh --remove`.
 | `azmuth tasks [--tab <aba>]` | Gerenciador de tarefas; abas `processes`, `performance` ou `startup` |
 | `azmuth ask "…"` · `app "<nome>"` | Pergunta ao Azmuth · abre um app pelo nome |
 | `azmuth event add AAAA-MM-DD [HH:MM] título` · `event list` | Eventos do calendário |
-| `azmuth lifeform on / off 1010` · `failsafe` | Life-Form Lock · failsafe manual |
+| `azmuth lifeform on / off <código>` · `azmuth <código>` · `lifeform code` · `failsafe` | Life-Form Lock · failsafe manual |
 | `azmuth set <chave> <valor>` · `settings` | Preferências (ex.: `timer.minutes 15`) |
 | `azmuth current [--json/--name]` · `roster` | DNA ativo · catálogo |
 | `azmuth send` · `start` | Recupera os componentes da rice e reaplica o DNA salvo |
@@ -349,6 +382,9 @@ remover: `bash sddm/install.sh --remove`.
 | `azmuth audio [restore|status]` | Recupera/consulta a saída Dummy sem alterar o microfone |
 | `azmuth audio inventory --json` / `azmuth audio route …` | Lista rotas físicas e muda fone/microfone |
 | `azmuth audio eq …` | Liga o equalizador, aplica curvas e controla as 10 bandas no EasyEffects |
+| `azmuth display [status|apply|set …|force]` | Telas e projetor (espelhar, estender, só externa, só notebook) |
+| `azmuth windows apply` | Reaplica a lista de apps que abrem maximizados |
+| `azmuth atalhos [menu]` | Folha de atalhos no terminal ou na tela (`Super + /`) |
 | `azmuth restore` · `wallpaper` · `install` | Reaplicar · wallpaper · links das configs |
 
 ---
@@ -360,7 +396,7 @@ remover: `bash sddm/install.sh --remove`.
 | `~/Documents/Coding/Project Azmuth/` | O projeto (git) |
 | `dna/*.yaml` | Os DNAs · `dna/omnitrix.yaml` = slots do numpad |
 | `src/core.py` · `src/context_engine.py` | Motor (CLI) · daemon de contexto e energia |
-| `shell/` | Tudo visual (Quickshell): barra, HUD, lançador, Central… |
+| `shell/` | Tudo visual (Quickshell): ilha, dock, HUD, lançador, Central… |
 | `taskmanager/` · `src/task_manager.py` | Janela independente de diagnóstico · processos, métricas e inicialização |
 | `~/.config/autostart/` | Entradas de login; alterações do gerenciador têm cópias em `~/.local/state/azmuth/startup-backups/` |
 | `hypr/azmuth.lua` | Atalhos e autostart do Azmuth |
@@ -387,7 +423,8 @@ remover: `bash sddm/install.sh --remove`.
 
 | Sintoma | Solução |
 |---|---|
-| Barra/HUD sumiram ou notificações ficaram antigas | `azmuth send`; confira depois com `azmuth doctor` |
+| Ilha/dock/HUD sumiram ou notificações ficaram antigas | `azmuth send`; confira depois com `azmuth doctor` |
+| Um comando `qs ipc call hud …` novo não responde | Funções de IPC novas só valem depois de reiniciar a shell: `azmuth send` |
 | Tela preta do nada | Mexa o mouse; senão `hyprctl dispatch 'hl.dsp.dpms({ action = "enable" })'` |
 | Senha do Arch recusada várias vezes | O faillock trava após 3 erros por 10 min; espere |
 | Tela travada e a shell caiu | `Ctrl+Alt+F3`, entre, rode `qs -p ~/Documents/Coding/"Project Azmuth"/shell ipc call hud lock` (ou reinicie a shell), volte com `Ctrl+Alt+F1`/`F2` e desbloqueie |

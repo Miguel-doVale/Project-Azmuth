@@ -552,6 +552,36 @@ def startup_records():
     return rows
 
 
+# serviços do usuário que o Azmuth já controla ou que são o encanamento da sessão
+SERVICE_SKIP = ("pipewire", "wireplumber", "xdg-", "dbus", "at-spi", "systemd-", "p11-kit", "gcr-", "gnome-keyring",
+                "filter-chain", "hypridle", "hyprpaper", "hyprpolkitagent", "waybar", "cliphist", "appmenu")
+SESSION_TARGETS = {"graphical-session.target", "default.target"}
+
+
+def user_services():
+    """Serviços `systemctl --user` que sobem com a sessão (ex.: Docker Desktop), ligados ou não."""
+    try:
+        listing = subprocess.run(["systemctl", "--user", "list-unit-files", "--type=service", "--no-legend", "--no-pager"],
+                                 capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    rows = []
+    for line in listing.splitlines():
+        parts = line.split()
+        if len(parts) < 2 or parts[1] not in ("enabled", "disabled") or "@" in parts[0] or parts[0].startswith(SERVICE_SKIP):
+            continue
+        unit = parts[0]
+        text = subprocess.run(["systemctl", "--user", "cat", unit], capture_output=True, text=True, timeout=5).stdout
+        wanted = {w for line in text.splitlines() if line.startswith("WantedBy=") for w in line[9:].split()}
+        if not wanted & SESSION_TARGETS:
+            continue
+        name = next((line[12:].strip() for line in text.splitlines() if line.startswith("Description=")), unit)
+        rows.append({"id": "service:" + unit, "name": name, "description": "Serviço do usuário (systemd) que sobe no login.",
+                     "command": "systemctl --user start " + unit, "icon": "", "kind": "service", "source": "Serviço",
+                     "managed": False, "enabled": parts[1] == "enabled", "removable": False, "unit": unit})
+    return rows
+
+
 def dna_records():
     import core
     settings = core.read_settings()
@@ -581,6 +611,7 @@ def dna_records():
 
 def startup_list():
     rows = [{k: v for k, v in row.items() if k not in ("path", "data")} for row in startup_records()]
+    rows += user_services()
     rows += dna_records()
     components = [
         {"name": "Shell do Omnitrix", "description": "Barra, widgets, notificações e bloqueio.", "command": "qs"},
@@ -617,6 +648,15 @@ def startup_toggle(ident, enabled):
             disabled.add(row["command"])
         core.set_setting("dna." + row["dna"] + ".disabled_apps", sorted(disabled))
         return {"ok": True, "message": "Preferência salva para a próxima transformação."}
+    if ident.startswith("service:"):
+        row = next((r for r in user_services() if r["id"] == ident), None)
+        if row is None:
+            raise ValueError("Este serviço não existe mais. Atualize a lista.")
+        r = subprocess.run(["systemctl", "--user", "enable" if enabled else "disable", row["unit"]],
+                           capture_output=True, text=True, timeout=15)
+        if r.returncode:
+            raise ValueError("O systemd recusou: " + (r.stderr or r.stdout).strip()[:200])
+        return {"ok": True, "message": "Serviço " + ("ligado" if enabled else "desligado") + " no login."}
     row = get_startup(ident)
     destination = CONFIG / "autostart" / Path(row["path"]).name
     d = dict(row["data"])

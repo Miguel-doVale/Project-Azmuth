@@ -466,6 +466,15 @@ azmuth current | roster       # estado / catálogo
 
 ## 11. Roadmap / próximos passos
 
+**Feito em 2026-11-14**
+- [x] Ilha do Omnitrix no lugar da barra (repouso → mouse → painel; fio com app maximizado) e dock
+      central recolhida com faixa de workspaces — design em `docs/superpowers/specs/2026-11-14-ilha-dock-design.md`.
+- [x] Apps que abrem maximizados, saída de som automática ao conectar, serviços na aba Inicialização.
+
+**Próximos, na ordem combinada com o Miguel:** wallpaper → artes → idioma Galvan → 9 aliens/DNAs →
+voz do Azmuth (por último: o alto-falante do notebook é ruim). Widgets e calendário ligado ao ERP
+pessoal são um projeto à parte.
+
 **Imediato**
 - [x] `neutral.png` validado ponta a ponta (é um WebP com extensão .png — o hyprpaper aceita).
 - [x] `core.py` recarrega waybar, rofi, dunst e hyprlock na transição.

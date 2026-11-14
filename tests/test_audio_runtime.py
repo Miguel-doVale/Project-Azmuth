@@ -91,3 +91,36 @@ class AudioRuntimeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SwitchOnConnectTests(unittest.TestCase):
+    """A troca de saída ao conectar é feita pela shell; aqui só: tirar o módulo antigo do PipeWire
+    (ele também trocava para a saída virtual do EasyEffects) e fazer o EasyEffects seguir a saída padrão."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        self.conf = self.dir / "90-azmuth-switch-on-connect.conf"
+        self.eerc = self.dir / "easyeffectsrc"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_removes_legacy_pulse_module(self):
+        self.conf.write_text(audio.SWITCH_TEXT)
+        audio.switch_on_connect(True, conf_dir=self.dir, ee_conf=self.eerc)
+        self.assertFalse(self.conf.exists())
+
+    def test_keeps_a_file_that_is_not_ours(self):
+        self.conf.write_text("pulse.cmd = [ ] # do usuário\n")
+        audio.switch_on_connect(True, conf_dir=self.dir, ee_conf=self.eerc)
+        self.assertTrue(self.conf.exists())
+
+    def test_easyeffects_follows_default_output(self):
+        self.eerc.write_text("[StreamOutputs]\noutputDevice=alsa_output.x\nplugins=equalizer#0\n")
+        self.assertTrue(audio.switch_on_connect(True, conf_dir=self.dir, ee_conf=self.eerc))
+        text = self.eerc.read_text()
+        self.assertIn("useDefaultOutputDevice=true", text)
+        self.assertIn("plugins=equalizer#0", text)
+        self.assertFalse(audio.switch_on_connect(True, conf_dir=self.dir, ee_conf=self.eerc))

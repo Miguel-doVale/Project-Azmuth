@@ -269,6 +269,69 @@ def set_route(direction: str, node_name: str, port_name: str) -> int:
     return 0
 
 
+SWITCH_MARK = "Project Azmuth"
+SWITCH_CONF = Path.home() / ".config/pipewire/pipewire-pulse.conf.d"
+SWITCH_TEXT = (f"# {SWITCH_MARK}: aparelho conectado vira a saída/entrada padrão "
+               "(azmuth set audio_auto_switch false desliga)\n"
+               'pulse.cmd = [ { cmd = "load-module" args = "module-switch-on-connect" flags = [ ] } ]\n')
+
+
+EE_CONF = Path.home() / ".config/easyeffects/db/easyeffectsrc"
+
+
+def _ee_follow_default(path: Path) -> bool:
+    """[StreamOutputs] useDefaultOutputDevice=true — o EasyEffects acompanha a saída padrão do sistema."""
+    import configparser
+    cp = configparser.ConfigParser(interpolation=None, strict=False)
+    cp.optionxform = str
+    if path.exists():
+        cp.read(path, encoding="utf-8")
+    if not cp.has_section("StreamOutputs"):
+        cp.add_section("StreamOutputs")
+    if cp["StreamOutputs"].get("useDefaultOutputDevice") == "true":
+        return False
+    cp["StreamOutputs"]["useDefaultOutputDevice"] = "true"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        cp.write(f, space_around_delimiters=False)
+    return True
+
+
+def switch_on_connect(enabled: bool, conf_dir: Path | None = None, ee_conf: Path | None = None) -> bool:
+    """A troca de saída ao conectar é da shell (AudioAutoSwitch.qml): ela só troca para aparelhos de
+    verdade, e o EasyEffects, seguindo a saída padrão, leva o equalizador junto. Aqui: remove o módulo
+    antigo do pipewire-pulse (trocava também para a saída virtual do EasyEffects) e, ligado, faz o
+    EasyEffects seguir a saída padrão. Devolve True se mudou algo. Sem caminhos (uso real), reinicia o
+    que for preciso."""
+    real = conf_dir is None and ee_conf is None
+    changed = False
+    legacy = (conf_dir or SWITCH_CONF) / "90-azmuth-switch-on-connect.conf"
+    if legacy.exists() and SWITCH_MARK in legacy.read_text(errors="ignore"):
+        legacy.unlink()
+        changed = True
+        if real and shutil.which("systemctl"):
+            try:
+                subprocess.run(["systemctl", "--user", "try-restart", "pipewire-pulse.service"], capture_output=True, timeout=15)
+            except subprocess.SubprocessError:
+                pass
+    if enabled:
+        ee_path = ee_conf or EE_CONF
+        running = real and shutil.which("easyeffects") and subprocess.run(["pgrep", "-x", "easyeffects"], capture_output=True).returncode == 0
+        if real and running and _ee_needs_follow(ee_path):
+            subprocess.run(["easyeffects", "-q"], capture_output=True, timeout=10)   # grava a config ao sair
+            time.sleep(1.0)
+        if _ee_follow_default(ee_path):
+            changed = True
+            if real and running:
+                subprocess.Popen(["easyeffects", "--service-mode", "-w"], stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL, start_new_session=True)
+    return changed
+
+
+def _ee_needs_follow(path: Path) -> bool:
+    return "useDefaultOutputDevice=true" not in (path.read_text(errors="ignore") if path.exists() else "")
+
+
 def _eq_state_path() -> Path:
     state_home = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
     return state_home / "azmuth" / "audio.json"
