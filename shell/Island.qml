@@ -86,6 +86,7 @@ PanelWindow {
     // as medidas do protótipo são pixels físicos de uma tela 1920×1080; com escala fracionada (1.2)
     // a shell trabalha em pixels lógicos — k converte para a ilha ter o mesmo tamanho do protótipo
     readonly property real k: { const m = Hyprland.monitorFor(screen); const sc = m && m.lastIpcObject ? m.lastIpcObject.scale : 1; return sc > 0 ? 1 / sc : 1 }
+    property real peekReach: 80          // no repouso, a área que abre a ilha vai além do Omnitrix, de cada lado (px)
     readonly property real pk: 1.15      // fases 2 e 3 um pouco maiores que o protótipo (pedido do Miguel)
     readonly property var dims: ({
         peek:  { w: 80 * k,  h: 22 * k,  y: 0 },
@@ -113,7 +114,7 @@ PanelWindow {
     Item {
         id: hit
         anchors.horizontalCenter: parent.horizontalCenter
-        y: 0; width: island.cur.w; height: island.phase === "line" ? 0 : island.cur.y + island.cur.h
+        y: 0; width: island.cur.w + (island.phase === "peek" ? 2 * island.peekReach : 0); height: island.phase === "line" ? 0 : island.cur.y + island.cur.h
         HoverHandler {
             id: shapeHover
             onHoveredChanged: {
