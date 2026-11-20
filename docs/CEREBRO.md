@@ -60,7 +60,11 @@ tratado como dado, nunca como ordem.
 3. Ao abrir o modo finanças (ou com `azmuth cerebro ingest`), um script **sem IA** lê o CSV, tira as
    descrições, categoriza por regras e grava só `data | valor | categoria | banco` em
    `Finanças/lancamentos-AAAA-MM.md`. O CSV vai para `<Banco>/processados/`.
-4. Formato de cada banco: `Finanças/bancos.json`; regras de categoria: `Finanças/categorias.json`.
+4. Formato de cada banco (só nomes de colunas): `data/bank_formats.json` no projeto (Mercado Pago e
+   Nubank e PicPay já cadastrados; `Finanças/bancos.json` sobrescreve). Regras de categoria genéricas em
+   `data/categories_default.json`; as pessoais (ex.: o próprio nome para "Entre contas") em
+   `Finanças/categorias.json`, que vêm primeiro e ganham. "Entre contas" e "Pagamento de fatura" ficam fora
+   das somas de entradas e saídas. Regras novas: `azmuth cerebro ingest --refazer` recategoriza tudo.
    Banco sem formato cadastrado fica parado e o Azmuth avisa.
 
 Relatórios: peça ao Azmuth no modo finanças ("como foi novembro?") ou `azmuth cerebro report 2026-11`.
@@ -74,6 +78,8 @@ Relatórios: peça ao Azmuth no modo finanças ("como foi novembro?") ou `azmuth
 | `azmuth cerebro check` | Acusa nota restrita fora de `Finanças/` e `Vida/Identidade/` |
 | `azmuth cerebro read <nota>` · `write <nota> <conteúdo>` | Leitura/escrita do modo normal |
 | `azmuth cerebro ingest` · `report <AAAA-MM\|AAAA>` | Extratos · relatório |
+| `azmuth cerebro sem-categoria [--ano AAAA]` | O que caiu em "Outros", por pessoa/loja (mostra nomes: rode no seu terminal) |
+| `azmuth cerebro regra "<termo>" <Categoria>` | Ensina uma regra pessoal; depois `ingest --refazer` |
 | `azmuth ask --restricted "…"` | Conversa no modo finanças |
 
 ## Nascimento (ordem combinada)

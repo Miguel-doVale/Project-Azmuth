@@ -291,7 +291,16 @@ def write_note(rel: str, content: str) -> dict:
 INBOX = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "azmuth/extratos"
 
 
-def ingest_statements(vault: Path | None = None, inbox: Path | None = None) -> dict:
+def _has_data_lines(path: Path) -> bool:
+    """Mais de uma linha não vazia (além do cabeçalho)?"""
+    try:
+        raw = path.read_bytes().decode("utf-8-sig", errors="replace")
+    except OSError:
+        return True
+    return sum(1 for line in raw.splitlines() if line.strip()) > 1
+
+
+def ingest_statements(vault: Path | None = None, inbox: Path | None = None, redo: bool = False) -> dict:
     """Lê <inbox>/<Banco>/*.csv com o formato de Finanças/bancos.json, grava os lançamentos e move o
     arquivo para <Banco>/processados/. Banco sem formato cadastrado fica parado (e é avisado)."""
     import finance_ingest as fi
@@ -303,44 +312,123 @@ def ingest_statements(vault: Path | None = None, inbox: Path | None = None) -> d
         return {"imported": imported, "sem_formato": missing, "com_erro": failed}
     for folder in sorted(p for p in inbox.iterdir() if p.is_dir()):
         files = sorted(folder.glob("*.csv"))
+        if redo:                          # regras novas: reprocessa também o que já entrou (idempotente)
+            files = sorted((folder / "processados").glob("*.csv")) + files
         if not files:
             continue
         mapping = banks.get(folder.name)
         if not isinstance(mapping, dict):
             missing.append(folder.name)
             continue
-        rows, used = [], []
+        # um arquivo por vez, em ordem: write_ledger troca só o período que cada extrato cobre, então
+        # extratos de datas diferentes somam e o mesmo extrato baixado duas vezes não conta em dobro
+        total, used = 0, []
         for f in files:
             try:
                 got = fi.ingest_csv(f, folder.name, mapping, rules)
             except (OSError, UnicodeDecodeError, ValueError, KeyError) as exc:
                 failed.append(f"{folder.name}/{f.name}")
                 continue
-            if not got:                   # 0 linhas = formato errado: fica na caixa e é avisado
-                failed.append(f"{folder.name}/{f.name}")
+            if not got:
+                if _has_data_lines(f):    # tinha linhas e nenhuma foi lida = formato errado: fica e avisa
+                    failed.append(f"{folder.name}/{f.name}")
+                    continue
+                used.append(f)            # mês sem movimento: só o cabeçalho, está tudo certo
                 continue
-            rows += got
+            fi.write_ledger(got, vault)
+            total += len(got)
             used.append(f)
-        if rows:                          # todos os arquivos do banco de uma vez (um não apaga o outro)
-            fi.write_ledger(rows, vault)
+        if used:
             done = folder / "processados"
             done.mkdir(exist_ok=True)
             for f in used:
-                os.replace(f, done / f.name)
-            imported[folder.name] = len(rows)
+                if f.parent != done:
+                    os.replace(f, done / f.name)
+            imported[folder.name] = total
     return {"imported": imported, "sem_formato": missing, "com_erro": failed}
 
 
-def report(period: str, vault: Path | None = None) -> str:
+def report(period: str, vault: Path | None = None, bank: str | None = None) -> str:
     import re
     import finance_ingest as fi
     vault = vault or vault_path()
     rows = fi.read_ledger(vault)
+    if bank:
+        rows = [r for r in rows if r["banco"].lower() == bank.lower()]
     if re.fullmatch(r"\d{4}-\d{2}", period or ""):
         return fi.monthly_report(rows, period)
     if re.fullmatch(r"\d{4}", period or ""):
         return fi.yearly_report(rows, period)
     raise BrainError("Período no formato AAAA-MM ou AAAA.")
+
+
+def _payee(desc: str) -> str:
+    """Agrupa pela pessoa/loja: tira CPF mascarado, agência, conta e números (que mudam a cada Pix)."""
+    parts = [p.strip() for p in re.split(r"\s+-\s+", desc)]
+    keep = [p for p in parts if p and "\u2022" not in p and not re.search(r"ag[eê]ncia|conta:", p, re.I)]
+    text = re.sub(r"\d[\d./-]*", "", " - ".join(keep or parts))
+    return re.sub(r"\s+", " ", text).strip(" -*")[:80] or "(sem descrição)"
+
+
+def uncategorized(vault: Path | None = None, inbox: Path | None = None, year: str | None = None,
+                  top: int = 25) -> list[dict]:
+    """O que caiu em "Outros", agrupado por pessoa/loja, maiores saídas primeiro. Lê os extratos crus
+    (fora do vault); é para o Miguel ver no terminal dele e criar regras."""
+    import hashlib
+    import finance_ingest as fi
+    from decimal import Decimal
+    vault = vault or vault_path()
+    inbox = inbox or INBOX
+    banks, rules = fi.load_banks(vault), fi.load_rules(vault)
+    groups: dict[str, dict] = {}
+    seen = set()
+    if not inbox.is_dir():
+        return []
+    for folder in sorted(p for p in inbox.iterdir() if p.is_dir()):
+        mapping = banks.get(folder.name)
+        if not isinstance(mapping, dict):
+            continue
+        for f in sorted((folder / "processados").glob("*.csv")) + sorted(folder.glob("*.csv")):
+            digest = hashlib.sha256(f.read_bytes()).hexdigest()
+            if digest in seen:                # o mesmo extrato baixado duas vezes
+                continue
+            seen.add(digest)
+            try:
+                rows = list(fi.iter_rows(f, mapping))
+            except (OSError, UnicodeDecodeError, ValueError):
+                continue
+            for date, value, desc in rows:
+                if (year and not date.startswith(year)) or fi.categorize(desc, rules) != "Outros":
+                    continue
+                key = f"{folder.name}: {_payee(desc)}"
+                g = groups.setdefault(key, {"desc": key, "saidas": Decimal(0), "entradas": Decimal(0), "n": 0})
+                g["n"] += 1
+                if value < 0:
+                    g["saidas"] -= value
+                else:
+                    g["entradas"] += value
+    return sorted(groups.values(), key=lambda g: (-g["saidas"], -g["entradas"]))[:top]
+
+
+def add_rule(term: str, category: str, vault: Path | None = None) -> dict:
+    """Acrescenta um termo (pessoa/loja) a uma categoria em Finanças/categorias.json (regras pessoais)."""
+    import finance_ingest as fi
+    vault = vault or vault_path()
+    term = (term or "").strip()
+    if not term or len(term) > 80 or any(ord(c) < 32 for c in term):
+        raise BrainError("Termo vazio ou longo demais.")
+    if not fi.SAFE_NAME.fullmatch(category or ""):
+        raise BrainError("Nome de categoria inválido.")
+    rules = fi._json(vault, "categorias.json")
+    terms = rules.setdefault(category, [])
+    if term not in terms:
+        terms.append(term)
+    path = vault / "Finanças" / "categorias.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(".categorias.json.tmp")
+    tmp.write_text(json.dumps(rules, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+    return {"categoria": category, "termos": len(terms)}
 
 
 STRUCTURE = ["Rice-Azmuth", "Estudos/Faculdade/Ligas", "Estudos/Faculdade/Software-House", "Estudos/Cursos",
@@ -376,6 +464,11 @@ def init_vault(vault: Path | None = None) -> list[str]:
     return created
 
 
+def fi_money(value) -> str:
+    import finance_ingest as fi
+    return fi.money(value)
+
+
 def _emit(obj: dict, fail: bool = False) -> None:
     print(json.dumps(obj, ensure_ascii=False))
     if fail:
@@ -400,13 +493,27 @@ def cli(args: list[str]) -> None:
         # modo restrito (só via azmuth ai-restricted / sessão separada; nunca pelo ai-action)
         if cmd == "read-restricted" and len(args) == 2:
             return _emit({"ok": True, **read_note(args[1], mode="restricted")})
-        if cmd == "report" and len(args) == 2:
-            return _emit({"ok": True, "report": report(args[1])})
+        if cmd == "report" and len(args) in (2, 3):
+            return _emit({"ok": True, "report": report(args[1], bank=args[2] if len(args) == 3 else None)})
+        if cmd == "regra" and len(args) == 3:
+            return _emit({"ok": True, **add_rule(args[1], args[2])})
+        if cmd == "sem-categoria":
+            year = args[args.index("--ano") + 1] if "--ano" in args and args.index("--ano") + 1 < len(args) else None
+            rows = uncategorized(year=year)
+            if not rows:
+                print("Nada em \"Outros\" (ou nenhum extrato importado).")
+                return
+            print(f"{'saiu':>12}  {'entrou':>12}  {'vezes':>5}  pessoa/loja")
+            for r in rows:
+                print(f"{fi_money(r['saidas']):>12}  {fi_money(r['entradas']):>12}  {r['n']:>5}  {r['desc']}")
+            print('\nPara classificar: azmuth cerebro regra "<nome como aparece>" <Categoria>'
+                  "  e depois  azmuth cerebro ingest --refazer")
+            return
         if cmd == "ingest":
-            return _emit({"ok": True, **ingest_statements()})
+            return _emit({"ok": True, **ingest_statements(redo="--refazer" in args)})
     except (BrainError, OSError, UnicodeDecodeError, ValueError) as exc:
         return _emit({"ok": False, "error": str(exc)}, fail=True)
-    _emit({"ok": False, "error": "Uso: azmuth cerebro init|map|check|read <nota>|write <nota> <conteúdo>|read-restricted <nota>|report <AAAA-MM>|ingest"}, fail=True)
+    _emit({"ok": False, "error": "Uso: azmuth cerebro init|map|check|read <nota>|write <nota> <conteúdo>|read-restricted <nota>|report <AAAA-MM> [banco]|ingest [--refazer]|sem-categoria [--ano AAAA]|regra <termo> <Categoria>"}, fail=True)
 
 
 if __name__ == "__main__":

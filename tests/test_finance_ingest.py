@@ -89,8 +89,8 @@ class FinanceIngestTests(unittest.TestCase):
         vault = self.dir / "Cérebro"
         (vault / "Finanças").mkdir(parents=True)
         (vault / "Finanças/categorias.json").write_text('{"Mercado": ["assai"]}', encoding="utf-8")
-        self.assertEqual(fi.load_rules(vault), {"Mercado": ["assai"]})
-        self.assertEqual(fi.load_rules(self.dir / "nada"), {})
+        self.assertEqual(fi.load_rules(vault)["Mercado"], ["assai"])
+        self.assertIn("Jantares", fi.load_rules(self.dir / "nada"))   # padrão do projeto
 
 
 class FinanceReviewFixTests(unittest.TestCase):
@@ -130,6 +130,89 @@ class FinanceReviewFixTests(unittest.TestCase):
     def test_names_with_pipe_are_refused(self):
         with self.assertRaises(ValueError):
             fi.write_ledger([{"date": "2026-10-03", "valor": Decimal("1"), "categoria": "A|B", "banco": "X"}], self.vault)
+
+
+class MercadoPagoFormatTests(unittest.TestCase):
+    def test_statement_with_summary_before_the_table(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "mp.csv"
+            f.write_text("INITIAL_BALANCE;CREDITS;DEBITS;FINAL_BALANCE\n0,82;4,01;-3,50;1,33\n\n"
+                         "RELEASE_DATE;TRANSACTION_TYPE;REFERENCE_ID;TRANSACTION_NET_AMOUNT;PARTIAL_BALANCE\n"
+                         "02-11-2026;Pagamento iFood;187435954400;-3,50;1,32\n"
+                         "03-11-2026;Rendimentos;187435299298;1.200,00;1.201,32\n", encoding="utf-8")
+            mapping = {"header_starts": "RELEASE_DATE", "date": "RELEASE_DATE", "amount": "TRANSACTION_NET_AMOUNT",
+                       "description": "TRANSACTION_TYPE", "delimiter": ";"}
+            rows = fi.ingest_csv(f, "Mercado Pago", mapping, {"Alimentação": ["ifood"]})
+        self.assertEqual([(r["date"], r["valor"], r["categoria"]) for r in rows],
+                         [("2026-11-02", Decimal("-3.50"), "Alimentação"), ("2026-11-03", Decimal("1200.00"), "Outros")])
+
+
+class BankFormatTests(unittest.TestCase):
+    def test_known_bank_formats_ship_with_the_project_and_vault_overrides(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            vault = Path(tmp)
+            banks = fi.load_banks(vault)
+            self.assertEqual(banks["Nubank"]["delimiter"], ",")
+            self.assertEqual(banks["Mercado Pago"]["header_starts"], "RELEASE_DATE")
+            (vault / "Finanças").mkdir()
+            (vault / "Finanças/bancos.json").write_text('{"Nubank": {"date": "D", "amount": "V", "delimiter": ";"}}',
+                                                        encoding="utf-8")
+            self.assertEqual(fi.load_banks(vault)["Nubank"]["delimiter"], ";")
+
+
+class PicPayAndInternalTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_picpay_signed_values_and_two_description_columns(self):
+        f = self.dir / "picpay.csv"
+        f.write_text('data,hora,tipo,"origem / destino",valor,"forma de pagamento"\n'
+                     '2026-11-19,17:22,Pix recebido,Fulano de Tal,+R$ 4,00,\n'.replace("+R$ 4,00", '"+R$ 4,00"') +
+                     '2026-11-18,18:47,Compra realizada,IFOOD *LOJA,"\u2212R$ 32,90",Com cart\u00e3o\n'
+                     '2026-11-17,10:00,Dinheiro guardado,Cofrinho,"\u2212R$ 80,00",\n', encoding="utf-8")
+        mapping = {"date": "data", "amount": "valor", "description": ["tipo", "origem / destino"], "delimiter": ","}
+        rules = {"Entre contas": ["dinheiro guardado"], "Jantares": ["ifood"]}
+        rows = fi.ingest_csv(f, "PicPay", mapping, rules)
+        self.assertEqual([(r["valor"], r["categoria"]) for r in rows],
+                         [(Decimal("4.00"), "Outros"), (Decimal("-32.90"), "Jantares"), (Decimal("-80.00"), "Entre contas")])
+
+    def test_internal_moves_stay_out_of_income_and_spending(self):
+        rows = [{"date": "2026-11-01", "valor": Decimal("-80.00"), "categoria": "Entre contas", "banco": "PicPay"},
+                {"date": "2026-11-02", "valor": Decimal("80.00"), "categoria": "Entre contas", "banco": "PicPay"},
+                {"date": "2026-11-03", "valor": Decimal("-10.00"), "categoria": "Jantares", "banco": "PicPay"}]
+        rep = fi.monthly_report(rows, "2026-11")
+        self.assertIn("Entradas: R$ 0,00", rep)
+        self.assertIn("Saídas: R$ 10,00", rep)
+        self.assertIn("Entre contas", rep)            # aparece, mas à parte
+        self.assertNotIn("- Entre contas: R$ 80,00\n- Jantares", rep)
+
+    def test_default_rules_ship_with_project_and_vault_extends(self):
+        vault = self.dir / "Cérebro"
+        (vault / "Finanças").mkdir(parents=True)
+        (vault / "Finanças/categorias.json").write_text('{"Entre contas": ["Miguel Teste"], "Pets": ["petz"]}',
+                                                       encoding="utf-8")
+        rules = fi.load_rules(vault)
+        self.assertEqual(list(rules)[0], "Entre contas")            # vem primeiro: ganha de Investimentos
+        self.assertIn("dinheiro guardado", rules["Entre contas"])
+        self.assertIn("Miguel Teste", rules["Entre contas"])
+        self.assertIn("ifood", rules["Jantares"])
+        self.assertEqual(rules["Pets"], ["petz"])
+
+
+class MostSpecificRuleTests(unittest.TestCase):
+    def test_longest_matching_term_wins_regardless_of_order(self):
+        rules = {"Mercadinho": ["mercadinho"], "Compras": ["compra"], "Alimentação": ["mundo de coisas"]}
+        self.assertEqual(fi.categorize("Compra realizada MERCADINHO MUNDO DE COISAS", rules), "Alimentação")
+        self.assertEqual(fi.categorize("Compra realizada Mercadinho do Zé", rules), "Mercadinho")
+        self.assertEqual(fi.categorize("Compra realizada Loja X", rules), "Compras")
+        self.assertEqual(fi.categorize("Pix recebido", rules), "Outros")
+
+    def test_tie_keeps_the_first_category(self):
+        self.assertEqual(fi.categorize("abc", {"A": ["abc"], "B": ["abc"]}), "A")
 
 
 if __name__ == "__main__":

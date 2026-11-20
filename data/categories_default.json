@@ -1,0 +1,13 @@
+{
+  "Entre contas": ["dinheiro guardado", "dinheiro resgatado", "dinheiro reservado", "dinheiro retirado", "cofrinho", "caixinha"],
+  "Pagamento de fatura": ["pagamento de fatura", "pagamento da fatura", "fatura do cartao"],
+  "Investimentos": ["rendimento", "cdb", "tesouro direto"],
+  "Jantares": ["ifood", "rappi", "restaurante", "lanchonete", "pizzaria", "burger", "mcdonald", "habib", "churrascaria", "acai", "sorveteria"],
+  "Alimentação": ["supermercado", "atacad", "assai", "mateus", "carrefour", "padaria", "panificadora", "acougue", "hortifruti", "mercearia"],
+  "Transporte": ["uber", "99app", "99 tecnologia", "99pop", "posto", "combustivel", "ipiranga", "estacionamento", "recarga bilhete"],
+  "Saúde": ["farmacia", "drogaria", "pague menos", "extrafarma", "drogasil", "hospital", "clinica", "laboratorio", "smart fit", "smartfit", "selfit", "academia"],
+  "Moradia": ["aluguel", "condominio", "equatorial", "energia", "caema", "internet", "claro", "vivo", "tim celular"],
+  "Hobbies": ["steam", "playstation", "xbox", "nintendo", "epic games", "riot", "kabum", "pichau", "terabyte", "valve"],
+  "Lazer": ["netflix", "spotify", "prime video", "disney", "hbo", "max.com", "cinema", "cinepolis", "ingresso", "youtube", "crunchyroll"],
+  "Compras": ["shopee", "amazon", "mercado livre", "mercadolivre", "magalu", "magazine luiza", "aliexpress", "shein", "americanas", "temu"]
+}

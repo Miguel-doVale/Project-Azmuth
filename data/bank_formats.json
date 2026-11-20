@@ -1,0 +1,24 @@
+{
+  "Mercado Pago": {
+    "header_starts": "RELEASE_DATE",
+    "date": "RELEASE_DATE",
+    "amount": "TRANSACTION_NET_AMOUNT",
+    "description": "TRANSACTION_TYPE",
+    "delimiter": ";"
+  },
+  "Nubank": {
+    "date": "Data",
+    "amount": "Valor",
+    "description": "Descrição",
+    "delimiter": ","
+  },
+  "PicPay": {
+    "date": "data",
+    "amount": "valor",
+    "description": [
+      "tipo",
+      "origem / destino"
+    ],
+    "delimiter": ","
+  }
+}

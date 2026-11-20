@@ -180,6 +180,11 @@ class RestrictedModeTests(unittest.TestCase):
             with self.assertRaises(ai.ActionError, msg=str(bad)):
                 ai.restricted_argv(bad)
 
+    def test_restricted_prompt_points_to_the_categorizing_commands(self):
+        prompt = ai.restricted_system_prompt()
+        self.assertIn("azmuth cerebro sem-categoria", prompt)
+        self.assertIn("azmuth cerebro regra", prompt)
+
     def test_restricted_prompt_has_no_send_tools_and_treats_notes_as_data(self):
         prompt = ai.restricted_system_prompt()
         self.assertIn("ai-restricted", prompt)
@@ -197,6 +202,18 @@ class ClaudeIsolationTests(unittest.TestCase):
         for cmd in [ai.claude_command("oi", None), ai.claude_restricted_command("oi", None)]:
             self.assertEqual(cmd[cmd.index("--setting-sources") + 1], "project")
             self.assertEqual(cmd[cmd.index("--permission-mode") + 1], "dontAsk")
+
+
+class RestrictedReportTests(unittest.TestCase):
+    def test_report_can_filter_by_bank(self):
+        self.assertEqual(ai.restricted_argv({"command": "report", "period": "2026", "bank": "Nubank"}),
+                         ["cerebro", "report", "2026", "Nubank"])
+        with self.assertRaises(ai.ActionError):
+            ai.restricted_argv({"command": "report", "period": "2026", "bank": "Nu;bank"})
+
+    def test_restricted_session_has_room_for_a_few_lookups(self):
+        cmd = ai.claude_restricted_command("oi", None)
+        self.assertGreaterEqual(int(cmd[cmd.index("--max-turns") + 1]), 10)
 
 
 if __name__ == "__main__":

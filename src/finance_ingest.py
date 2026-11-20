@@ -2,10 +2,9 @@
 """Extrato bancário → lançamentos higienizados no cérebro. Python comum, SEM IA.
 
 Cada linha vira só {date, valor, categoria, banco}: a descrição (nomes de pessoas, lojas) nunca sai
-deste script. As regras de categoria e o formato de cada banco ficam no próprio vault, em notas
-restritas: Finanças/categorias.json ({"Mercado": ["assai", ...]}) e Finanças/bancos.json
-({"Nubank": {"date": "Data", "amount": "Valor", "description": "Descrição", "delimiter": ","}}).
-Os formatos reais dos bancos entram quando o Miguel mandar um extrato de exemplo de cada.
+deste script. As regras de categoria ficam no vault (Finanças/categorias.json, restrita); o formato de
+cada banco (só nomes de colunas, sem dado pessoal) fica no projeto, em data/bank_formats.json, e
+Finanças/bancos.json pode sobrescrever.
 """
 
 import csv
@@ -58,28 +57,45 @@ def parse_date(text: str) -> str:
 
 
 def categorize(description: str, rules: dict) -> str:
+    """Ganha o termo MAIS ESPECÍFICO (mais comprido) que aparece na descrição; empate fica com a
+    categoria que vem antes. Assim "Mundo de coisas" vence "mercadinho" sem depender da ordem."""
     plain = _plain(description)
+    best, best_len = "Outros", 0
     for category, terms in rules.items():
-        if any(_plain(term) in plain for term in terms if str(term).strip()):
-            return category
-    return "Outros"
+        for term in terms:
+            t = _plain(term).strip()
+            if t and t in plain and len(t) > best_len:
+                best, best_len = category, len(t)
+    return best
 
 
-def ingest_csv(path: Path, bank: str, mapping: dict, rules: dict) -> list[dict]:
+def iter_rows(path: Path, mapping: dict):
+    """(data, valor, descrição) de cada linha válida do extrato. A descrição só existe aqui dentro."""
     try:
         text = Path(path).read_text(encoding="utf-8-sig")
     except UnicodeDecodeError:            # muitos bancos exportam em Latin-1/cp1252
         text = Path(path).read_bytes().decode("cp1252", errors="strict")
-    rows = []
-    for line in csv.DictReader(text.splitlines(), delimiter=mapping.get("delimiter", ",")):
+    lines = text.splitlines()
+    start = mapping.get("header_starts")          # extrato com resumo antes da tabela (ex.: Mercado Pago)
+    if start:
+        idx = next((i for i, l in enumerate(lines) if l.startswith(start)), None)
+        if idx is None:
+            return
+        lines = lines[idx:]
+    cols = mapping.get("description", "")
+    cols = cols if isinstance(cols, list) else [cols]       # PicPay: tipo + origem/destino
+    for line in csv.DictReader(lines, delimiter=mapping.get("delimiter", ",")):
         try:
             date = parse_date(line[mapping["date"]])
             value = parse_amount(line[mapping["amount"]])
         except (KeyError, ValueError, TypeError):
             continue                          # linha de saldo/cabeçalho repetido: ignora
-        category = categorize(line.get(mapping.get("description", ""), "") or "", rules)
-        rows.append({"date": date, "valor": value, "categoria": category, "banco": bank})
-    return rows
+        yield date, value, " ".join(line.get(c, "") or "" for c in cols).strip()
+
+
+def ingest_csv(path: Path, bank: str, mapping: dict, rules: dict) -> list[dict]:
+    return [{"date": d, "valor": v, "categoria": categorize(desc, rules), "banco": bank}
+            for d, v, desc in iter_rows(path, mapping)]
 
 
 def money(value: Decimal, symbol: bool = True) -> str:
@@ -140,7 +156,13 @@ def write_ledger(rows: list[dict], vault: Path | None = None) -> list[Path]:
     return written
 
 
+# o dinheiro do Miguel mudando de lugar (cofrinho, conta → conta, fatura): fora de entradas/saídas
+INTERNAL = ("Entre contas", "Pagamento de fatura")
+
+
 def _report(rows: list[dict], title: str) -> str:
+    internal = [r for r in rows if r["categoria"] in INTERNAL]
+    rows = [r for r in rows if r["categoria"] not in INTERNAL]
     income = sum((r["valor"] for r in rows if r["valor"] > 0), Decimal(0))
     spent = sum((-r["valor"] for r in rows if r["valor"] < 0), Decimal(0))
     cats: dict[str, Decimal] = {}
@@ -153,6 +175,14 @@ def _report(rows: list[dict], title: str) -> str:
              "", "Saídas por categoria:"]
     lines += [f"- {c}: {money(v)}" for c, v in sorted(cats.items(), key=lambda kv: -kv[1])]
     lines += ["", "Movimento por banco:"] + [f"- {b}: {money(v)}" for b, v in sorted(banks.items())]
+    if internal:
+        lines += ["", "Fora das somas (dinheiro seu mudando de lugar):"]
+        for cat in INTERNAL:
+            moved = [r["valor"] for r in internal if r["categoria"] == cat]
+            if moved:
+                out = sum((-v for v in moved if v < 0), Decimal(0))
+                inn = sum((v for v in moved if v > 0), Decimal(0))
+                lines.append(f"- {cat}: saiu {money(out)}, voltou {money(inn)}")
     return "\n".join(lines)
 
 
@@ -172,9 +202,31 @@ def _json(vault: Path, name: str) -> dict:
         return {}
 
 
+CATEGORY_DEFAULTS = Path(__file__).resolve().parent.parent / "data/categories_default.json"
+BANK_FORMATS = Path(__file__).resolve().parent.parent / "data/bank_formats.json"
+
+
 def load_rules(vault: Path) -> dict:
-    return _json(vault, "categorias.json")
+    """As regras do vault (pessoais, ex.: o próprio nome em "Entre contas") vêm primeiro e ganham;
+    as genéricas do projeto (lojas conhecidas, cofrinho…) completam, somando termos por categoria."""
+    try:
+        defaults = json.loads(CATEGORY_DEFAULTS.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        defaults = {}
+    rules: dict[str, list] = {}
+    for source in (_json(vault, "categorias.json"), defaults):
+        for cat, terms in source.items():
+            if isinstance(terms, list):
+                rules.setdefault(cat, [])
+                rules[cat] += [t for t in terms if isinstance(t, str) and t not in rules[cat]]
+    return rules
 
 
 def load_banks(vault: Path) -> dict:
-    return _json(vault, "bancos.json")
+    """Formatos conhecidos (nomes de colunas, sem dado pessoal) vêm do projeto; Finanças/bancos.json
+    no vault só sobrescreve ou acrescenta."""
+    try:
+        known = json.loads(BANK_FORMATS.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        known = {}
+    return {**known, **_json(vault, "bancos.json")}

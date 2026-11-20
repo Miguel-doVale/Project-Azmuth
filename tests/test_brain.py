@@ -3,6 +3,7 @@ import os
 import sys
 import tempfile
 import unittest
+from decimal import Decimal
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -318,6 +319,94 @@ class ReviewFixTests(CliTests):
         self.assertEqual(sorted(result["com_erro"]), ["Inter/a.csv", "Inter/b.csv"])
         self.assertTrue((inbox / "Inter/b.csv").exists())
         self.assertTrue((inbox / "Inter/processados/c.csv").exists())
+
+
+class DuplicateStatementTests(CliTests):
+    def test_same_statement_downloaded_twice_is_counted_once(self):
+        inbox = Path(self.tmp.name) / "extratos"
+        (inbox / "Inter").mkdir(parents=True)
+        body = "Data;Descri\u00e7\u00e3o;Valor\n02/11/2026;Assai;-50,00\n03/11/2026;Uber;-10,00\n"
+        for name in ["a.csv", "a (1).csv"]:
+            (inbox / "Inter" / name).write_text(body, encoding="utf-8")
+        (self.vault / "Finanças").mkdir()
+        (self.vault / "Finanças/bancos.json").write_text(
+            '{"Inter": {"date": "Data", "amount": "Valor", "description": "Descrição", "delimiter": ";"}}', encoding="utf-8")
+        brain.ingest_statements(self.vault, inbox)
+        import finance_ingest as fi
+        self.assertEqual(len(fi.read_ledger(self.vault)), 2)
+
+
+class EmptyStatementTests(CliTests):
+    def test_month_without_movement_is_processed_not_an_error(self):
+        inbox = Path(self.tmp.name) / "extratos"
+        (inbox / "Nubank").mkdir(parents=True)
+        (inbox / "Nubank/jan.csv").write_text("Data,Valor,Identificador,Descri\u00e7\u00e3o\n", encoding="utf-8")
+        (self.vault / "Finanças").mkdir()
+        (self.vault / "Finanças/bancos.json").write_text(
+            '{"Nubank": {"date": "Data", "amount": "Valor", "description": "Descrição", "delimiter": ","}}', encoding="utf-8")
+        result = brain.ingest_statements(self.vault, inbox)
+        self.assertEqual(result["com_erro"], [])
+        self.assertTrue((inbox / "Nubank/processados/jan.csv").exists())
+
+
+class BankReportTests(CliTests):
+    def test_report_filtered_by_bank(self):
+        import finance_ingest as fi
+        from decimal import Decimal
+        fi.write_ledger([{"date": "2026-11-02", "valor": Decimal("-50.00"), "categoria": "Mercado", "banco": "Inter"},
+                         {"date": "2026-11-03", "valor": Decimal("-7.00"), "categoria": "Lazer", "banco": "Nubank"}],
+                        self.vault)
+        code, out = self.run_cli("report", "2026", "Nubank")
+        self.assertTrue(out["ok"])
+        self.assertIn("Saídas: R$ 7,00", out["report"])
+        self.assertIn("Nubank", out["report"])
+        self.assertNotIn("Inter", out["report"])
+
+
+class RedoIngestTests(CliTests):
+    def test_redo_reprocesses_already_imported_statements_without_duplicating(self):
+        inbox = Path(self.tmp.name) / "extratos"
+        (inbox / "Nubank").mkdir(parents=True)
+        (inbox / "Nubank/nov.csv").write_text("Data,Valor,Identificador,Descri\u00e7\u00e3o\n02/11/2026,-7.00,x,Uber\n",
+                                             encoding="utf-8")
+        brain.ingest_statements(self.vault, inbox)
+        result = brain.ingest_statements(self.vault, inbox, redo=True)   # regras novas: recategoriza
+        import finance_ingest as fi
+        self.assertEqual(result["imported"], {"Nubank": 1})
+        self.assertEqual(len(fi.read_ledger(self.vault)), 1)
+        self.assertTrue((inbox / "Nubank/processados/nov.csv").exists())
+
+
+class UncategorizedTests(CliTests):
+    def setUp(self):
+        super().setUp()
+        self.inbox = Path(self.tmp.name) / "extratos"
+        done = self.inbox / "Nubank" / "processados"
+        done.mkdir(parents=True)
+        (done / "nov.csv").write_text(
+            "Data,Valor,Identificador,Descri\u00e7\u00e3o\n"
+            "02/11/2026,-30.00,a1,Transfer\u00eancia enviada pelo Pix - Fulano de Tal - \u2022\u2022\u2022.123.456-\u2022\u2022 - BANCO X Ag\u00eancia: 1 Conta: 12345-6\n"
+            "05/11/2026,-20.00,a2,Transfer\u00eancia enviada pelo Pix - Fulano de Tal - \u2022\u2022\u2022.999.888-\u2022\u2022 - BANCO X Ag\u00eancia: 1 Conta: 12345-6\n"
+            "06/11/2026,-9.00,a3,Uber Trip\n"
+            "07/11/2026,100.00,a4,Transfer\u00eancia recebida pelo Pix - Ciclano - x\n", encoding="utf-8")
+
+    def test_lists_outros_grouped_by_payee_without_ids(self):
+        out = brain.uncategorized(self.vault, self.inbox)
+        self.assertEqual(out[0]["saidas"], Decimal("50.00"))
+        self.assertEqual(out[0]["n"], 2)
+        self.assertIn("fulano de tal", out[0]["desc"].lower())
+        self.assertNotIn("123", out[0]["desc"])                     # ids e contas somem do agrupamento
+        self.assertFalse(any("uber" in o["desc"].lower() for o in out))   # Uber já tem categoria
+        self.assertEqual(out[1]["entradas"], Decimal("100.00"))
+
+    def test_add_rule_writes_vault_rules_and_then_the_payee_leaves_the_list(self):
+        code, res = self.run_cli("regra", "Fulano de Tal", "Alimentação")
+        self.assertTrue(res["ok"], res)
+        import finance_ingest as fi
+        self.assertIn("Fulano de Tal", fi.load_rules(self.vault)["Alimentação"])
+        self.assertFalse(any("fulano" in o["desc"].lower() for o in brain.uncategorized(self.vault, self.inbox)))
+        self.assertFalse(self.run_cli("regra", "", "Alimentação")[1]["ok"])
+        self.assertFalse(self.run_cli("regra", "x", "Cat|egoria")[1]["ok"])
 
 
 if __name__ == "__main__":
