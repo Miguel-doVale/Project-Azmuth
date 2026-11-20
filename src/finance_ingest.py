@@ -106,7 +106,10 @@ def money(value: Decimal, symbol: bool = True) -> str:
 
 def read_ledger(vault: Path) -> list[dict]:
     rows = []
-    for p in sorted((Path(vault) / LEDGER_DIR).glob("lancamentos-*.md")):
+    base = Path(vault) / LEDGER_DIR
+    by_name = {p.name: p for p in sorted(base.glob("lancamentos-*.md"))}          # formato antigo (raiz)
+    by_name.update({p.name: p for p in sorted(base.glob("[0-9][0-9][0-9][0-9]/lancamentos-*.md"))})  # por ano ganha
+    for p in [by_name[n] for n in sorted(by_name)]:
         for line in p.read_text(encoding="utf-8").splitlines():
             cells = [c.strip() for c in line.strip().strip("|").split("|")]
             if len(cells) != 4 or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", cells[0]):
@@ -148,10 +151,15 @@ def write_ledger(rows: list[dict], vault: Path | None = None) -> list[Path]:
                        for r in merged)
         text = (f"---\nresumo: Lançamentos de {month} (gerado do extrato, sem descrições)\nacesso: financas\n---\n"
                 f"# Lançamentos {month}\n\n{HEADER}{body}")
-        path = folder / f"lancamentos-{month}.md"
+        year_dir = folder / month[:4]                  # Finanças/AAAA/lancamentos-AAAA-MM.md
+        year_dir.mkdir(exist_ok=True)
+        path = year_dir / f"lancamentos-{month}.md"
+        legacy = folder / path.name
         tmp = path.with_name("." + path.name + ".tmp")
         tmp.write_text(text, encoding="utf-8")
         os.replace(tmp, path)
+        if legacy.exists():                            # arquivo do formato antigo (raiz): já foi incorporado
+            legacy.unlink()
         written.append(path)
     return written
 

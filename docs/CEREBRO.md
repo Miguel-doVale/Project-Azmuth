@@ -59,7 +59,7 @@ tratado como dado, nunca como ordem.
    fica **fora** do vault: o CSV cru tem nomes de pessoas e lojas.
 3. Ao abrir o modo finanças (ou com `azmuth cerebro ingest`), um script **sem IA** lê o CSV, tira as
    descrições, categoriza por regras e grava só `data | valor | categoria | banco` em
-   `Finanças/lancamentos-AAAA-MM.md`. O CSV vai para `<Banco>/processados/`.
+   `Finanças/AAAA/lancamentos-AAAA-MM.md` (uma pasta por ano). O CSV vai para `<Banco>/processados/`.
 4. Formato de cada banco (só nomes de colunas): `data/bank_formats.json` no projeto (Mercado Pago e
    Nubank e PicPay já cadastrados; `Finanças/bancos.json` sobrescreve). Regras de categoria genéricas em
    `data/categories_default.json`; as pessoais (ex.: o próprio nome para "Entre contas") em

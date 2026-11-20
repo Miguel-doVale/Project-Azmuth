@@ -76,12 +76,12 @@ class FinanceIngestTests(unittest.TestCase):
                 {"date": "2026-12-01", "valor": Decimal("10.00"), "categoria": "Outros", "banco": "Inter"}]
         paths = fi.write_ledger(rows, vault)
         self.assertEqual(sorted(p.name for p in paths), ["lancamentos-2026-11.md", "lancamentos-2026-12.md"])
-        text = (vault / "Finanças/lancamentos-2026-11.md").read_text(encoding="utf-8")
+        text = (vault / "Finanças/2026/lancamentos-2026-11.md").read_text(encoding="utf-8")
         self.assertIn("acesso: financas", text)
         self.assertIn("| 2026-11-01 | -23,40 | Transporte | Nubank |", text)
         # gravar de novo o mesmo mês não duplica linhas
         fi.write_ledger(rows, vault)
-        text = (vault / "Finanças/lancamentos-2026-11.md").read_text(encoding="utf-8")
+        text = (vault / "Finanças/2026/lancamentos-2026-11.md").read_text(encoding="utf-8")
         self.assertEqual(text.count("| 2026-11-01 |"), 1)
         self.assertEqual(fi.read_ledger(vault)[0]["valor"], Decimal("-23.40"))
 
@@ -213,6 +213,25 @@ class MostSpecificRuleTests(unittest.TestCase):
 
     def test_tie_keeps_the_first_category(self):
         self.assertEqual(fi.categorize("abc", {"A": ["abc"], "B": ["abc"]}), "A")
+
+
+class YearFolderTests(unittest.TestCase):
+    def test_ledger_goes_to_a_folder_per_year_and_old_root_files_are_replaced(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            vault = Path(tmp)
+            (vault / "Finanças").mkdir()
+            old = vault / "Finanças/lancamentos-2026-11.md"
+            old.write_text("---\nresumo: x\nacesso: financas\n---\n| data | valor | categoria | banco |\n"
+                           "|---|---|---|---|\n| 2026-11-01 | -5,00 | Outros | Nubank |\n", encoding="utf-8")
+            rows = [{"date": "2026-11-01", "valor": Decimal("-5.00"), "categoria": "Lazer", "banco": "Nubank"},
+                    {"date": "2027-01-02", "valor": Decimal("-1.00"), "categoria": "Lazer", "banco": "Nubank"}]
+            paths = fi.write_ledger(rows, vault)
+            self.assertEqual(sorted(p.relative_to(vault).as_posix() for p in paths),
+                             ["Finanças/2026/lancamentos-2026-11.md", "Finanças/2027/lancamentos-2027-01.md"])
+            self.assertFalse(old.exists())
+            ledger = fi.read_ledger(vault)
+            self.assertEqual(len(ledger), 2)
+            self.assertEqual(ledger[0]["categoria"], "Lazer")
 
 
 if __name__ == "__main__":

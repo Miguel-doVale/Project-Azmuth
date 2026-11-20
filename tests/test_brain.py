@@ -251,8 +251,8 @@ class RestrictedCliTests(CliTests):
         self.assertEqual(result["imported"], {"Inter": 1})
         self.assertFalse((inbox / "Inter/nov.csv").exists())
         self.assertTrue((inbox / "Inter/processados/nov.csv").exists())
-        self.assertIn("Mercado", (self.vault / "Finanças/lancamentos-2026-11.md").read_text(encoding="utf-8"))
-        self.assertNotIn("Assai", (self.vault / "Finanças/lancamentos-2026-11.md").read_text(encoding="utf-8"))
+        self.assertIn("Mercado", (self.vault / "Finanças/2026/lancamentos-2026-11.md").read_text(encoding="utf-8"))
+        self.assertNotIn("Assai", (self.vault / "Finanças/2026/lancamentos-2026-11.md").read_text(encoding="utf-8"))
 
     def test_ingest_skips_banks_without_mapping(self):
         inbox = Path(self.tmp.name) / "extratos"
