@@ -23,6 +23,7 @@ Uso:
   azmuth audio [restore|status]         recupera/consulta a saída do PipeWire
   azmuth wallpaper                       reaplica o wallpaper (hotplug de monitor)
   azmuth set <chave> <valor>             altera uma preferência (ex.: timer.minutes 15)
+  azmuth cerebro init|map|check|read|write   cérebro (vault de notas lido pelo assistente)
   azmuth fundo [<cena>|--json]           fundo da área de trabalho: lista ou troca a cena ASCII vivo
   azmuth settings                        preferências em JSON (painel de configuração)
   azmuth lock [--preview]                bloqueia a tela (Super + M) · --preview só mostra
@@ -35,7 +36,7 @@ Uso:
   azmuth app "<nome>"                    abre um app pelo nome
   azmuth files [pasta|--split|--setup|--restore]  Dolphin nas cores do DNA
   azmuth tasks [--tab startup]           processos, desempenho e inicialização
-  azmuth ask "pergunta" [--new]          conversa com o assistente Azmuth (Super + A)
+  azmuth ask "pergunta" [--new] [--restricted]   assistente Azmuth (Super + A) · --restricted = modo finanças
   azmuth ask --status                   verifica Ollama e o modelo local
   azmuth install                         liga as configs do sistema ao projeto
 
@@ -95,6 +96,9 @@ DEFAULT_SETTINGS = {
         "color": {},                # por cena: "foto" ou "dna" (branco + cor do DNA)
         "every": {},                # por carrossel: segundos entre as trocas
     },
+    "brain": {                      # cérebro: vault Markdown lido pelo Azmuth (fora do repositório)
+        "path": "",                 # "" = ~/Cérebro
+    },
 }
 SCENES_DIR = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "azmuth/scenes"
 CAROUSEL_EVERY = {4, 6, 9, 15, 30, 60}
@@ -109,6 +113,10 @@ def validate_setting(path: str, value):
         if not isinstance(value, bool):
             raise ValueError(f"'{path}' deve ser true ou false")
         return value
+    if path == "brain.path":
+        if not isinstance(value, str) or any(ord(c) < 32 for c in value) or len(value) > 300:
+            raise ValueError("'brain.path' deve ser o caminho de uma pasta, ex.: \"~/Cérebro\"")
+        return value.strip()
     if path == "desktop.scene":
         if not isinstance(value, str) or not value.strip():
             raise ValueError("'desktop.scene' deve ser o id de uma cena, ex.: \"portal-verde\"")
@@ -1302,10 +1310,12 @@ COMMANDS = {
     "session": lambda a: __import__("session_runtime").main(a),
     "ask": lambda a: __import__("azmuth_ai").main(a),
     "ai-action": lambda a: __import__("azmuth_ai").action_cli(a),
+    "ai-restricted": lambda a: __import__("azmuth_ai").restricted_cli(a),   # só a sessão do modo finanças
     "display": lambda a: __import__("display").main(a),
     "windows": lambda a: __import__("window_rules").main(a),
     "atalhos": lambda a: __import__("shortcuts").main(a),
     "fundo": lambda a: cmd_fundo(a),
+    "cerebro": lambda a: __import__("brain").cli(a),
     "tema-arquivos": lambda a: cmd_tema_arquivos(a),   # interno: tema do Dolphin após a transformação
     "shortcuts": lambda a: __import__("shortcuts").main(a),
 }

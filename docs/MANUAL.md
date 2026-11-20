@@ -136,8 +136,10 @@ foco em código). Os outros 9 aliens aparecem bloqueados até ganharem um DNA.
 ### Assistente Azmuth (`Super + A`)
 Conversa com o Azmuth pelo Claude Code, na sua conta (respostas em ~10 s). A persona
 vem do estudo do personagem e há uma base de referência de Ben 10; ele também recebe
-DNA, energia, eventos, títulos/classes de janelas e hora. Ele não lê seus documentos
-pessoais e só age por `azmuth ai-action`, que valida cada pedido. Ações permitidas: transformar, voltar ao Neutral, Randomizer, Master
+DNA, energia, eventos, títulos/classes de janelas e hora, e o **mapa do cérebro** (vault de
+notas em `~/Cérebro`, ver [CEREBRO.md](CEREBRO.md)): lê e escreve notas abertas; finanças e
+documentos só no **modo finanças** (`azmuth ask --restricted "…"`), uma sessão separada sem
+nenhuma ação de envio. Ele só age por `azmuth ai-action`, que valida cada pedido. Ações permitidas: transformar, voltar ao Neutral, Randomizer, Master
 Control, abrir aplicativos, calendários, preferências e bloqueio. Capturas usam os
 atalhos próprios do sistema. O menu
 de energia pode ser aberto, mas o assistente nunca escolhe desligar, reiniciar,

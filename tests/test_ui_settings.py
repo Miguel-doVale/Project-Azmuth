@@ -34,6 +34,13 @@ class UiSettingsTests(unittest.TestCase):
         self.assertEqual(s["windows"]["maximize"], ["google-chrome"])
         self.assertIs(s["audio_auto_switch"], True)
 
+    def test_brain_path_default_and_validation(self):
+        self.assertEqual(core.read_settings()["brain"]["path"], "")
+        self.assertEqual(core.validate_setting("brain.path", " ~/Cérebro "), "~/Cérebro")
+        for bad in [3, None, ["x"], "a\nb"]:
+            with self.assertRaises(ValueError, msg=repr(bad)):
+                core.validate_setting("brain.path", bad)
+
     def test_desktop_defaults(self):
         d = core.read_settings()["desktop"]
         self.assertEqual(d["scene"], "circuitos")

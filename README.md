@@ -114,7 +114,9 @@ uma base de referência de Ben 10. Como alternativa local e sem conta, o
 `azmuth set assistant.provider ollama` — bem mais lento em CPU.
 
 O contexto enviado ao provedor inclui DNA, energia, eventos e títulos/classes de
-janelas; o assistente não lê documentos pessoais. Ele só age por
+janelas. O **cérebro** (`docs/CEREBRO.md`) é um vault de notas Markdown fora do repositório: o
+assistente lê e escreve as notas abertas; finanças e documentos ficam num modo restrito, em outra
+sessão, sem nenhuma ação de envio. O Ollama nunca lê o vault. Ele só age por
 `azmuth ai-action`, que valida cada pedido contra uma lista fechada de ações
 (transformar, Neutral, Master Control, apps, eventos, preferências, bloqueio),
 sem terminal genérico nem comandos que desliguem o computador. A conversa
