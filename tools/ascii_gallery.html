@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Galeria ASCII vivo</title>
+<style>
+:root{--bg:#05070c;--card:#0e1626;--fg:#cdd6f4;--pri:#38bdf8}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--fg);font:15px system-ui,sans-serif;padding:22px}
+h1{font:700 20px monospace;letter-spacing:3px;color:var(--pri);margin-bottom:6px}
+p.sub{opacity:.7;margin-bottom:18px}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid #38bdf833;border-radius:14px;padding:10px;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.card:hover{border-color:var(--pri)}.card img{width:100%;border-radius:8px;display:block}
+.card b{font-weight:600}.card i{font-style:normal;font-size:12px;opacity:.6}
+#v{position:fixed;inset:0;background:#000;display:none;flex-direction:column}
+#v.on{display:flex}body:has(#v.on){overflow:hidden}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:#0b0f19;border-bottom:1px solid #38bdf833}
+.bar .t{font:700 15px monospace;letter-spacing:1px;margin:0 8px;min-width:240px}
+.btn,.chip{background:#131c2e;border:1px solid #38bdf844;color:var(--fg);border-radius:10px;padding:6px 11px;cursor:pointer;font:600 13px system-ui;user-select:none}
+.chip.on{background:var(--pri);color:#0b0f19;border-color:var(--pri)}
+.sep{width:1px;height:24px;background:#38bdf833;margin:0 4px}
+.sw{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer}.sw.on{border-color:#fff}
+.stage{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+canvas{background:#050607;display:block}
+.hint{font-size:12px;opacity:.5;margin-left:auto}
+#v:fullscreen .bar{display:none}
+</style></head><body>
+<h1>GALERIA ASCII VIVO</h1>
+<p class="sub">Clique numa cena para ver ela animada. Lá dentro: ← → troca de cena, os botões ligam/desligam cada efeito (as escolhas ficam salvas), F = tela cheia, O = Omnitrix, Esc = voltar.</p>
+<div class="g" id="g"></div>
+<div id="v">
+  <div class="bar" id="bar">
+    <span class="btn" id="prev">←</span><span class="t" id="title"></span><span class="btn" id="next">→</span>
+    <span class="sep"></span><span id="fx" style="display:contents"></span>
+    <span class="sep"></span><span class="chip" id="mode">Cores da foto</span><span id="dna" style="display:contents"></span>
+    <span class="chip" id="every" style="display:none"></span><span class="sep"></span><span class="chip on" id="omni">Omnitrix</span><span class="btn" id="full">Tela cheia</span><span class="btn" id="close">✕</span>
+  </div>
+  <div class="stage" id="stage"><canvas id="c"></canvas></div>
+</div>
+<script>
+const LIST = __LIST__;
+const RAMP = " .'`^,:;Il!i><~+_-?][}{1)(|tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
+const B36 = "0123456789abcdefghijklmnopqrstuvwxyz";
+const DNAS = ["#38bdf8", "#4ade80", "#fb923c", "#a78bfa", "#f87171", "#e2e8f0"];
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v) } catch (e) { return d } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch (e) {} } };
+const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const rgba = (c, a) => `rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a})`;
+
+// ── grade de miniaturas
+const grid = document.getElementById('g');
+LIST.forEach((s, n) => {
+  const d = document.createElement('div'); d.className = 'card';
+  d.innerHTML = `<img src="${s.id}/preview.png" loading="lazy"><b>${n + 1}. ${s.title}</b><i>${s.fx.join(' · ')}</i>`;
+  d.onclick = () => open(n); grid.appendChild(d);
+});
+
+// ── visualizador
+const V = document.getElementById('v'), cv = document.getElementById('c'), g = cv.getContext('2d');
+let burst = 0, idx = 0, S = null, L, C, W, H, cw, ch, base, layers = [], parts = {}, fxOn = [], tick = 0, last = 0, t0 = performance.now();
+let mono = false, key = '', dna = hex(store.get('dna', DNAS[0])), showOmni = store.get('omni', true);
+const cache = {};
+window.__scene = sc => { cache[sc.id] = sc; if (car) { if (!S && sc.id === car.ids[0]) use(sc, LIST[idx].id); } else if (LIST[idx].id === sc.id) use(sc); };
+let car = null;
+const EVERY = [4, 6, 9, 15, 30, 60];
+function carEvery() { return store.get('every:' + LIST[idx].id, LIST[idx].every || 9); }
+function paintEvery() { const b = document.getElementById('every'); b.style.display = car ? '' : 'none'; if (car) b.textContent = `Troca a cada ${carEvery()} s`; }
+document.getElementById('every').onclick = () => { const v = carEvery(), n = EVERY[(EVERY.indexOf(v) + 1) % EVERY.length]; store.set('every:' + LIST[idx].id, n); paintEvery(); };
+function need(id) { if (cache[id]) return; const el = document.createElement('script'); el.src = id + '/scene.js'; document.head.appendChild(el); }
+function open(n) {
+  idx = (n + LIST.length) % LIST.length; V.classList.add('on');
+  document.getElementById('title').textContent = `${idx + 1}/${LIST.length} · ${LIST[idx].title}`;
+  car = null; burst = 0;
+  setTimeout(paintEvery);
+  if (LIST[idx].carousel) { car = { ids: LIST[idx].carousel, i: 0, at: performance.now() }; S = null; car.ids.forEach(need); if (cache[car.ids[0]]) use(cache[car.ids[0]], LIST[idx].id); return; }
+  const id = LIST[idx].id;
+  if (cache[id]) return use(cache[id]);
+  S = null; const el = document.createElement('script'); el.src = id + '/scene.js'; document.head.appendChild(el);
+}
+function close() { V.classList.remove('on'); S = null; if (document.fullscreenElement) document.exitFullscreen(); }
+function use(sc, k) {
+  S = sc; const n = S.cols * S.rows; L = new Float32Array(n); C = new Uint8Array(n * 3);
+  for (let y = 0; y < S.rows; y++) { const ls = S.lum[y], cs = S.col[y];
+    for (let x = 0; x < S.cols; x++) { const i = y * S.cols + x; L[i] = B36.indexOf(ls[x]) / 35;
+      C[i * 3] = parseInt(cs.substr(x * 6, 2), 16); C[i * 3 + 1] = parseInt(cs.substr(x * 6 + 2, 2), 16); C[i * 3 + 2] = parseInt(cs.substr(x * 6 + 4, 2), 16); } }
+  key = k || S.id; mono = store.get('mono:' + key, !!S.mono); paintCtl();
+  const saved = store.get('fx:' + key, null);
+  fxOn = S.effects.map((e, k) => saved && saved[k] !== undefined ? saved[k] : e.on);
+  chips(); fit();
+}
+function chips() {
+  const box = document.getElementById('fx'); box.innerHTML = '';
+  S.effects.forEach((e, k) => { const b = document.createElement('span'); b.className = 'chip' + (fxOn[k] ? ' on' : ''); b.textContent = `${k + 1}. ${e.nome}`;
+    b.onclick = () => toggleFx(k); box.appendChild(b); });
+}
+function toggleFx(k) { if (!S || k >= fxOn.length) return; fxOn[k] = !fxOn[k]; store.set('fx:' + key, fxOn); chips(); prepare(); }
+function fit() {
+  if (!S) return; const st = document.getElementById('stage').getBoundingClientRect(); const D = devicePixelRatio || 1;
+  let w = st.width, h = w * 9 / 16; if (h > st.height) { h = st.height; w = h * 16 / 9; }
+  cv.style.width = w + 'px'; cv.style.height = h + 'px'; W = cv.width = Math.round(w * D); H = cv.height = Math.round(h * D);
+  cw = W / S.cols; ch = H / S.rows; prepare();
+}
+addEventListener('resize', fit);
+document.addEventListener('fullscreenchange', () => setTimeout(fit, 50));
+
+// cor de uma célula: foto (cheia, tons escuros sobem) ou branco
+function cellColor(i, l) {
+  if (mono) return `rgba(230,236,245,${.25 + l * .75})`;
+  const r = C[i * 3], gg = C[i * 3 + 1], b = C[i * 3 + 2], k = Math.max(1.15, 110 / Math.max(r, gg, b, 1));
+  return `rgb(${Math.min(255, r * k) | 0},${Math.min(255, gg * k) | 0},${Math.min(255, b * k) | 0})`;
+}
+const charFor = l => RAMP[Math.min(RAMP.length - 1, Math.floor(l * (RAMP.length - 1)))];
+const effColor = e => mono || !e.color || e.color === 'foto' || e.color === 'dna' ? dna : hex(e.color);
+function canvas() { const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.font = `700 ${ch * .95}px monospace`; x.textBaseline = 'top'; return [c, x]; }
+function boxCells(e) { if (e.box) return [e.box[0] * S.cols, e.box[1] * S.rows, (e.box[2] - e.box[0]) * S.cols, (e.box[3] - e.box[1]) * S.rows]; return S.box; }
+
+// camadas de brilho (pulso por cor e aura de contorno): desenhadas uma vez, piscam por transparência
+function hsv(i) { const r = C[i * 3] / 255, gg = C[i * 3 + 1] / 255, b = C[i * 3 + 2] / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), d = mx - mn;
+  let h = 0; if (d) h = mx === r ? ((gg - b) / d) % 6 : mx === gg ? (b - r) / d + 2 : (r - gg) / d + 4; h = (h * 60 + 360) % 360; return [h, mx ? d / mx : 0, mx]; }
+function glowLayer(e, pick) {
+  const [P, px] = canvas(); const col = effColor(e); let count = 0;
+  for (let y = 0; y < S.rows; y++) for (let x = 0; x < S.cols; x++) { const i = y * S.cols + x; if (!pick(i, x, y)) continue; count++;
+    const own = e.color === 'foto' && !mono; const l = Math.max(L[i], .45);
+    px.fillStyle = own ? cellColor(i, 1) : rgba(col, 1); px.fillText(charFor(l), x * cw, y * ch); }
+  const G = document.createElement('canvas'); G.width = W >> 1; G.height = H >> 1; const gx = G.getContext('2d');   // brilho em meia resolução: 4× mais barato
+  gx.filter = `blur(${Math.max(2, ch * .3)}px)`; gx.drawImage(P, 0, 0, G.width, G.height); gx.drawImage(P, 0, 0, G.width, G.height);
+  return { P, G, count };
+}
+function prepare() {
+  if (!S) return;
+  const [B, bx] = canvas(); bx.fillStyle = '#050607'; bx.fillRect(0, 0, W, H);
+  for (let y = 0; y < S.rows; y++) for (let x = 0; x < S.cols; x++) { const i = y * S.cols + x, l = L[i]; if (l < .04) continue;
+    bx.fillStyle = cellColor(i, l); bx.fillText(charFor(l), x * cw, y * ch); }
+  base = B; layers = []; parts = {};
+  S.effects.forEach((e, k) => {
+    if (!fxOn[k]) return;
+    if (e.type === 'pulso') layers[k] = glowLayer(e, i => { if (L[i] < .1) return false; const [h, s, v] = hsv(i);
+      if (e.white) return s < .25 && v > .78; let dh = Math.abs(h - e.hue); dh = Math.min(dh, 360 - dh); return s > (e.minS ?? .3) && v > (e.minV ?? .3) && dh < e.range; });
+    if (e.type === 'aura') layers[k] = glowLayer(e, (i, x, y) => { if (L[i] < .3 || x < 1 || y < 1 || x >= S.cols - 1 || y >= S.rows - 1) return false;
+      return L[i - 1] < .1 || L[i + 1] < .1 || L[i - S.cols] < .1 || L[i + S.cols] < .1; });
+  });
+}
+
+// ── efeitos animados
+const rnd = (a, b) => a + Math.random() * (b - a);
+function put(c, x, y) { g.fillText(c, x * cw, y * ch); }
+const FX = {
+  vento(e, k, t) { const [bx, by, bw, bh] = boxCells(e); const amp = (e.amp || 1);
+    for (let y = Math.floor(by); y < by + bh && y < S.rows; y++) { const off = Math.round(amp * Math.sin(t * 1.7 + y * .42) + amp * .5 * Math.sin(t * 3.1 + y * .9)) * cw;
+      if (!off) continue; const sx = bx * cw, w = bw * cw; g.fillStyle = '#050607'; g.fillRect(sx, y * ch, w, ch); g.drawImage(base, sx, y * ch, w, ch, sx + off, y * ch, w, ch); } },
+  scan(e, k, t) { const col = effColor(e), period = 6, p = (t % period) / period, yb = (p * 1.3 - .15) * H, hb = H * .07;
+    g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = .55; g.drawImage(base, 0, yb, W, hb, 0, yb, W, hb); g.restore();
+    g.fillStyle = rgba(col, .5); g.fillRect(0, yb + hb * .5, W, Math.max(1, ch * .15)); g.fillStyle = rgba(col, .06); g.fillRect(0, yb, W, hb); },
+  glow(e, k, t) { const ly = layers[k]; if (!ly) return; const sp = e.type === 'aura' ? 1.4 : 2.2, a = .2 + .8 * (.5 + .5 * Math.sin(t * sp + k));
+    g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = a * .9; g.drawImage(ly.G, 0, 0, W, H); g.globalAlpha = a * .55; g.drawImage(ly.P, 0, 0); g.restore(); },
+  faiscas(e, k, t) { const col = effColor(e), list = parts[k] || (parts[k] = []), [bx, by, bw, bh] = boxCells(e), dir = e.dir || 'up', sp = e.speed || 1, dens = e.dens || 1;
+    const n = dir === 'twinkle' ? 4 : 3; for (let q = 0; q < n * dens; q++) if (Math.random() < .8) {
+      if (dir === 'up') list.push({ x: rnd(bx, bx + bw), y: rnd(by + bh * .3, by + bh), vx: rnd(-.3, .3), vy: -rnd(.4, 1.3) * sp, life: rnd(8, 22) });
+      else if (dir === 'out') { const a = rnd(0, 6.28), cx = bx + bw / 2, cy = by + bh / 2; list.push({ x: cx + Math.cos(a) * bw * .2, y: cy + Math.sin(a) * bh * .2, vx: Math.cos(a) * rnd(.8, 2.2) * sp / .58, vy: Math.sin(a) * rnd(.8, 2.2) * sp, life: rnd(8, 20) }); }
+      else if (dir === 'diag') { if (Math.random() < .1) list.push({ x: rnd(-20, S.cols * .6), y: rnd(-10, S.rows * .3), vx: 3.2 * sp, vy: 1.2 * sp, life: 26, trail: 1 }); }
+      else list.push({ x: rnd(bx, bx + bw), y: rnd(by, by + bh), vx: 0, vy: 0, life: rnd(3, 9), tw: 1 }); }
+    for (let i = list.length - 1; i >= 0; i--) { const p = list[i]; p.x += p.vx; p.y += p.vy; p.vx += rnd(-.1, .1); if (--p.life <= 0 || p.y < -2) { list.splice(i, 1); continue; }
+      const a = Math.min(1, p.life / 8); g.fillStyle = Math.random() < .15 ? rgba([255, 255, 255], a) : rgba(col, a);
+      if (p.trail) { for (let j = 1; j < 7; j++) { g.fillStyle = rgba(col, a * (1 - j / 7) * .7); put(j < 3 ? '=' : '-', p.x - j * 1.2, p.y - j * .45); } g.fillStyle = rgba([255, 255, 255], a); put('*', p.x, p.y); }
+      else put(p.tw ? '+*.'[p.life % 3 | 0] : '.,\'*+'[(p.life | 0) % 5], p.x, p.y); }
+    if (list.length > 600) list.splice(0, list.length - 600); },
+  bolhas(e, k, t) { const col = effColor(e), list = parts[k] || (parts[k] = []), [bx, by, bw, bh] = boxCells(e);
+    g.save(); g.beginPath(); g.rect(bx * cw, by * ch, bw * cw, bh * ch); g.clip();
+    if (Math.random() < .5) list.push({ x: rnd(bx, bx + bw), y: by + bh, s: Math.random(), ph: rnd(0, 6) });
+    for (let i = list.length - 1; i >= 0; i--) { const p = list[i]; p.y -= .35 + p.s * .5; if (p.y < by) { list.splice(i, 1); continue; }
+      g.fillStyle = rgba(col, .35 + p.s * .5); put(p.s > .7 ? 'O' : p.s > .35 ? 'o' : '°', p.x + Math.sin(t * 2 + p.ph) * 1.2, p.y); } g.restore(); },
+  estrelas(e, k, t) { const col = effColor(e); let list = parts[k];
+    if (!list) { list = parts[k] = []; let tries = 0; while (list.length < 160 && tries++ < 5000) { const x = rnd(0, S.cols) | 0, y = rnd(0, S.rows) | 0; if (L[y * S.cols + x] < .12) list.push({ x, y, ph: rnd(0, 6.28), sp: rnd(.6, 2) }); } }
+    list.forEach(p => { const v = Math.sin(t * p.sp + p.ph); if (v < .2) return; g.fillStyle = rgba(v > .85 ? [255, 255, 255] : col, (v - .2) * 1.2); put(v > .9 ? '*' : v > .6 ? '+' : '.', p.x, p.y); }); },
+  chuva(e, k, t) { const col = effColor(e); let list = parts[k]; if (!list) { list = parts[k] = []; for (let i = 0; i < 260; i++) list.push({ x: rnd(0, S.cols), y: rnd(0, S.rows), s: rnd(.6, 1) }); }
+    list.forEach(p => { p.y += 2.6 * p.s; p.x += .6 * p.s; if (p.y > S.rows) { p.y = rnd(-6, 0); p.x = rnd(-10, S.cols); }
+      g.fillStyle = rgba(col, .25 + p.s * .35); put('/', p.x, p.y); if (p.s > .85) put('/', p.x - .4, p.y - 1); }); },
+  neve(e, k, t) { const col = effColor(e), wind = e.wind || .6; let list = parts[k]; if (!list) { list = parts[k] = []; for (let i = 0; i < 220; i++) list.push({ x: rnd(0, S.cols), y: rnd(0, S.rows), s: rnd(.3, 1), ph: rnd(0, 6) }); }
+    list.forEach(p => { p.y += .35 + p.s * .55; p.x += wind * p.s * .9 + Math.sin(t + p.ph) * .3; if (p.y > S.rows || p.x > S.cols + 2) { p.y = rnd(-4, 0); p.x = rnd(-30, S.cols); }
+      g.fillStyle = rgba(col, .3 + p.s * .6); put(p.s > .75 ? '*' : p.s > .45 ? '+' : '.', p.x, p.y); }); },
+  orbita(e, k, t, front) { const col = effColor(e), n = e.n || 60; for (let i = 0; i < n; i++) { const a = t * .5 + i * 6.283 / n + Math.sin(i * 7.3) * .2;
+      const z = Math.sin(a); if (front ? z < 0 : z >= 0) continue;
+      const x = (e.cx * W + Math.cos(a) * e.rx * H) / cw, y = (e.cy * H + z * e.ry * H) / ch, f = front ? 1 : .45;
+      g.fillStyle = rgba(i % 9 ? col : [255, 255, 255], f); put(front ? '*' : '.', x, y);
+      for (let j = 1; j < 4; j++) { const b = a - j * .035; g.fillStyle = rgba(col, f * (1 - j / 4) * .6); put('-', (e.cx * W + Math.cos(b) * e.rx * H) / cw, (e.cy * H + Math.sin(b) * e.ry * H) / ch); } } },
+  raios(e, k, t) { const col = effColor(e), list = parts[k] || (parts[k] = []), [bx, by, bw, bh] = boxCells(e), rate = e.rate ?? .85;
+    const spawn = () => { const pts = []; let x = bx + bw * rnd(.1, .9), y = by + bh * rnd(.1, .9), dx = Math.random() < .5 ? -1 : 1, n = rnd(10, 28);
+      for (let i = 0; i < n; i++) { pts.push([Math.round(x), Math.round(y)]); x += dx * rnd(1, 3); y += rnd(-1, 1.2);
+        if (Math.random() < .12) { let gx = x, gy = y; for (let j = 0; j < 5; j++) { gx += dx * 1.5; gy += rnd(-.6, 1.4); pts.push([Math.round(gx), Math.round(gy)]); } } }
+      list.push({ pts, life: rnd(2, 6) | 0 }); };
+    if (Math.random() < rate) spawn(); if (Math.random() < rate * .45) spawn();
+    for (let i = list.length - 1; i >= 0; i--) if (list[i].life-- <= 0) list.splice(i, 1);
+    g.shadowColor = rgba(col, 1); g.shadowBlur = ch;
+    list.forEach(b => b.pts.forEach(([x, y], i) => { const nx = b.pts[i + 1]; g.fillStyle = Math.random() < .25 ? '#fff' : rgba(col, 1); put(!nx ? '*' : nx[1] < y ? '/' : nx[1] > y ? '\\' : '-', x, y); }));
+    g.shadowBlur = 0; },
+  rastro(e, k, t) { const col = effColor(e), [bx, by, bw, bh] = boxCells(e), left = (e.dir || 'left') === 'left';
+    for (let y = Math.floor(by); y < by + bh && y < S.rows; y++) { if ((y + tick) % 3) continue; let edge = -1;
+      if (left) { for (let x = Math.floor(bx); x < bx + bw; x++) if (L[y * S.cols + x] > .35) { edge = x; break; } }
+      else { for (let x = Math.floor(bx + bw) - 1; x >= bx; x--) if (L[y * S.cols + x] > .35) { edge = x; break; } }
+      if (edge < 0) continue; const len = 6 + ((y * 7 + tick * 3) % 20), dir = left ? -1 : 1;
+      for (let j = 1; j <= len; j++) { g.fillStyle = rgba(col, (1 - j / len) * .6); put(j % 4 ? '-' : '=', edge + dir * (j + (tick * 2) % 4), y); } } },
+  glitch(e, k, t) { const col = effColor(e), list = parts[k] || (parts[k] = []);
+    if (Math.random() < .1) list.push({ y: rnd(0, S.rows) | 0, h: 1 + (rnd(0, 4) | 0), dx: rnd(-.5, .5) * W * .03, life: 2 + (rnd(0, 2) | 0) });
+    for (let i = list.length - 1; i >= 0; i--) { const q = list[i]; if (q.life-- <= 0) { list.splice(i, 1); continue; }
+      const y = q.y * ch, h = q.h * ch; g.drawImage(cv, 0, y, W, h, q.dx, y, W, h); g.fillStyle = rgba(col, .1); g.fillRect(0, y, W, h);
+      if (Math.random() < .5) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = .35; g.drawImage(cv, 0, y, W, h, -q.dx * .6, y, W, h); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; } } },
+};
+// cada caractere de uma região elíptica gira em volta do centro (o de dentro mais rápido: redemoinho)
+function ellipseCells(e) { if (e._cells && e._W === W) return e._cells; const out = [], cx = e.cx * W, cy = e.cy * H, rx = e.rx * W, ry = e.ry * H;
+  for (let y = 0; y < S.rows; y++) for (let x = 0; x < S.cols; x++) { const nx = ((x + .5) * cw - cx) / rx, ny = ((y + .5) * ch - cy) / ry, r = Math.hypot(nx, ny);
+    if (r < 1) out.push([x, y, nx, ny, r]); } e._cells = out; e._W = W; return out; }
+function srcCell(e, nx, ny) { const x = Math.round((e.cx * W + nx * e.rx * W) / cw - .5), y = Math.round((e.cy * H + ny * e.ry * H) / ch - .5);
+  return x < 0 || y < 0 || x >= S.cols || y >= S.rows ? -1 : y * S.cols + x; }
+function drawCell(x, y, i) { g.fillStyle = '#050607'; g.fillRect(x * cw, y * ch, cw + .5, ch + .5); if (i < 0) return; const l = L[i]; if (l < .04) return; g.fillStyle = cellColor(i, l); put(charFor(l), x, y); }
+// máscaras: o que não pode girar junto (silhueta achada por preenchimento a partir de um ponto, ou um contorno desenhado)
+function maskOf(e) {
+  if (e._mask && e._mw === S.cols) return e._mask; const M = new Uint8Array(S.cols * S.rows);
+  if (e.poly) { const P = e.poly.map(([x, y]) => [x * S.cols, y * S.rows]);
+    for (let y = 0; y < S.rows; y++) for (let x = 0; x < S.cols; x++) { let ins = false;
+      for (let a = 0, b = P.length - 1; a < P.length; b = a++) { const [xa, ya] = P[a], [xb, yb] = P[b];
+        if ((ya > y) !== (yb > y) && x < (xb - xa) * (y - ya) / (yb - ya) + xa) ins = !ins; }
+      if (ins) M[y * S.cols + x] = 1; } }
+  if (e.flood) { const f = e.flood, bx = f.box.map((v, j) => v * (j % 2 ? S.rows : S.cols));
+    const ok = i => { const x = i % S.cols, y = (i / S.cols) | 0; if (x < bx[0] || x > bx[2] || y < bx[1] || y > bx[3]) return false;
+      if (L[i] < (f.dark ?? .16)) return true; const [h, s2, v] = hsv(i); return f.white && s2 < .22 && v > .55; };
+    const st = [Math.round(f.seed[1] * S.rows) * S.cols + Math.round(f.seed[0] * S.cols)];
+    while (st.length) { const i = st.pop(); if (i < 0 || i >= M.length || M[i] || !ok(i)) continue; M[i] = 1; st.push(i - 1, i + 1, i - S.cols, i + S.cols); } }
+  e._mask = M; e._mw = S.cols; return M; }
+FX.redemoinho = (e, k, t) => { const sp = e.speed || .5, sw = e.swirl ?? .6, M = (e.poly || e.flood) ? maskOf(e) : null;
+  const out = i => i >= 0 && M && M[i];
+  ellipseCells(e).forEach(([x, y, nx, ny, r]) => { const me = y * S.cols + x; if (out(me)) return;   // o que está na região excluída não gira
+    const edge = r > .9 ? (1 - r) / .1 : 1;
+    const a = (-t * sp - sw * (1 - r) * Math.sin(t * .6) * .5) * edge, ca = Math.cos(a), sa = Math.sin(a);   // giro do disco inteiro; a torção só respira, nunca acumula
+    let i = srcCell(e, nx * ca - ny * sa, nx * sa + ny * ca); if (out(i)) i = -1; drawCell(x, y, i); }); };
+// flutuar: a silhueta sobe e desce devagar; onde ela estava, entra o fundo vizinho
+FX.flutuar = (e, k, t) => { const M = maskOf(e), up = Math.round((e.lift ?? 1.5) + (e.amp ?? 1.5) * Math.sin(t * (e.speed || 1.1)));
+  if (!up) return; const f = e.flood ? e.flood.box : [Math.min(...e.poly.map(q => q[0])), Math.min(...e.poly.map(q => q[1])), Math.max(...e.poly.map(q => q[0])), Math.max(...e.poly.map(q => q[1]))], x0 = Math.floor(f[0] * S.cols), x1 = Math.ceil(f[2] * S.cols), y0 = Math.floor(f[1] * S.rows) - 4, y1 = Math.min(S.rows, Math.ceil(f[3] * S.rows) + 1);
+  for (let y = Math.max(0, y0); y < y1; y++) for (let x = x0; x < x1; x++) { const i = y * S.cols + x, src = (y + up) < S.rows ? i + up * S.cols : -1, sil = src >= 0 && M[src];
+    if (sil) { drawCell(x, y, src); continue; }
+    if (M[i]) { let j = x - 1; while (j > 0 && M[y * S.cols + j]) j--; const r = x + 1 < S.cols ? (() => { let q = x + 1; while (q < S.cols - 1 && M[y * S.cols + q]) q++; return q; })() : j;
+      drawCell(x, y, y * S.cols + (Math.abs(x - j) < Math.abs(r - x) ? j : r)); } } };
+// globo girando (Terra): a textura corre na horizontal, curvada como numa esfera; o texto por cima não gira
+FX.girar = (e, k, t) => { const sp = e.speed || .06, tb = e.textbox;
+  const isText = i => { if (!tb || i < 0) return false; const x = i % S.cols, y = (i / S.cols) | 0; if (x < tb[0] * S.cols || x > tb[2] * S.cols || y < tb[1] * S.rows || y > tb[3] * S.rows) return false;
+    const [h, s2, v] = hsv(i); return s2 < .25 && v > .7 && L[i] > .25; };
+  ellipseCells(e).forEach(([x, y, nx, ny, r]) => { const w = Math.sqrt(Math.max(1e-4, 1 - ny * ny)); if (r > .97) return;
+    let u = Math.asin(Math.max(-1, Math.min(1, nx / w))) / (Math.PI / 2) + t * sp; u = ((u + 1) % 2 + 2) % 2 - 1;
+    let i = srcCell(e, Math.sin(u * Math.PI / 2) * w, ny); let up = 0; while (isText(i) && up++ < 8) i -= S.cols * 2; drawCell(x, y, i); }); };
+// letreiro nítido (frases do pôster por cima da arte)
+FX.letreiro = (e, k, t) => { const sz = e.size * H; g.save(); g.font = `800 ${sz}px "Bebas Neue","Oswald","Anton","Impact",sans-serif`; g.textBaseline = 'top';
+  g.shadowColor = 'rgba(0,0,0,.9)'; g.shadowBlur = sz * .4; e.lines.forEach((ln, j) => { g.fillStyle = j === e.lines.length - 1 && e.accent ? e.accent : 'rgba(240,244,250,.95)';
+    g.fillText(ln, e.x * W, e.y * H + j * sz * 1.05); }); g.restore(); g.font = `700 ${ch * .95}px monospace`; g.textBaseline = 'top'; };
+// planeta em ASCII gerado: esfera com luz, faixas que giram, atmosfera e anel opcional
+FX.planeta = (e, k, t) => { const cx = e.cx * W, cy = e.cy * H, R = e.r * H, c1 = hex(e.color), c2 = hex(e.color2 || e.color), sp = e.speed || .15;
+  const ring = (front) => { if (!e.ring) return; for (let i = 0; i < 90; i++) { const a = i / 90 * 6.283, z = Math.sin(a); if (front ? z < 0 : z >= 0) continue;
+      g.fillStyle = rgba(c1, front ? .8 : .35); put(front ? '=' : '-', (cx + Math.cos(a) * R * 1.8) / cw, (cy + z * R * .35) / ch); } };
+  ring(false);
+  const x0 = Math.floor((cx - R * 1.1) / cw), x1 = Math.ceil((cx + R * 1.1) / cw), y0 = Math.floor((cy - R * 1.1) / ch), y1 = Math.ceil((cy + R * 1.1) / ch);
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { if (x < 0 || y < 0 || x >= S.cols || y >= S.rows) continue;
+    const nx = ((x + .5) * cw - cx) / R, ny = ((y + .5) * ch - cy) / R, d = nx * nx + ny * ny;
+    if (d > 1.18) continue;
+    if (d > 1) { g.fillStyle = rgba(c1, .25 * (1.18 - d) / .18); put('.', x, y); continue; }      // atmosfera
+    const z = Math.sqrt(1 - d), lam = Math.max(.12, -.35 * nx - .3 * ny + .88 * z);   // luz quase de frente: o lado escuro é só a borda
+    const lon = Math.atan2(nx, z) + t * sp, lat = Math.asin(ny), band = .5 + .5 * Math.sin(lat * (e.bands || 7) + Math.sin(lon * 3 + lat * 2) * .8 + Math.sin(lon * 7 - lat * 3) * .3);
+    let l = .08 + .92 * lam * (.55 + .45 * band), c = [0, 1, 2].map(j => (c1[j] * band + c2[j] * (1 - band)) * (.35 + .9 * lam));
+    if (e.terra) {   // continentes, oceano e nuvens (a Terra do pôster do Invencível)
+      const n = Math.sin(lon * 2.1 + Math.sin(lat * 3.3) * 1.4) * .55 + Math.sin(lon * 5.3 - lat * 4.1 + 1.7) * .3 + Math.sin(lat * 6 + lon) * .2;
+      const cl = Math.sin(lon * 4 + t * sp * 3 + lat * 9) * .5 + Math.sin(lon * 9 - lat * 5) * .5;
+      const ground = n > .18 ? (Math.abs(lat) > 1.15 ? [210, 220, 230] : n > .55 ? [150, 120, 70] : [60, 150, 80]) : [30, 90, 200];
+      const cw2 = Math.max(0, Math.min(1, (cl - .45) / .4)) * .7;   // nuvem: véu que clareia, não ponto solto
+      c = ground.map(v => (v * (1 - cw2) + 225 * cw2) * (.25 + .95 * lam)); l = .1 + .9 * lam * ((n > .18 ? .85 : .6) * (1 - cw2) + cw2 * .9); }
+    g.fillStyle = '#050607'; g.fillRect(x * cw, y * ch, cw + .5, ch + .5); g.fillStyle = rgba(mono ? dna : c, 1); put(charFor(Math.min(1, l)), x, y); }
+  ring(true); };
+FX.matrix = (e, k, t) => { const col = effColor(e), [bx, by, bw, bh] = boxCells(e), chars = e.chars || '01<>{}[]/\\=+*';
+  let cols = parts[k]; if (!cols) { cols = parts[k] = []; for (let x = Math.floor(bx); x < bx + bw; x += (e.step || 2)) cols.push({ x, y: rnd(by, by + bh), sp: rnd(.5, 1.4) * (e.speed || 1), len: rnd(6, 18) | 0 }); }
+  cols.forEach(c => { c.y += c.sp; if (c.y - c.len > by + bh) { c.y = by - rnd(0, bh * .6); c.sp = rnd(.5, 1.4) * (e.speed || 1); }
+    for (let j = 0; j < c.len; j++) { const y = Math.floor(c.y) - j; if (y < by || y >= by + bh) continue;
+      g.fillStyle = j === 0 ? rgba([255, 255, 255], .85) : rgba(col, (1 - j / c.len) * (e.alpha || .55));
+      put(chars[(y * 7 + c.x * 3 + (j ? 0 : tick)) % chars.length], c.x, y); } }); };
+FX.cometas = (e, k, t) => FX.faiscas({ ...e, dir: 'diag', dens: e.dens || 2.5 }, k, t);
+// vulto: o rosto treme e some por instantes (personagem sem rosto)
+FX.vulto = (e, k, t) => { const [bx, by, bw, bh] = boxCells(e), sx = bx * cw, sy = by * ch, w = bw * cw, h = bh * ch, list = parts[k] || (parts[k] = { face: 0 });
+  if (list.face > 0 || Math.random() < .07) { if (list.face <= 0) list.face = 2 + (Math.random() * 4 | 0); list.face--;
+    g.fillStyle = 'rgba(5,6,7,.9)'; g.fillRect(sx, sy, w, h); g.fillStyle = rgba(effColor(e), .35);
+    for (let q = 0; q < bw * bh * .12; q++) put(".:'`"[q % 4], bx + Math.random() * bw, by + Math.random() * bh); return; }
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for (let j = 0; j < 3; j++) { const dx = (Math.random() - .5) * 6 * cw, dy = (Math.random() - .5) * 1.2 * ch; g.globalAlpha = .28;
+    g.drawImage(base, sx, sy, w, h, sx + dx, sy + dy, w, h); } g.restore(); };
+function omni() {
+  const cx = W / 2, cy = H / 2, R = H * .27, col = rgba(dna, 1); g.save(); g.translate(cx, cy);
+  g.fillStyle = '#0c0f14'; g.beginPath(); g.arc(0, 0, R * 1.04, 0, 6.28); g.fill();
+  g.strokeStyle = col; g.lineWidth = R * .03; g.shadowColor = col; g.shadowBlur = R * .12; g.beginPath(); g.arc(0, 0, R, 0, 6.28); g.stroke(); g.shadowBlur = 0;
+  g.strokeStyle = '#2a2f37'; g.lineWidth = R * .14; g.beginPath(); g.arc(0, 0, R * .86, 0, 6.28); g.stroke();
+  g.fillStyle = '#05070a'; g.beginPath(); g.arc(0, 0, R * .7, 0, 6.28); g.fill(); g.strokeStyle = col; g.lineWidth = R * .025; g.stroke();
+  g.fillStyle = col; const s = R * .55; g.beginPath(); g.moveTo(0, -s * .62); g.lineTo(s * .52, s * .5); g.quadraticCurveTo(s * .2, s * .28, 0, s * .26); g.quadraticCurveTo(-s * .2, s * .28, -s * .52, s * .5); g.closePath(); g.fill();
+  g.restore();
+}
+function frame(ms) {
+  requestAnimationFrame(frame);
+  if (!S || !base || ms - last < 90) return;   // ~11 quadros/s: ritmo de terminal
+  last = ms; tick++; const t = (ms - t0) / 1000;
+  if (car && ms - car.at > carEvery() * 1000) { const nx = car.ids[(car.i + 1) % car.ids.length];
+    if (cache[nx]) { car.i = (car.i + 1) % car.ids.length; car.at = ms; burst = 5; use(cache[nx], LIST[idx].id); } }
+  g.drawImage(base, 0, 0); g.font = `700 ${ch * .95}px monospace`; g.textBaseline = 'top';
+  const on = (k) => fxOn[k];
+  const order = ['vento', 'matrix', 'redemoinho', 'flutuar', 'girar', 'vulto', 'pulso', 'aura', 'scan', 'estrelas', 'cometas', 'planeta', 'orbita', 'bolhas', 'faiscas', 'chuva', 'neve', 'raios', 'rastro', 'letreiro'];
+  order.forEach(type => S.effects.forEach((e, k) => { if (!on(k) || e.type !== type) return;
+    if (type === 'pulso' || type === 'aura') FX.glow(e, k, t); else if (type === 'orbita') FX.orbita(e, k, t, false); else FX[type](e, k, t); }));
+  if (showOmni) omni();
+  S.effects.forEach((e, k) => { if (on(k) && e.type === 'orbita') FX.orbita(e, k, t, true); });   // metade da frente passa na frente do Omnitrix
+  S.effects.forEach((e, k) => { if (on(k) && e.type === 'glitch') FX.glitch(e, k, t); });
+  if (burst > 0) { burst--; for (let q = 0; q < 7; q++) { const y = Math.random() * H, h = ch * (1 + Math.random() * 5), dx = (Math.random() - .5) * W * .12;
+    g.drawImage(cv, 0, y, W, h, dx, y, W, h); } g.fillStyle = rgba(dna, .08 * burst); g.fillRect(0, 0, W, H); }
+}
+requestAnimationFrame(frame);
+if (/^#\d+$/.test(location.hash)) open(+location.hash.slice(1) - 1);
+
+// ── controles
+document.getElementById('prev').onclick = () => open(idx - 1);
+document.getElementById('next').onclick = () => open(idx + 1);
+document.getElementById('close').onclick = close;
+const modeBtn = document.getElementById('mode'), omniBtn = document.getElementById('omni');
+function paintCtl() { modeBtn.textContent = mono ? 'Branco + cor do DNA' : 'Cores da foto'; modeBtn.classList.toggle('on', mono); omniBtn.classList.toggle('on', showOmni);
+  const d = document.getElementById('dna'); d.innerHTML = ''; DNAS.forEach(h => { const s = document.createElement('span'); s.className = 'sw' + (hex(h).join() === dna.join() ? ' on' : ''); s.style.background = h; s.title = 'Cor do DNA';
+    s.onclick = () => { dna = hex(h); store.set('dna', h); paintCtl(); prepare(); }; d.appendChild(s); }); }
+modeBtn.onclick = () => { mono = !mono; store.set('mono:' + key, mono); paintCtl(); prepare(); };
+omniBtn.onclick = () => { showOmni = !showOmni; store.set('omni', showOmni); paintCtl(); };
+document.getElementById('full').onclick = () => { if (!document.fullscreenElement) V.requestFullscreen().catch(() => {}); else document.exitFullscreen(); };
+paintCtl();
+addEventListener('keydown', ev => { if (!V.classList.contains('on')) return;
+  if (ev.key === 'ArrowRight') open(idx + 1); else if (ev.key === 'ArrowLeft') open(idx - 1);
+  else if (ev.key === 'Escape' && !document.fullscreenElement) close();
+  else if (ev.key === 'f' || ev.key === 'F') document.getElementById('full').click();
+  else if (ev.key === 'o' || ev.key === 'O') omniBtn.click();
+  else if (/^[1-9]$/.test(ev.key)) toggleFx(+ev.key - 1); });
+</script></body></html>

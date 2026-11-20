@@ -240,6 +240,7 @@ ShellRoot {
         function dashboard(): void { island.toggle() }   // Super+W
         function dockShow(action: string): void { dock.hold = action !== "hide"; dock.shown = dock.hold }
         function atalhos(): void { shortcutSheet.toggle() }
+        function dockPreview(app: string): void { dock.previewFirst(app) }
         function trayMenu(index: int): void { island.openPanel(); island.panel.tray.openMenu(index) }
         function altTab(): void { if (!constellation.open) constellation.screen = root.targetScreen(); constellation.altTab(1) }
         function altTabPrev(): void { if (!constellation.open) constellation.screen = root.targetScreen(); constellation.altTab(-1) }

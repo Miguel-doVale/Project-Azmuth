@@ -23,6 +23,7 @@ Uso:
   azmuth audio [restore|status]         recupera/consulta a saída do PipeWire
   azmuth wallpaper                       reaplica o wallpaper (hotplug de monitor)
   azmuth set <chave> <valor>             altera uma preferência (ex.: timer.minutes 15)
+  azmuth fundo [<cena>|--json]           fundo da área de trabalho: lista ou troca a cena ASCII vivo
   azmuth settings                        preferências em JSON (painel de configuração)
   azmuth lock [--preview]                bloqueia a tela (Super + M) · --preview só mostra
   azmuth lockseq set L L R U R L ...     sequência do Omnitrix para desbloquear (clear/status)
@@ -48,6 +49,7 @@ import random
 import re
 import shutil
 import subprocess
+import tempfile
 import threading
 import sys
 import time
@@ -87,7 +89,15 @@ DEFAULT_SETTINGS = {
                         "com.anthropic.Claude", "com.microsoft.VSCode", "obsidian"]},   # ids de .desktop
     "windows": {"maximize": ["google-chrome"]},   # classes que abrem maximizadas
     "audio_auto_switch": True,      # aparelho conectado vira a saída/entrada padrão
+    "desktop": {                    # fundo da área de trabalho viva (galeria ASCII vivo)
+        "scene": "circuitos",       # id da cena (~/.local/share/azmuth/scenes/<id>) ou "circuitos"
+        "effects": {},              # por cena: lista de liga/desliga na ordem dos efeitos dela
+        "color": {},                # por cena: "foto" ou "dna" (branco + cor do DNA)
+        "every": {},                # por carrossel: segundos entre as trocas
+    },
 }
+SCENES_DIR = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "azmuth/scenes"
+CAROUSEL_EVERY = {4, 6, 9, 15, 30, 60}
 
 LIST_SETTINGS = {"dock.pinned", "windows.maximize"}
 BOOL_SETTINGS = {"island.detached", "audio_auto_switch"}
@@ -99,6 +109,24 @@ def validate_setting(path: str, value):
         if not isinstance(value, bool):
             raise ValueError(f"'{path}' deve ser true ou false")
         return value
+    if path == "desktop.scene":
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("'desktop.scene' deve ser o id de uma cena, ex.: \"portal-verde\"")
+        return value.strip()
+    if path.startswith("desktop.effects."):
+        if not isinstance(value, list) or not all(isinstance(v, bool) for v in value) or len(value) > 16:
+            raise ValueError(f"'{path}' deve ser uma lista de true/false (até 16)")
+        return value
+    if path.startswith("desktop.color."):
+        if value not in ("foto", "dna"):
+            raise ValueError(f"'{path}' deve ser \"foto\" ou \"dna\"")
+        return value
+    if path.startswith("desktop.every."):
+        if isinstance(value, bool) or value not in CAROUSEL_EVERY:
+            raise ValueError(f"'{path}' deve ser um destes segundos: {sorted(CAROUSEL_EVERY)}")
+        return value
+    if path.startswith("desktop."):
+        raise ValueError(f"'{path}' não existe (desktop aceita scene, effects.<id>, color.<id>, every.<id>)")
     if path in LIST_SETTINGS:
         if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
             raise ValueError(f"'{path}' deve ser uma lista de textos, ex.: [\"google-chrome\"]")
@@ -228,18 +256,23 @@ def read_settings() -> dict:
 
 
 def set_setting(path: str, value) -> dict:
-    """azmuth set timer.minutes 15 · azmuth set dna.massa_cinzenta.autostart_apps false"""
+    """azmuth set timer.minutes 15 · azmuth set dna.massa_cinzenta.autostart_apps false
+    Com lock: vários `azmuth set` ao mesmo tempo (cliques rápidos na Central) não perdem chaves."""
     STATE_DIR.mkdir(parents=True, exist_ok=True)
-    try:
-        raw = json.loads(SETTINGS_FILE.read_text())
-    except (FileNotFoundError, json.JSONDecodeError):
-        raw = {}
-    node = raw
-    *parents, leaf = path.split(".")
-    for key in parents:
-        node = node.setdefault(key, {})
-    node[leaf] = value
-    SETTINGS_FILE.write_text(json.dumps(raw, indent=2))
+    with open(STATE_DIR / ".settings.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            raw = json.loads(SETTINGS_FILE.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            raw = {}
+        node = raw
+        *parents, leaf = path.split(".")
+        for key in parents:
+            node = node.setdefault(key, {})
+        node[leaf] = value
+        tmp = SETTINGS_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(raw, indent=2))
+        tmp.replace(SETTINGS_FILE)
     return read_settings()
 
 
@@ -409,6 +442,16 @@ def palette_vars(pal: dict) -> dict:
 
 def write_theme(data: dict | None = None) -> None:
     """theme.json: o que a shell (barra/HUD/widgets) precisa saber do DNA ativo."""
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    # lock próprio (não o das preferências): vários `azmuth set` ao mesmo tempo; quem grava por último lê por último
+    with open(STATE_DIR / ".theme.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        _write_theme_locked(data)
+    if shell_running():
+        shell_ipc("theme")
+
+
+def _write_theme_locked(data: dict | None) -> None:
     state = read_state()
     settings = read_settings()
     if data is None:
@@ -430,14 +473,14 @@ def write_theme(data: dict | None = None) -> None:
         "island": settings["island"],
         "dock": settings["dock"],
         "audio_auto_switch": settings["audio_auto_switch"],
+        "desktop": settings["desktop"],
+        "scenes_dir": str(SCENES_DIR),
         **data["palette"],
     }
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    tmp = THEME_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(theme))
-    tmp.replace(THEME_FILE)
-    if shell_running():
-        shell_ipc("theme")
+    fd, tmp_name = tempfile.mkstemp(dir=STATE_DIR, prefix=".theme-", suffix=".tmp")
+    with os.fdopen(fd, "w") as fh:
+        fh.write(json.dumps(theme))
+    os.replace(tmp_name, THEME_FILE)
 
 
 def apply_rofi(data: dict) -> None:
@@ -502,6 +545,23 @@ def apply_file_manager(data: dict) -> None:
             log("[OK] Dolphin · tema preparado")
     except OSError as exc:
         log(f"[AVISO] Tema do Dolphin: {exc}")
+
+
+def defer_file_manager(dna_path: Path) -> None:
+    """Tema do Dolphin num processo solto, depois da animação: reescrever esquema/ícones no meio dela
+    fazia a shell (Qt) recarregar e travar ~150 ms bem durante a onda de luz. Recebe o CAMINHO do DNA
+    (um `azmuth caminho/x.yaml` fora de dna/ também funciona)."""
+    spawn([sys.executable, str(Path(__file__).resolve()), "tema-arquivos", str(dna_path)])
+
+
+def cmd_tema_arquivos(args: list[str]) -> None:
+    time.sleep(1.3)   # depois da onda de luz da transformação
+    data = load_dna(resolve(args[0] if args else load_roster()["neutral"]))
+    with open(STATE_DIR / ".filemanager.lock", "w") as lock:   # duas transformações seguidas não se atropelam
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if read_state().get("current", data["dna"]["id"]) != data["dna"]["id"]:
+            return    # já houve outra transformação: o processo dela aplica o tema certo
+        apply_file_manager(data)
 
 
 def unit_exists(name: str) -> bool:
@@ -644,7 +704,7 @@ def transform(ref: str, source: str = "manual", quiet: bool = False, apps: bool 
     apply_dunst(data)
     apply_hyprlock(data)
     apply_kitty(data)
-    apply_file_manager(data)
+    apply_file_manager(data) if quiet else defer_file_manager(path)
     apply_gtk(data)
     daemons = apply_daemons(data, state)
     if apps:
@@ -881,6 +941,22 @@ def cmd_set(path: str, raw: str) -> None:
     if path == "audio_auto_switch":
         __import__("audio_runtime").switch_on_connect(value)
     log(f"[OK] {path} = {json.dumps(value)}")
+
+
+def cmd_fundo(args: list[str]) -> None:
+    """azmuth fundo [--json] lista as cenas · azmuth fundo <id> troca o fundo da área de trabalho."""
+    scenes = __import__("scenes").list_scenes(SCENES_DIR)
+    if not args or args[0] == "--json":
+        if args:
+            print(json.dumps(scenes, ensure_ascii=False))
+        else:
+            cur = read_settings()["desktop"]["scene"]
+            for s in scenes:
+                log(f"{'●' if s['id'] == cur else ' '} {s['id']:<24} {s['title']}")
+        return
+    if args[0] not in {s["id"] for s in scenes}:
+        raise SystemExit(f"[ERRO] cena '{args[0]}' não existe (veja: azmuth fundo)")
+    cmd_set("desktop.scene", json.dumps(args[0]))
 
 
 def cmd_settings() -> None:
@@ -1229,6 +1305,8 @@ COMMANDS = {
     "display": lambda a: __import__("display").main(a),
     "windows": lambda a: __import__("window_rules").main(a),
     "atalhos": lambda a: __import__("shortcuts").main(a),
+    "fundo": lambda a: cmd_fundo(a),
+    "tema-arquivos": lambda a: cmd_tema_arquivos(a),   # interno: tema do Dolphin após a transformação
     "shortcuts": lambda a: __import__("shortcuts").main(a),
 }
 NEEDS_ARG = {"apply", "slot", "set"}

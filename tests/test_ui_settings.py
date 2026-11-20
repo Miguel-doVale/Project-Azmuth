@@ -34,6 +34,84 @@ class UiSettingsTests(unittest.TestCase):
         self.assertEqual(s["windows"]["maximize"], ["google-chrome"])
         self.assertIs(s["audio_auto_switch"], True)
 
+    def test_desktop_defaults(self):
+        d = core.read_settings()["desktop"]
+        self.assertEqual(d["scene"], "circuitos")
+        self.assertNotIn("comic", d)   # transformação em quadrinho removida a pedido do Miguel (2026-11-20)
+        self.assertEqual((d["effects"], d["color"], d["every"]), ({}, {}, {}))
+
+    def test_desktop_validation(self):
+        self.assertEqual(core.validate_setting("desktop.scene", " portal-verde "), "portal-verde")
+        self.assertEqual(core.validate_setting("desktop.effects.portal-verde", [True, False]), [True, False])
+        self.assertEqual(core.validate_setting("desktop.color.him", "dna"), "dna")
+        self.assertEqual(core.validate_setting("desktop.every.posteres", 9), 9)
+        for path, bad in [("desktop.scene", ""), ("desktop.scene", 3), ("desktop.effects.x", [1]),
+                          ("desktop.effects.x", [True] * 17), ("desktop.color.x", "azul"),
+                          ("desktop.every.x", 7), ("desktop.every.x", True), ("desktop.comic", False)]:
+            with self.assertRaises(ValueError, msg=f"{path}={bad!r}"):
+                core.validate_setting(path, bad)
+
+    def test_theme_exports_desktop(self):
+        core.set_setting("desktop.scene", "him")
+        with mock.patch.object(core, "read_state", lambda: {}), \
+             mock.patch.object(core, "load_roster", lambda: {"neutral": "neutral"}), \
+             mock.patch.object(core, "timer_info", lambda *a: {}):
+            core.write_theme({"dna": {"id": "x", "name": "X", "description": ""}, "palette": {"primary": "#38bdf8"},
+                              "wallpaper": {"path": "a.png"}, "hud": {}})
+        theme = json.loads(core.THEME_FILE.read_text())
+        self.assertEqual(theme["desktop"]["scene"], "him")
+        self.assertTrue(theme["scenes_dir"].endswith("azmuth/scenes"))
+
+    def test_concurrent_set_setting_keeps_every_key(self):
+        """Vários `azmuth set` ao mesmo tempo (cliques rápidos na Central) não podem perder chaves."""
+        import threading
+        errors = []
+
+        def write(i):
+            try:
+                core.set_setting(f"desktop.effects.cena{i}", [True, i % 2 == 0])
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
+
+        for _round in range(5):
+            threads = [threading.Thread(target=write, args=(i,)) for i in range(12)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+        self.assertEqual(errors, [])
+        saved = core.read_settings()["desktop"]["effects"]
+        self.assertEqual(sorted(saved), sorted(f"cena{i}" for i in range(12)))
+
+    def test_concurrent_set_and_theme_write_stay_consistent(self):
+        """`azmuth set` = set_setting + write_theme: em paralelo, nenhum falha e o theme.json (lido pela shell)
+        termina com TODAS as chaves, igual ao settings.json."""
+        import threading
+        errors = []
+        dna = {"dna": {"id": "x", "name": "X", "description": ""}, "palette": {"primary": "#38bdf8"},
+               "wallpaper": {"path": "a.png"}, "hud": {}}
+
+        def run(i):
+            try:
+                core.set_setting(f"desktop.effects.cena{i}", [True, i % 2 == 0])
+                core.write_theme(dna)
+            except Exception as exc:  # noqa: BLE001
+                errors.append(repr(exc))
+
+        with mock.patch.object(core, "read_state", lambda: {}), \
+             mock.patch.object(core, "load_roster", lambda: {"neutral": "neutral"}), \
+             mock.patch.object(core, "timer_info", lambda *a: {}):
+            for _round in range(6):
+                threads = [threading.Thread(target=run, args=(i,)) for i in range(12)]
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+        self.assertEqual(errors, [])
+        theme = json.loads(core.THEME_FILE.read_text())
+        self.assertEqual(sorted(theme["desktop"]["effects"]), sorted(f"cena{i}" for i in range(12)))
+        self.assertEqual(theme["desktop"], core.read_settings()["desktop"])
+
     def test_validate_accepts_and_normalizes(self):
         self.assertIs(core.validate_setting("island.detached", False), False)
         self.assertEqual(core.validate_setting("dock.pinned", ["spotify", "spotify", "obsidian"]), ["spotify", "obsidian"])

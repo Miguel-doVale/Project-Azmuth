@@ -60,3 +60,10 @@ São ideias, não decisões; marcadas com a dificuldade estimada.
 - **Insectoide:** visão geral (Constelação padrão; "gosma" fixa janelas em todos os workspaces).
 - **Ultra-T:** automação (scripts, CI, dispositivos; bordas de circuito nas janelas).
 - **Chama:** gaming/render (gamemode, GPU no máximo; superaquecimento → failsafe).
+
+
+## Fundo-história do Ben (ideia do Miguel, 2026-11-14)
+No Neutral, o fundo da área de trabalho é o Ben em ASCII vivo. Ativar o Omnitrix faz a cena reagir: zoom
+no pulso, o relógio "sobe", o disco gira escolhendo o alien e, ao transformar, roda a transformação estilo
+Força Alienígena até virar o alien em ASCII. Depende da galeria de fundos ASCII (formato de cena e
+renderizador) — próximo projeto depois dela.

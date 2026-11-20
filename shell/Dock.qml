@@ -29,19 +29,24 @@ PanelWindow {
     visible: theme.bar !== false
     anchors.bottom: true
     implicitWidth: 1100
-    implicitHeight: 190
+    // altura FIXA, já com espaço para as prévias: mudar o tamanho da janela fazia o Wayland "resetar" o
+    // mouse em cima (abre → sai → fecha → entra… em loop). Só as partes visíveis recebem clique (mask).
+    implicitHeight: 470
     exclusiveZone: 0
     color: "transparent"
     WlrLayershell.namespace: "azmuth-dock"
     WlrLayershell.layer: WlrLayer.Overlay
     // fechada: só o risquinho recebe o mouse; aberta: a faixa inteira da dock até a borda de baixo
     // (sem isso, o mouse encostado na borda ficava fora de tudo e a dock nunca descia)
-    mask: Region { item: dock.shown ? dockHit : handle }
+    mask: Region {
+        item: dock.shown ? dockHit : handle
+        Region { item: winList }   // prévias (tamanho zero quando fechadas)
+    }
     Item {
         id: dockHit
         anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom
         width: Math.max(body.width, wsbar.width) * dock.k + 24
-        height: parent.height
+        height: 190                          // só a região da dock (as prévias têm a área delas)
         HoverHandler { id: dockHover; onHoveredChanged: hovered ? hideTimer.stop() : dock.hideSoon(450) }
     }
 
@@ -139,23 +144,49 @@ PanelWindow {
         savePinned(ids)
     }
 
-    function click(app) {
-        const wins = windowsOf(app.key)
-        if (!wins.length) { if (app.entry) app.entry.execute(); else Quickshell.execDetached(["gtk-launch", app.appId]); hideSoon(); return }
-        const active = Hyprland.activeToplevel
-        const focused = wins.find(t => t === active && t.workspace && t.workspace.id > 0)
-        if (focused) {   // em foco → minimiza (workspace oculto, igual ao Super+N)
-            Quickshell.execDetached(["hyprctl", "eval",
-                `hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", window = "address:0x${focused.address}", follow = false }))`])
-        } else {
-            const target = wins[wins.length - 1]
-            if (target.wayland) target.wayland.activate()
-            else Quickshell.execDetached(["hyprctl", "eval", `hl.dispatch(hl.dsp.focus({ window = "address:0x${target.address}" }))`])
-        }
+    // janelas do app, a usada por último primeiro (histórico de foco do Hyprland)
+    function recent(wins) {
+        const h = t => (t.lastIpcObject && t.lastIpcObject.focusHistoryID !== undefined) ? t.lastIpcObject.focusHistoryID : 999
+        return wins.slice().sort((a, b) => h(a) - h(b))
+    }
+    function isMinimized(t) { return t.workspace && t.workspace.name === "special:minimized" }
+    function minimize(t) {   // azmuth.lua lembra o workspace de origem para restaurar lá
+        Quickshell.execDetached(["hyprctl", "eval", `azmuth_minimize("0x${t.address}", ${t.workspace ? t.workspace.id : 0})`])
+    }
+    function focusWindow(t) {   // janela minimizada: o azmuth.lua a devolve ao workspace de origem
+        if (t.wayland) t.wayland.activate()
+        else Quickshell.execDetached(["hyprctl", "eval", `hl.dispatch(hl.dsp.focus({ window = "address:0x${t.address}" }))`])
     }
 
+    function click(app) {
+        const wins = recent(windowsOf(app.key))
+        if (!wins.length) { if (app.entry) app.entry.execute(); else Quickshell.execDetached(["gtk-launch", app.appId]); hideSoon(450); return }
+        const target = wins[0]
+        const focused = target === Hyprland.activeToplevel && !isMinimized(target)
+        if (focused) minimize(target)     // em foco → minimiza (a última usada)
+        else focusWindow(target)          // senão → a última usada (restaura se estiver minimizada)
+    }
+
+    // ── lista de janelas (app com várias janelas, mouse parado em cima) ──
+    function previewFirst(appId) {   // diagnóstico (IPC dockPreview <app>): prévias de um app com várias janelas
+        for (let i = 0; i < appsRepeater.count; i++) {
+            const it = appsRepeater.itemAt(i)
+            if (it && it.wins.length > 1 && (!appId || it.modelData.key === appId || it.modelData.appId === appId)) { hold = true; shown = true; listAnchor = it; listApp = it.modelData; return }
+        }
+    }
+    property var listApp: null
+    property Item listAnchor: null
+    readonly property var listWins: { tick; return listApp ? recent(windowsOf(listApp.key)) : [] }
+    Timer { id: listClose; interval: 350; onTriggered: if (!listHover.hovered && !(dock.listAnchor && dock.listAnchor.hovered)) dock.listApp = null }
+
     function hideSoon(ms) { hideTimer.interval = ms || 450; hideTimer.restart() }
-    Timer { id: hideTimer; interval: 450; onTriggered: if (!dock.hold && !handleHover.hovered && !dockHover.hovered && !bodyHover.hovered && !wsHover.hovered && !pinMenu.visible && dock.dragKey === "") dock.shown = false }
+    readonly property bool busy: hold || listApp !== null || handleHover.hovered || dockHover.hovered || bodyHover.hovered
+                                 || wsHover.hovered || listHover.hovered || pinMenu.visible || dragKey !== ""
+    Timer { id: hideTimer; interval: 450; onTriggered: if (!dock.busy) dock.shown = false }
+    // prévias fecharam (saiu por elas ou clicou numa janela): a dock agenda a descida
+    onListAppChanged: if (listApp === null && shown) hideSoon(450)
+    // rede de segurança: aberta e sem o mouse em nenhuma parte dela → desce (nunca fica presa)
+    Timer { interval: 1500; repeat: true; running: dock.shown; onTriggered: if (!dock.busy) dock.shown = false }
 
     // ── risquinho de workspaces (fechada) ──
     Item {
@@ -240,6 +271,88 @@ PanelWindow {
         }
     }
 
+    // prévias ao vivo das janelas (como a barra de tarefas do Windows), lado a lado em cima do ícone
+    // desenhadas dentro da própria janela da dock (como popup, o Hyprland as jogava por cima da dock)
+    Item {
+        id: winList
+        readonly property int cardW: 230
+        readonly property int perRow: Math.max(1, Math.min(dock.listWins.length, 4))
+        readonly property bool open: dock.listApp !== null && dock.listWins.length > 1
+        readonly property point at: { dock.tick; dock.height; body.y; return dock.listAnchor ? dock.listAnchor.mapToItem(dock.contentItem, dock.listAnchor.width / 2, 0) : Qt.point(0, 0) }
+        readonly property real fullW: perRow * cardW + (perRow - 1) * 10 + 20
+        readonly property real fullH: cards.implicitHeight + 20
+        width: open ? fullW : 0; height: open ? fullH : 0
+        x: Math.max(4, Math.min(dock.width - fullW - 4, at.x - fullW / 2))
+        // em cima da dock (o topo visível dela: altura da janela − margem de baixo − altura escalada)
+        y: Math.max(4, dock.height - 14 - body.height * dock.k - fullH - 12)
+        visible: open; z: 30
+        Rectangle {
+            width: winList.fullW; height: winList.fullH; radius: 16
+            color: Qt.alpha("#0e1626", 0.97); border.width: 1; border.color: Qt.alpha(dock.primary, 0.55)
+            HoverHandler { id: listHover; onHoveredChanged: hovered ? listClose.stop() : listClose.restart() }
+            Flow {
+                id: cards
+                x: 10; y: 10; width: winList.fullW - 20
+                spacing: 10
+                Repeater {
+                    model: dock.listWins
+                    Rectangle {
+                        id: card
+                        required property var modelData
+                        readonly property bool minimized: dock.isMinimized(modelData)
+                        readonly property bool active: modelData === Hyprland.activeToplevel && !minimized
+                        width: winList.cardW; height: 26 + thumb.height + 8
+                        radius: 12
+                        color: cma.containsMouse ? Qt.alpha(dock.primary, 0.16) : (active ? Qt.alpha(dock.primary, 0.08) : "transparent")
+                        border.width: cma.containsMouse || active ? 1 : 0; border.color: Qt.alpha(dock.primary, cma.containsMouse ? 0.7 : 0.35)
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Row {   // ícone + título
+                            x: 8; y: 5; spacing: 7
+                            IconImage { anchors.verticalCenter: parent.verticalCenter; implicitSize: 16
+                                        source: { const id = dock.appIdOf(card.modelData); return dock.iconFor(id, dock.entryFor(id)) } }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter; width: card.width - 40
+                                elide: Text.ElideRight
+                                text: (card.modelData.lastIpcObject && card.modelData.lastIpcObject.title) || card.modelData.title || "Janela"
+                                font.family: "Rajdhani"; font.weight: Font.DemiBold; font.pixelSize: 13
+                                color: card.minimized ? Qt.alpha(dock.fg, 0.6) : dock.fg
+                            }
+                        }
+                        Rectangle {   // a prévia ao vivo
+                            id: thumb
+                            x: 6; y: 26; width: card.width - 12; height: Math.round(width * 9 / 16)
+                            radius: 8; clip: true
+                            color: "#070b12"
+                            ScreencopyView {
+                                anchors.fill: parent
+                                captureSource: winList.visible && card.modelData.wayland ? card.modelData.wayland : null
+                                live: true
+                                opacity: card.minimized ? 0.35 : 1
+                            }
+                            IconImage {   // sem prévia (ou minimizada): o ícone do app no meio
+                                anchors.centerIn: parent; implicitSize: 40
+                                visible: card.minimized || !card.modelData.wayland
+                                source: { const id = dock.appIdOf(card.modelData); return dock.iconFor(id, dock.entryFor(id)) }
+                            }
+                            Rectangle {   // onde está: WS n ou minimizada
+                                anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 6
+                                width: wsText.implicitWidth + 12; height: 20; radius: 7
+                                color: Qt.alpha("#0e1626", 0.9); border.width: 1
+                                border.color: card.minimized ? Qt.alpha(dock.fg, 0.25) : Qt.alpha(dock.primary, 0.6)
+                                Text { id: wsText; anchors.centerIn: parent
+                                       text: card.minimized ? "MINIMIZADA" : "WS " + (card.modelData.workspace ? card.modelData.workspace.id : "?")
+                                       font.family: "Orbitron"; font.pixelSize: 9; font.letterSpacing: 1
+                                       color: card.minimized ? Qt.alpha(dock.fg, 0.7) : dock.primary }
+                            }
+                        }
+                        MouseArea { id: cma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                    onClicked: { dock.focusWindow(card.modelData); dock.listApp = null } }
+                    }
+                }
+            }
+        }
+    }
+
     // ── menu do clique direito: fixar / desafixar ──
     Rectangle {
         id: pinMenu
@@ -264,7 +377,7 @@ PanelWindow {
         HoverHandler { onHoveredChanged: if (!hovered) pinClose.restart(); else pinClose.stop() }
         Timer { id: pinClose; interval: 900; onTriggered: pinMenu.visible = false }
     }
-    onShownChanged: if (!shown) pinMenu.visible = false
+    onShownChanged: if (!shown) { pinMenu.visible = false; listApp = null }
 
     // ── a dock ──
     Rectangle {   // neon em volta (cópia embaixo só para o brilho desfocado)
@@ -309,6 +422,7 @@ PanelWindow {
             }
             Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 1; height: 32; color: Qt.alpha(dock.primary, 0.3) }
             Repeater {
+                id: appsRepeater
                 model: dock.apps
                 Item {
                     id: app
@@ -317,6 +431,11 @@ PanelWindow {
                     readonly property bool open: wins.length > 0
                     readonly property bool focused: open && wins.some(t => t === Hyprland.activeToplevel && t.workspace && t.workspace.id > 0)
                     readonly property bool dragging: dock.dragKey === modelData.key
+                    readonly property bool hovered: ama.containsMouse
+                    // várias janelas: mouse parado ~0,5 s em cima → lista para escolher
+                    Timer { id: listDelay; interval: 550
+                            onTriggered: if (ama.containsMouse && app.wins.length > 1 && dock.dragKey === "") { dock.listAnchor = app; dock.listApp = app.modelData } }
+                    onHoveredChanged: { if (hovered) { listClose.stop(); listDelay.restart() } else { listDelay.stop(); if (dock.listApp) listClose.restart() } }
                     width: 48; height: 58
                     z: dragging ? 5 : 0
                     transform: Translate {

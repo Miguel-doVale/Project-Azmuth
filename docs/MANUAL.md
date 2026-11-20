@@ -160,6 +160,24 @@ para a ampulheta ao transformar, e a silhueta do alien no centro. Clicar nele
 abre o HUD. Em volta: relógio e anéis de CPU, RAM, temperatura e energia.
 Desligável na Central.
 
+### Fundo da área de trabalho (cenas ASCII vivo)
+No lugar dos circuitos, o fundo pode ser uma **cena ASCII viva**: uma imagem convertida em caracteres,
+com efeitos temáticos (redemoinho, raios, rastro, órbita, chuva, neve, matrix, planetas, brilhos…).
+O Omnitrix do centro continua por cima.
+
+- **Escolher:** Central (`Super + Shift + O`) → aba da área de trabalho → seção **FUNDO**. Clique numa
+  miniatura; as pílulas ligam/desligam cada efeito da cena; "Cores da foto" ou "Branco + cor do DNA";
+  no carrossel de **Pôsteres**, "Troca a cada" 4–60 s. Tudo vale na hora.
+- **Terminal:** `azmuth fundo` (lista) · `azmuth fundo <id>` (troca) · `azmuth fundo circuitos` (volta).
+- **Desempenho:** os efeitos rodam na placa de vídeo e **pausam sempre que há janela aberta** no
+  workspace daquele monitor (com janela em tela cheia, pausam em todos). O fundo só anima com o
+  workspace vazio. "Área de trabalho viva" desligada = cena parada.
+- **Onde ficam:** só neste PC, em `~/.local/share/azmuth/scenes/<id>/` (`scene.json` + `preview.png`).
+  As imagens de terceiros **nunca** vão para o repositório.
+- **Cenas novas:** o Claude produz com `tools/ascii_scene.py build [config.json] [ids…]` (config em
+  `scenes/_build/scenes.json`; prévia animada com `… gallery` → `scenes/galeria.html`). Efeitos novos
+  de uma cena entram sempre no **fim** da lista (as escolhas salvas são por posição).
+
 ### Ilha do Omnitrix (topo) — substitui a barra
 Não ocupa espaço da tela. Três fases:
 - **Repouso:** só a pontinha do Omnitrix aparece embaixo da câmera.
@@ -185,7 +203,10 @@ Encoste nele e sobem a **faixa de workspaces** (número + ícones do que está a
 troca) e a **dock**: Omnitrix (roda de apps do `Super + D`) e os apps fixos — Chrome, Dolphin, Spotify,
 Docker, Claude, VS Code, Obsidian (`azmuth set dock.pinned '["google-chrome", …]'`, ids de `.desktop`).
 Apps abertos que não são fixos entram no fim. Ponto embaixo = aberto; traço comprido = em foco.
-Clique como no Windows: fechado abre, aberto vai até ele, em foco minimiza. **Clique direito** num app:
+Clique como no Windows: fechado abre, aberto vai para a janela usada por último, em foco minimiza.
+App com **várias janelas**: pare o mouse em cima ~0,5 s e aparecem as **prévias ao vivo** de cada janela
+(com o workspace dela ou "minimizada"); clique na que quiser. Minimizar (dock ou `Super + N`) lembra o
+workspace de origem e restaurar devolve a janela para lá. **Clique direito** num app:
 fixar/desafixar. **Arraste** um app fixo para mudar a ordem (fica salva).
 
 ### Apps que abrem maximizados
@@ -376,6 +397,7 @@ remover: `bash sddm/install.sh --remove`.
 | `azmuth event add AAAA-MM-DD [HH:MM] título` · `event list` | Eventos do calendário |
 | `azmuth lifeform on / off <código>` · `azmuth <código>` · `lifeform code` · `failsafe` | Life-Form Lock · failsafe manual |
 | `azmuth set <chave> <valor>` · `settings` | Preferências (ex.: `timer.minutes 15`) |
+| `azmuth fundo [<cena>\|--json]` | Lista ou troca a cena do fundo (`circuitos` = o antigo) |
 | `azmuth current [--json/--name]` · `roster` | DNA ativo · catálogo |
 | `azmuth send` · `start` | Recupera os componentes da rice e reaplica o DNA salvo |
 | `azmuth doctor [--json]` | Diagnóstico da sessão, sem ações de energia ou autenticação |
@@ -405,6 +427,7 @@ remover: `bash sddm/install.sh --remove`.
 | `assets/` | Sons, wallpapers, arte dos aliens |
 | `tools/` | Geradores: sons, wallpapers, logo ASCII, runas |
 | `~/.local/state/azmuth/` | Estado: DNA atual, preferências, playlists, logs |
+| `~/.local/share/azmuth/scenes/` | Cenas do fundo ASCII (fora do git) · `tools/ascii_scene.py` gera |
 | `~/.local/state/azmuth/*.log` | `context.log`, `shell.log` |
 
 ---

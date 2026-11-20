@@ -471,6 +471,15 @@ azmuth current | roster       # estado / catálogo
       central recolhida com faixa de workspaces — design em `docs/superpowers/specs/2026-11-14-ilha-dock-design.md`.
 - [x] Apps que abrem maximizados, saída de som automática ao conectar, serviços na aba Inicialização.
 
+**Feito em 2026-11-20**
+- [x] Galeria de fundos ASCII vivo: 27 cenas + carrossel de 10 pôsteres, efeitos na GPU, escolha na
+      Central (seção FUNDO) e `azmuth fundo` — spec `docs/superpowers/specs/2026-11-14-galeria-ascii-design.md`.
+- [x] O fundo pausa com qualquer janela no monitor (Minecraft: a shell roubava ~metade do FPS da iGPU).
+- [x] Transformação sem travar: a base ASCII não é redesenhada na troca de DNA; tema do Dolphin depois da onda.
+- [ ] ~~Transformação em quadrinho~~ — feita e removida a pedido do Miguel (não gostou).
+- [ ] Pendentes do fundo: máscaras girando de verdade na cena "Ben e as máscaras"; mais design no Ultra-T/Upgrade;
+      fundo-história do Ben.
+
 **Próximos, na ordem combinada com o Miguel:** wallpaper → artes → idioma Galvan → 9 aliens/DNAs →
 voz do Azmuth (por último: o alto-falante do notebook é ruim). Widgets e calendário ligado ao ERP
 pessoal são um projeto à parte.

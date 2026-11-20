@@ -145,16 +145,30 @@ hl.bind(mainMod .. " + SHIFT + L", hl.dsp.exec_cmd(AZ .. " lifeform toggle"))
 ----------------------------------
 ---- MINIMIZAR (workspace oculto) ----
 ----------------------------------
--- O Hyprland não tem "minimizar" nativo: a janela vai para special:minimized.
--- Ela volta com Super+Shift+N (a última minimizada) ou clicando nela na taskbar
--- da waybar — qualquer foco numa janela minimizada a restaura no workspace atual.
+-- O Hyprland não tem "minimizar" nativo: a janela vai para special:minimized e o Azmuth
+-- lembra de qual workspace ela saiu. Ela volta com Super+Shift+N (a última minimizada), pela
+-- dock ou por qualquer foco nela — sempre para o workspace de ORIGEM (antes caía no atual e
+-- várias janelas restauradas se amontoavam na mesma tela).
 
 local MIN = "special:minimized"
+local origin = {}                       -- endereço (sem 0x) → workspace de onde a janela saiu
+local function key(addr) return (tostring(addr):gsub("^0x", "")) end
+
+-- também chamada pela dock: hyprctl eval 'azmuth_minimize("0x…", 3)'
+function azmuth_minimize(addr, ws_id)
+    origin[key(addr)] = tonumber(ws_id)
+    hl.dispatch(hl.dsp.window.move({ workspace = MIN, window = "address:0x" .. key(addr), follow = false }))
+end
 
 local function restore(w)
-    local ws = hl.get_active_workspace()
-    if not ws then return end
-    hl.dispatch(hl.dsp.window.move({ workspace = tostring(ws.id), window = "address:" .. w.address }))
+    local target = origin[key(w.address)]
+    origin[key(w.address)] = nil
+    if not target then
+        local ws = hl.get_active_workspace()
+        if not ws then return end
+        target = ws.id
+    end
+    hl.dispatch(hl.dsp.window.move({ workspace = tostring(target), window = "address:" .. w.address }))
     hl.dispatch(hl.dsp.focus({ window = "address:" .. w.address }))
     local sp = hl.get_active_special_workspace()
     if sp and sp.name == MIN then
@@ -164,9 +178,7 @@ end
 
 hl.bind(mainMod .. " + N", function()
     local w = hl.get_active_window()
-    if w then
-        hl.dispatch(hl.dsp.window.move({ workspace = MIN, window = "address:" .. w.address, follow = false }))
-    end
+    if w and w.workspace then azmuth_minimize(w.address, w.workspace.id) end
 end)
 
 hl.bind(mainMod .. " + SHIFT + N", function()

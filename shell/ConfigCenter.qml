@@ -572,6 +572,7 @@ PanelWindow {
             DesktopPanel {
                 anchors.fill: parent
                 visible: cc.tab === 6
+                active: cc.open && cc.tab === 6
                 settings: cc.cfg ? cc.cfg.settings : null
                 onSetPref: (path, value) => cc.set(path, value)
                 onEditOnScreen: { cc.open = false; DeskLayout.editing = true }

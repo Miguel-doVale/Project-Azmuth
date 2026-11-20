@@ -50,6 +50,7 @@ na Central. O ambiente deve acompanhar a tarefa que você escolheu.
 | --- | --- |
 | **Omnitrix HUD** | Disco interativo, navegação por setas ou scroll, seleção de DNA, arte do alien e animação de transformação. |
 | **Desktop vivo** | Núcleo que muda entre Arch e Omnitrix, circuitos animados, silhueta do alien e anéis de energia e métricas. |
+| **Fundo ASCII vivo** | Galeria de cenas em caracteres com efeitos na GPU (redemoinho, raios, órbita, chuva, matrix…), escolhidas e ajustadas na Central; pausam sozinhas com janela aberta. O conversor está em `tools/ascii_scene.py`; as imagens ficam fora do repositório. |
 | **Barra galvânica** | Workspaces, aplicativos, bandeja, rede, áudio, bateria e o DNA ativo em uma identidade visual comum. |
 | **Constelação** | Alternância de janelas e exploração espacial de workspaces, com miniaturas ao vivo, zoom e navegação WASD. |
 | **Lançador de aplicativos** | Disco com playlists editáveis: nome, runa, cor, ordem e aplicativos. Apps sem playlist continuam acessíveis. |

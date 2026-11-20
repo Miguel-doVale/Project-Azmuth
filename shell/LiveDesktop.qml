@@ -9,6 +9,7 @@ import QtQuick.Shapes
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Hyprland
 
 PanelWindow {
     id: live
@@ -31,7 +32,47 @@ PanelWindow {
     readonly property real glassIn: Math.max(0, Math.min(1, (mutation - 0.35) / 0.65)) // ampulheta surge depois
     readonly property real glitch: Math.sin(mutation * 60) * 7 * archOut * (1 - archOut) * 4
 
-    visible: theme.live !== false
+    // ── fundo: cena ASCII vivo (galeria da Central / `azmuth fundo`) ou os circuitos originais
+    readonly property var desk: theme.desktop || ({})
+    readonly property string sceneId: desk.scene || "circuitos"
+    property bool sceneFailed: false
+    onSceneIdChanged: sceneFailed = false
+    // sem scenes_dir (theme.json antigo) não há de onde ler: circuitos
+    readonly property bool sceneWanted: sceneId !== "circuitos" && !sceneFailed && !!theme.scenes_dir
+    readonly property bool sceneShown: sceneWanted && ascii.ready
+    // qualquer janela no workspace deste monitor: o vivo para. Animação infinita no Qt redesenha a
+    // tela inteira a 60 Hz e obriga o Hyprland a recompor; na iGPU isso custava ~2x o FPS de um jogo
+    // (Minecraft: 99 → ~2x com a shell parada). O fundo só anima com o workspace vazio.
+    readonly property HyprlandMonitor monitor: Hyprland.monitorFor(modelData)
+    property int refreshTick: 0
+    // modo jogo: tela cheia de verdade (fullscreen 2) em QUALQUER monitor para o vivo em todos,
+    // para a iGPU ficar inteira para o jogo. Só afeta animações (nunca a visibilidade da janela).
+    readonly property bool covered: {
+        refreshTick
+        const ws = monitor ? monitor.activeWorkspace : null
+        if (!!ws && ws.toplevels.values.length > 0) return true
+        return Hyprland.monitors.values.some(m => {
+            const w = m.activeWorkspace
+            return !!w && w.toplevels.values.some(t => t.lastIpcObject && (t.lastIpcObject.fullscreen & 2))
+        })
+    }
+    // viva desligada = tudo parado (com cena escolhida a janela segue visível só para mostrar a cena)
+    readonly property bool animating: visible && !covered && theme.live !== false
+    // cada releitura do theme.json cria arrays novos: comparar pelo conteúdo evita refazer todas as camadas
+    // de efeito a cada transformação/clique na Central (a string só "muda" quando o conteúdo muda)
+    readonly property string effectsKey: JSON.stringify((desk.effects || {})[sceneId] || null)
+    Connections {
+        target: Hyprland
+        function onRawEvent(ev) {
+            if (["fullscreen", "activewindow", "activewindowv2", "workspace", "workspacev2", "openwindow",
+                 "closewindow", "movewindow", "movewindowv2", "changefloatingmode", "focusedmon", "activespecial",
+                 "moveworkspacev2", "monitoradded", "monitorremoved"].includes(ev.name))
+                coverRefresh.restart()
+        }
+    }
+    Timer { id: coverRefresh; interval: 60; onTriggered: { Hyprland.refreshToplevels(); live.refreshTick++ } }
+
+    visible: theme.live !== false || sceneWanted      // viva desligada + cena = cena parada
     anchors { top: true; left: true; right: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
     color: bg
@@ -40,6 +81,21 @@ PanelWindow {
     mask: Region { item: symbolHit }                  // só o símbolo recebe clique
 
     // ───────────────────────── fundo ─────────────────────────
+    AsciiScene {
+        id: ascii
+        anchors.fill: parent
+        visible: live.sceneWanted
+        sceneId: live.sceneWanted ? live.sceneId : ""
+        scenesDir: live.theme.scenes_dir || ""
+        frontHost: frontHost
+        dna: live.dna
+        animate: live.theme.live !== false && !live.covered
+        effectsOn: JSON.parse(live.effectsKey)
+        monoPref: { const c = (live.desk.color || {})[live.sceneId]; return c === undefined ? null : c === "dna" }
+        every: (live.desk.every || {})[live.sceneId] || 0
+        onFailed: { console.warn("cena ASCII indisponível, voltando aos circuitos:", live.sceneId); live.sceneFailed = true }
+    }
+
     Rectangle {   // brilho radial atrás do símbolo
         anchors.centerIn: parent
         width: live.rad * 3.4; height: width; radius: width / 2
@@ -83,6 +139,7 @@ PanelWindow {
     Canvas {
         id: board
         anchors.fill: parent
+        visible: !live.sceneShown && live.theme.live !== false
         onPaint: {
             const ctx = getContext("2d")
             ctx.reset()
@@ -100,7 +157,10 @@ PanelWindow {
                 ctx.beginPath(); ctx.arc(t.pts[0][0], t.pts[0][1], 1.8, 0, Math.PI * 2); ctx.fill()
             }
         }
-        Connections { target: live; function onDnaChanged() { board.requestPaint() } }
+        // repinta depois da animação da transformação (repintar na hora travava a onda da transformação)
+        Connections { target: live; function onDnaChanged() { boardRecolor.restart() } }
+        Timer { id: boardRecolor; interval: 1300; onTriggered: if (board.visible) board.requestPaint() }
+        onVisibleChanged: if (visible) board.requestPaint()
     }
 
     // pulsos de energia percorrendo as trilhas
@@ -110,6 +170,7 @@ PanelWindow {
         Item {
             id: pulse
             required property int index
+            visible: !live.sceneShown && live.theme.live !== false
             property var trace: null
             property real pos: 0                    // distância percorrida na trilha
             property real hx: -100
@@ -165,7 +226,7 @@ PanelWindow {
     Timer {
         id: frame
         interval: 33; repeat: true
-        running: live.visible
+        running: live.visible && !live.covered && !live.sceneShown && live.theme.live !== false
         property real last: Date.now()
         onTriggered: {
             const now = Date.now(), dt = Math.min(0.1, (now - last) / 1000)
@@ -173,7 +234,8 @@ PanelWindow {
             for (let i = 0; i < 16; i++) { const p = pulses.itemAt(i); if (p) p.advance(dt) }
         }
     }
-    Component.onCompleted: { if (width > 0) genTraces() }
+    // coverRefresh: shell reiniciada com jogo já em tela cheia (sem esperar um evento do Hyprland)
+    Component.onCompleted: { if (width > 0) genTraces(); coverRefresh.restart() }
 
     // ───────────────────────── o Omnitrix ─────────────────────────
     Item {
@@ -235,7 +297,7 @@ PanelWindow {
             id: ticks
             anchors.fill: parent
             // marcações: devagar no normal, rápidas no scan/recalibração
-            NumberAnimation on rotation { from: 0; to: 360; duration: Colors.mode ? 4000 : 90000; loops: Animation.Infinite; running: live.visible }
+            NumberAnimation on rotation { from: 0; to: 360; duration: Colors.mode ? 4000 : 90000; loops: Animation.Infinite; running: live.animating }
             Repeater {
                 model: 36
                 Rectangle {
@@ -270,7 +332,7 @@ PanelWindow {
                 }
                 QtObject { id: breath; property real v: 0.5 }
                 SequentialAnimation {
-                    running: live.visible; loops: Animation.Infinite
+                    running: live.animating; loops: Animation.Infinite
                     NumberAnimation { target: breath; property: "v"; to: 0.95; duration: 2200; easing.type: Easing.InOutSine }
                     NumberAnimation { target: breath; property: "v"; to: 0.35; duration: 2200; easing.type: Easing.InOutSine }
                 }
@@ -375,4 +437,7 @@ PanelWindow {
             }
         }
     }
+
+    // a metade da frente das órbitas da cena passa na frente do Omnitrix: a AsciiScene pendura a camada aqui
+    Item { id: frontHost; anchors.fill: parent }
 }

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Azmuth · Fundos v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--p:#38bdf8}
+*{box-sizing:border-box;margin:0}
+body{background:#05070c;color:#e2e8f5;font-family:Rajdhani,sans-serif;display:flex;flex-direction:column;align-items:center;gap:14px;padding:16px}
+h1{font:700 18px Orbitron;letter-spacing:3px;color:var(--p)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.opt{background:#131c2e;border:1px solid #38bdf833;border-radius:12px;padding:8px 14px;cursor:pointer;font-weight:600;font-size:15px;user-select:none}
+.opt.on{background:var(--p);color:#0b0f19;border-color:var(--p)}
+.desc{max-width:1000px;text-align:center;font-size:15px;opacity:.75;min-height:42px}
+.stage{width:min(1500px,100%);aspect-ratio:16/9;position:relative;overflow:hidden;border-radius:14px;box-shadow:0 0 0 1px #38bdf822,0 30px 80px #000a;background:#0b0f19}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+.win{position:absolute;left:6%;top:10%;width:46%;height:70%;border-radius:12px;background:#111827f2;border:2px solid #38bdf855;display:none}
+.win .tb{height:6%;background:#1f2937;border-radius:10px 10px 0 0}
+.showwin .win{display:block}
+.island{position:absolute;left:50%;top:-1.7%;transform:translateX(-50%);width:3.4%;aspect-ratio:1;border-radius:50%;background:#0b0f19;border:3px solid var(--p);box-shadow:0 0 18px var(--p)}
+.handle{position:absolute;left:50%;bottom:1%;transform:translateX(-50%);display:flex;gap:5px}
+.handle b{width:22px;height:4px;border-radius:2px;background:var(--p);opacity:.7}
+</style>
+</head>
+<body>
+<h1>AZMUTH · FUNDOS · RODADA 2 (inspirada no teu Pinterest)</h1>
+<div class="bar" id="kinds"></div>
+<div class="bar">
+  <div class="opt on" id="cNeutral">Neutral (azul · Arch no centro)</div><div class="opt" id="cMassa">Massa Cinzenta (verde · ampulheta)</div>
+  <div class="opt" id="tWin">Mostrar uma janela aberta</div>
+</div>
+<p class="desc" id="desc"></p>
+<div class="stage" id="stage">
+  <canvas id="c"></canvas>
+  <div class="win"><div class="tb"></div></div>
+  <div class="island"></div>
+  <div class="handle"><b></b><b></b><b></b></div>
+</div>
+<script>
+const KINDS = [
+  ["poster","1 · Pôster Omnitrix","Formas chapadas do relógio clássico ocupando a tela: o losango na cor do DNA, as placas laterais escuras e as listras do pulso. O Omnitrix vivo fica encaixado no losango. Silhuetas dos aliens bem apagadas no fundo."],
+  ["ascii","2 · ASCII / DedSec","A tela inteira feita de caracteres e runas Galvan: o claro/escuro vira um degradê de símbolos, com uma silhueta de alien e cortes de glitch que correm de vez em quando. Preto e branco + a cor do DNA."],
+  ["quadrinho","3 · Quadrinho","Um quadro de transformação: retícula de pontos (halftone), linhas de ação explodindo do Omnitrix central, contorno de nanquim. Cor do DNA + preto."],
+];
+let kind = "poster", color = "#38bdf8", neutral = true;
+const kinds = document.getElementById('kinds');
+KINDS.forEach(([id,label]) => { const d = document.createElement('div'); d.className = 'opt' + (id === kind ? ' on' : ''); d.textContent = label; d.dataset.k = id;
+  d.onclick = () => { kind = id; [...kinds.children].forEach(x => x.classList.toggle('on', x.dataset.k === id)); desc(); }; kinds.appendChild(d); });
+const desc = () => document.getElementById('desc').textContent = KINDS.find(k => k[0] === kind)[2]; desc();
+const setColor = (c, n, el) => { color = c; neutral = n; document.documentElement.style.setProperty('--p', c); ['cNeutral','cMassa'].forEach(i => document.getElementById(i).classList.remove('on')); el.classList.add('on'); };
+document.getElementById('cNeutral').onclick = e => setColor('#38bdf8', true, e.target);
+document.getElementById('cMassa').onclick = e => setColor('#4ade80', false, e.target);
+document.getElementById('tWin').onclick = e => { e.target.classList.toggle('on'); document.getElementById('stage').classList.toggle('showwin'); };
+
+const cv = document.getElementById('c'), g = cv.getContext('2d');
+let W, H, D;
+const fit = () => { const r = cv.getBoundingClientRect(); D = devicePixelRatio; W = cv.width = r.width * D; H = cv.height = r.height * D; };
+addEventListener('resize', fit); fit();
+const rgb = () => { const h = color.slice(1); return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; };
+const rgba = a => `rgba(${rgb().join(',')},${a})`;
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+// ── o Omnitrix vivo do centro (como o LiveDesktop: aro com marcações + Arch no Neutral / ampulheta no DNA)
+function liveOmni(t) {
+  const cx = W / 2, cy = H / 2, R = H * .27;
+  g.save(); g.translate(cx, cy);
+  g.fillStyle = '#0c0f14'; g.beginPath(); g.arc(0, 0, R * 1.04, 0, 6.28); g.fill();
+  g.strokeStyle = color; g.lineWidth = 5 * D; g.shadowColor = color; g.shadowBlur = 18 * D; g.beginPath(); g.arc(0, 0, R, 0, 6.28); g.stroke(); g.shadowBlur = 0;
+  g.strokeStyle = '#2a2f37'; g.lineWidth = R * .14; g.beginPath(); g.arc(0, 0, R * .86, 0, 6.28); g.stroke();
+  for (let i = 0; i < 60; i++) { const a = i / 60 * 6.28 + t * .05; g.strokeStyle = i % 5 ? rgba(.35) : color; g.lineWidth = (i % 5 ? 1.5 : 3) * D;
+    g.beginPath(); g.moveTo(Math.cos(a) * R * .8, Math.sin(a) * R * .8); g.lineTo(Math.cos(a) * R * (i % 5 ? .84 : .9), Math.sin(a) * R * (i % 5 ? .84 : .9)); g.stroke(); }
+  g.fillStyle = '#05070a'; g.beginPath(); g.arc(0, 0, R * .7, 0, 6.28); g.fill();
+  g.strokeStyle = color; g.lineWidth = 4 * D; g.beginPath(); g.arc(0, 0, R * .7, 0, 6.28); g.stroke();
+  g.fillStyle = color; g.shadowColor = color; g.shadowBlur = 24 * D;
+  if (neutral) {   // logo do Arch
+    const s = R * .55; g.beginPath(); g.moveTo(0, -s * .62); g.lineTo(s * .52, s * .5); g.quadraticCurveTo(s * .2, s * .28, 0, s * .26);
+    g.quadraticCurveTo(-s * .2, s * .28, -s * .52, s * .5); g.closePath(); g.fill();
+    g.fillStyle = '#05070a'; g.shadowBlur = 0; g.beginPath(); g.ellipse(0, s * .32, s * .1, s * .14, 0, 0, 6.28); g.fill();
+  } else {
+    const w = R * .34, h = R * .44; g.beginPath(); g.moveTo(-w, -h); g.lineTo(w, -h); g.lineTo(0, 0); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(-w, h); g.lineTo(w, h); g.lineTo(0, 0); g.closePath(); g.fill();
+  }
+  g.restore();
+}
+
+// silhueta simples de alien (cabeça + ombros), para ascii/pôster
+function alienPath(x, y, s) {
+  g.beginPath(); g.ellipse(x, y - s * .55, s * .26, s * .32, 0, 0, 6.28);
+  g.moveTo(x - s * .62, y + s * .7); g.quadraticCurveTo(x - s * .5, y - s * .05, x, y - s * .15); g.quadraticCurveTo(x + s * .5, y - s * .05, x + s * .62, y + s * .7); g.closePath();
+}
+
+// ── 1 pôster
+function poster(t) {
+  g.fillStyle = '#16191f'; g.fillRect(0, 0, W, H);
+  const cx = W / 2, cy = H / 2;
+  // listras do pulso (faixas diagonais escuras)
+  g.save(); g.translate(cx, cy); g.rotate(-.35);
+  for (let i = -14; i <= 14; i++) { g.fillStyle = i % 2 ? '#1d2129' : '#121419'; g.fillRect(i * W * .045, -H * 1.2, W * .045, H * 2.4); }
+  g.restore();
+  // placas laterais escuras (as "asas" do Omnitrix)
+  g.fillStyle = '#0a0b0e';
+  [[-1], [1]].forEach(([s]) => { g.beginPath(); g.moveTo(cx + s * W * .5, cy - H * .5); g.lineTo(cx + s * W * .17, cy - H * .5); g.lineTo(cx + s * W * .3, cy);
+    g.lineTo(cx + s * W * .17, cy + H * .5); g.lineTo(cx + s * W * .5, cy + H * .5); g.closePath(); g.fill(); });
+  // losango na cor do DNA
+  g.fillStyle = color; g.beginPath(); g.moveTo(cx, cy - H * .5); g.lineTo(cx + W * .3, cy); g.lineTo(cx, cy + H * .5); g.lineTo(cx - W * .3, cy); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(0,0,0,.22)'; g.beginPath(); g.moveTo(cx, cy - H * .5); g.lineTo(cx + W * .3, cy); g.lineTo(cx, cy); g.closePath(); g.fill();
+  // silhuetas de aliens apagadas nas placas
+  g.fillStyle = 'rgba(255,255,255,.04)';
+  [[.09, .3], [.91, .35], [.1, .78], [.9, .8]].forEach(([x, y], i) => { alienPath(W * x, H * y, H * (.16 + (i % 2) * .04)); g.fill(); });
+  // brilho fino nas bordas do losango
+  g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 2 * D; g.beginPath(); g.moveTo(cx, cy - H * .5); g.lineTo(cx - W * .3, cy); g.lineTo(cx, cy + H * .5); g.stroke();
+  liveOmni(t);
+}
+
+// ── 2 ascii / dedsec
+const CH = " .:-=+*#%@";
+const RUNES = "{}[]<>/\\|$";   // destaques na cor do DNA (símbolos que toda fonte mono tem)
+let glitch = [];
+const off = document.createElement('canvas'); let offT = -1;
+function ascii(t) {
+  // o mural de caracteres é pesado: redesenha ~8x por segundo numa camada guardada
+  if (off.width !== W || off.height !== H) { off.width = W; off.height = H; offT = -1; }
+  if (t - offT > .12) { offT = t; asciiLayer(off.getContext('2d'), t); }
+  g.drawImage(off, 0, 0);
+  liveOmni(t);
+}
+function asciiLayer(g, t) {
+  g.fillStyle = '#050607'; g.fillRect(0, 0, W, H);
+  const cell = 15 * D, cols = Math.ceil(W / (cell * .62)), rows = Math.ceil(H / cell);
+  g.font = `700 ${cell}px monospace`; g.textBaseline = 'top';
+  const cx = W / 2, cy = H / 2, sx = W * .78, sy = H * .55;
+  if (Math.random() < .03) glitch.push({y: Math.floor(Math.random() * rows), h: 1 + Math.floor(Math.random() * 4), dx: (Math.random() - .5) * 60 * D, life: 8});
+  glitch = glitch.filter(gl => --gl.life > 0);
+  for (let r = 0; r < rows; r++) {
+    const gl = glitch.find(q => r >= q.y && r < q.y + q.h);
+    for (let c = 0; c < cols; c++) {
+      const x = c * cell * .62, y = r * cell;
+      // luz: radial a partir do centro + silhueta de alien à direita
+      const d = Math.hypot((x - cx) / W, (y - cy) / H);
+      let v = Math.max(0, .85 - d * 1.7);
+      const ax = (x - sx) / H, ay = (y - sy) / H;
+      if ((ax * ax) / .02 + ((ay + .12) ** 2) / .035 < 1 || (ay > 0 && ay < .45 && Math.abs(ax) < .1 + ay * .55)) v = Math.max(v, .55);
+      v += Math.sin(x * .01 + t * 1.3) * Math.sin(y * .013 - t * .7) * .12;
+      if (v < .08) continue;
+      const k = Math.min(CH.length - 1, Math.floor(v * CH.length));
+      const rune = (c * 7 + r * 13 + Math.floor(t * 2)) % 97 === 0;
+      g.fillStyle = rune ? color : (gl ? rgba(.9) : `rgba(${200 + v * 55},${200 + v * 55},${200 + v * 55},${.12 + v * .55})`);
+      g.fillText(rune ? RUNES[(c + r) % RUNES.length] : CH[k], x + (gl ? gl.dx : 0), y);
+    }
+  }
+}
+
+// ── 3 quadrinho
+function quadrinho(t) {
+  g.fillStyle = '#0d0f13'; g.fillRect(0, 0, W, H);
+  const cx = W / 2, cy = H / 2;
+  // linhas de ação
+  const n = 64;
+  for (let i = 0; i < n; i++) {
+    const a = i / n * 6.28 + Math.sin(i * 3.1) * .03, w = .012 + (i % 3) * .008, pulse = .5 + .5 * Math.sin(t * 2 + i);
+    g.fillStyle = i % 2 ? rgba(.10 + pulse * .12) : 'rgba(255,255,255,.035)';
+    g.beginPath(); g.moveTo(cx + Math.cos(a) * H * .3, cy + Math.sin(a) * H * .3);
+    g.lineTo(cx + Math.cos(a - w) * W, cy + Math.sin(a - w) * W); g.lineTo(cx + Math.cos(a + w) * W, cy + Math.sin(a + w) * W); g.closePath(); g.fill();
+  }
+  // retícula (halftone) clareando para o centro
+  const step = 16 * D;
+  for (let y = step / 2; y < H; y += step) for (let x = step / 2 + ((y / step) % 2) * step / 2; x < W; x += step) {
+    const d = Math.hypot((x - cx) / W, (y - cy) / H), r = Math.max(0, (d - .18) * step * .9);
+    if (r < .4) continue;
+    g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.arc(x, y, Math.min(step * .46, r), 0, 6.28); g.fill();
+  }
+  // contorno de nanquim (moldura)
+  g.strokeStyle = '#000'; g.lineWidth = 10 * D; g.strokeRect(14 * D, 14 * D, W - 28 * D, H - 28 * D);
+  // onomatopeia discreta
+  g.save(); g.translate(W * .83, H * .2); g.rotate(-.18); g.font = `900 ${H * .09}px Orbitron`; g.textAlign = 'center';
+  g.lineWidth = 8 * D; g.strokeStyle = '#000'; g.strokeText('FLASH!', 0, 0); g.fillStyle = rgba(.9); g.fillText('FLASH!', 0, 0); g.restore();
+  liveOmni(t);
+}
+
+const DRAW = {poster, ascii, quadrinho};
+function frame(ms) { g.setLineDash([]); g.globalAlpha = 1; g.shadowBlur = 0; DRAW[kind](ms / 1000); requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+const q = new URLSearchParams(location.search); if (q.get('k')) [...kinds.children].find(x => x.dataset.k === q.get('k'))?.click();
+if (q.get('massa')) document.getElementById('cMassa').click();
+</script>
+</body>
+</html>
