@@ -109,7 +109,7 @@ class MapTests(VaultCase):
         self.put("Rice-Azmuth/Atalhos.md", note(resumo="Atalhos"))
         m = brain.build_map(self.vault, max_chars=800)
         self.assertLessEqual(len(m), 800)
-        self.assertIn("Pessoas/Amigos/ (60 notas)", m)
+        self.assertIn("Pessoas/Amigos/ (60 notas", m)
         self.assertIn("Rice-Azmuth/Atalhos — Atalhos", m)
 
     def test_write_map_is_idempotent(self):
@@ -407,6 +407,41 @@ class UncategorizedTests(CliTests):
         self.assertFalse(any("fulano" in o["desc"].lower() for o in brain.uncategorized(self.vault, self.inbox)))
         self.assertFalse(self.run_cli("regra", "", "Alimentação")[1]["ok"])
         self.assertFalse(self.run_cli("regra", "x", "Cat|egoria")[1]["ok"])
+
+
+class SearchAndHubTests(CliTests):
+    def test_search_finds_open_notes_by_name_or_content_ignoring_accents(self):
+        self.put("Pessoas/Amigos/Thiago Akira.md", note(resumo="Amigo; Scrum Master do squad SES"))
+        self.put("Pessoas/Colegas/Kássio Sousa.md", note(resumo="Professor", body="Fundador da OPS Game Studio."))
+        self.put("Finanças/Segredo Akira.md", note("financas", "Akira pagou"))
+        names = [r["path"] for r in brain.search_notes("akira")]
+        self.assertEqual(names, ["Pessoas/Amigos/Thiago Akira.md"])            # nunca restritas
+        self.assertEqual([r["path"] for r in brain.search_notes("kassio")], ["Pessoas/Colegas/Kássio Sousa.md"])
+        self.assertEqual([r["path"] for r in brain.search_notes("ops game")], ["Pessoas/Colegas/Kássio Sousa.md"])
+        self.assertEqual(brain.search_notes("  "), [])
+
+    def test_search_ranks_title_hits_first_and_limits(self):
+        for i in range(30):
+            self.put(f"Vida/N{i:02d}.md", note(resumo="fala do projeto azmuth"))
+        self.put("Rice-Azmuth/Azmuth.md", note(resumo="hub"))
+        out = brain.search_notes("azmuth", limit=5)
+        self.assertEqual(len(out), 5)
+        self.assertEqual(out[0]["path"], "Rice-Azmuth/Azmuth.md")
+
+    def test_cli_search(self):
+        self.put("Pessoas/Amigos/Bruno.md", note(resumo="Amigo"))
+        code, out = self.run_cli("search", "bruno")
+        self.assertTrue(out["ok"])
+        self.assertEqual(out["results"][0]["path"], "Pessoas/Amigos/Bruno.md")
+
+    def test_collapsed_folder_keeps_its_hub_visible(self):
+        for i in range(60):
+            self.put(f"Pessoas/Colegas/Colega{i:02d}.md", note(resumo="Colega da faculdade " * 3))
+        self.put("Pessoas/Colegas/Colegas.md", "---\nresumo: Índice de todos os colegas\nacesso: aberto\nhub: true\n---\nx")
+        m = brain.build_map(self.vault, max_chars=900)
+        self.assertIn("Pessoas/Colegas/ (61 notas", m)
+        self.assertIn("Pessoas/Colegas/Colegas — Índice de todos os colegas", m)
+        self.assertIn("search_notes", m)
 
 
 if __name__ == "__main__":

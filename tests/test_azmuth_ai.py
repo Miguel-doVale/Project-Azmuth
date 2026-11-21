@@ -216,6 +216,16 @@ class RestrictedReportTests(unittest.TestCase):
         self.assertGreaterEqual(int(cmd[cmd.index("--max-turns") + 1]), 10)
 
 
+class SearchActionTests(unittest.TestCase):
+    def test_search_notes_maps_to_cerebro_cli_only_for_claude(self):
+        self.assertEqual(ai.action_argv({"command": "search_notes", "query": "akira"}, allow_brain=True),
+                         ["cerebro", "search", "akira"])
+        with self.assertRaises(ai.ActionError):
+            ai.action_argv({"command": "search_notes", "query": "akira"})
+        with patch.object(ai, "available_dna_ids", return_value=["neutral"]):
+            self.assertIn("search_notes", ai.claude_system_prompt())
+
+
 if __name__ == "__main__":
     unittest.main()
 

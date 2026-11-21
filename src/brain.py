@@ -135,7 +135,7 @@ def read_note(rel: str, mode: str = "normal") -> dict:
 
 
 MAP_NAME = "00-Mapa.md"
-MAP_HEADER = "# Mapa do cérebro (só notas abertas; abra com read_note)\n"
+MAP_HEADER = "# Mapa do cérebro (só notas abertas; abra com read_note; procure com search_notes)\n"
 
 
 def _notes(vault: Path):
@@ -149,25 +149,27 @@ def _notes(vault: Path):
         yield p, rel
 
 
-def build_map(vault: Path | None = None, max_chars: int = 6000) -> str:
+def build_map(vault: Path | None = None, max_chars: int = 12000) -> str:
     """Uma linha por nota aberta; passou do teto, pastas viram "Pasta/ (N notas)", das maiores primeiro."""
     vault = vault or vault_path()
-    entries = []   # (pasta, linha)
+    entries = []   # (pasta, linha, é_hub)
     for p, rel in _notes(vault):
         if effective_access(vault, p) != "aberto":
             continue
         meta, _ = parse_note(p.read_text(encoding="utf-8", errors="replace"))
         name = rel.with_suffix("").as_posix()
         summary = " ".join(str(meta.get("resumo", "")).split())[:160]
-        entries.append((rel.parent.as_posix(), f"- {name} — {summary}" if summary else f"- {name}"))
+        is_hub = str(meta.get("hub", "")).strip().lower() in ("true", "sim", "yes")
+        entries.append((rel.parent.as_posix(), f"- {name} — {summary}" if summary else f"- {name}", is_hub))
 
     def render(collapsed: set) -> str:
         lines, done = [], set()
-        for folder, line in entries:
+        for folder, line, is_hub in entries:
             if folder in collapsed:
                 if folder not in done:
-                    count = sum(1 for f, _ in entries if f == folder)
-                    lines.append(f"- {folder}/ ({count} notas)")
+                    count = sum(1 for f, _, _ in entries if f == folder)
+                    lines.append(f"- {folder}/ ({count} notas; abra o índice abaixo ou use search_notes)")
+                    lines += [l for f, l, h in entries if f == folder and h]   # o hub da pasta continua visível
                     done.add(folder)
             else:
                 lines.append(line)
@@ -176,7 +178,7 @@ def build_map(vault: Path | None = None, max_chars: int = 6000) -> str:
     collapsed: set = set()
     text = render(collapsed)
     sizes = {}
-    for folder, line in entries:
+    for folder, line, _ in entries:
         sizes[folder] = sizes.get(folder, 0) + len(line) + 1
     for folder in sorted(sizes, key=lambda f: -sizes[f]):
         if len(text) <= max_chars:
@@ -184,6 +186,24 @@ def build_map(vault: Path | None = None, max_chars: int = 6000) -> str:
         collapsed.add(folder)
         text = render(collapsed)
     return text if len(text) <= max_chars else text[:max_chars - 2].rsplit("\n", 1)[0] + "\n…"
+
+
+def search_notes(query: str, limit: int = 15, vault: Path | None = None) -> list[dict]:
+    """Busca nas notas ABERTAS por nome, resumo e conteúdo (sem acento/caixa). Título vem primeiro."""
+    vault = vault or vault_path()
+    q = _plain(query or "").strip()
+    if not q:
+        return []
+    hits = []
+    for p, rel in _notes(vault):
+        if effective_access(vault, p) != "aberto":
+            continue
+        meta, body = parse_note(p.read_text(encoding="utf-8", errors="replace"))
+        title, resumo = _plain(rel.stem), _plain(str(meta.get("resumo", "")))
+        score = 3 if q in title else 2 if q in resumo else 1 if q in _plain(body) else 0
+        if score:
+            hits.append((-score, rel.as_posix(), str(meta.get("resumo", ""))[:160]))
+    return [{"path": path, "resumo": resumo} for _, path, resumo in sorted(hits)[:limit]]
 
 
 def write_map(vault: Path | None = None) -> Path:
@@ -486,6 +506,8 @@ def cli(args: list[str]) -> None:
         if cmd == "check":
             bad = placement_errors()
             return _emit({"ok": not bad, "misplaced": bad}, fail=bool(bad))
+        if cmd == "search" and len(args) >= 2:
+            return _emit({"ok": True, "results": search_notes(" ".join(args[1:]))})
         if cmd == "read" and len(args) == 2:
             return _emit({"ok": True, **read_note(args[1])})
         if cmd == "write" and len(args) == 3:
